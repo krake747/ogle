@@ -1,0 +1,40 @@
+#!/bin/bash
+echo "⚙️   Started pre-commit checks..."
+
+# Generate NOTICE file with dependency licenses
+echo "📄  Generating NOTICE file..."
+
+# Check if go-licenses is installed
+if ! command -v go-licenses >/dev/null 2>&1; then
+    echo "❌  Error: go-licenses not installed."
+    echo "    Install with: go install github.com/google/go-licenses/v2@latest"
+    exit 1
+fi
+
+# Check if template file exists
+if [ ! -f "notice.tpl" ]; then
+    echo "❌  Error: notice.tpl template file not found."
+    exit 1
+fi
+
+# Generate NOTICE file (replaces existing if present)
+if go-licenses report . --template=notice.tpl --include_tests > NOTICE.tmp 2> /dev/null; then
+    # Replace NOTICE file
+    mv NOTICE.tmp NOTICE
+    
+    # Stage NOTICE for commit
+    git add NOTICE
+    
+    echo "✅  NOTICE file updated and staged"
+else
+    echo "❌  Failed to generate NOTICE file"
+    cat << 'HELP'
+    
+    Common issues:
+    - Ensure you're in the project root directory
+    - Check that go.mod exists and is valid
+    - Run 'go mod download' if modules are missing
+HELP
+    rm -f NOTICE.tmp
+    exit 1
+fi

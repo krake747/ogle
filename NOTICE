@@ -5,14 +5,8 @@ This file lists the third-party dependencies used by meta1v and their licenses.
 --------------------------------------------------------------------------------
 Package: github.com/ma-tf/ogle
 Version: Unknown
-License: Unknown
-License URL: Unknown
-
---------------------------------------------------------------------------------
-Package: github.com/ma-tf/ogle/cmd
-Version: Unknown
-License: Unknown
-License URL: Unknown
+License: AGPL-3.0
+License URL: https://github.com/ma-tf/ogle/blob/HEAD/COPYING
 
 --------------------------------------------------------------------------------
 Package: github.com/spf13/cobra
