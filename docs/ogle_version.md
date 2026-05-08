@@ -19,7 +19,8 @@ ogle version [flags]
 ### Options inherited from parent commands
 
 ```
-      --config string   config file (default is $HOME/.ogle/config)
+      --config string         config file (default is $HOME/.ogle/config)
+  -f, --project-file string   path to docker compose file (default is ./docker-compose.yml)
 ```
 
 ### SEE ALSO

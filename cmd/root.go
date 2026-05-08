@@ -17,7 +17,8 @@ import (
 
 // Config holds the application configuration loaded from file, environment, or flags.
 type Config struct {
-	Log struct {
+	ProjectFile string `mapstructure:"project-file"`
+	Log         struct {
 		Level string `mapstructure:"level"`
 	} `mapstructure:"log"`
 	Timeout time.Duration `mapstructure:"timeout"`
@@ -109,6 +110,9 @@ func init() {
 	rootCmd.PersistentFlags().
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
 
+	rootCmd.PersistentFlags().
+		StringVarP(&config.ProjectFile, "project-file", "f", "", "path to docker compose file (default is ./docker-compose.yml)")
+
 	rootCmd.AddCommand(newVersionCommand())
 }
 
@@ -123,8 +127,9 @@ func initialiseConfig(cmd *cobra.Command) error {
 	} else {
 		// Search for a config file in default locations.
 		home, err := os.UserHomeDir()
-		// Only panic if we can't get the home directory.
-		cobra.CheckErr(err)
+		if err != nil {
+			return fmt.Errorf("get home directory: %w", err)
+		}
 
 		// Search config in home directory with name "config" (without extension).
 		viper.AddConfigPath(".")
@@ -140,12 +145,15 @@ func initialiseConfig(cmd *cobra.Command) error {
 		}
 	}
 
-	err := viper.BindPFlags(cmd.Flags())
-	if err != nil {
+	if err := viper.BindPFlags(cmd.Flags()); err != nil {
 		return fmt.Errorf("failed to bind config flags: %w", err)
 	}
 
-	if err = viper.Unmarshal(&config); err != nil {
+	if err := viper.BindPFlags(cmd.InheritedFlags()); err != nil {
+		return fmt.Errorf("failed to bind inherited config flags: %w", err)
+	}
+
+	if err := viper.Unmarshal(&config); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
