@@ -16,6 +16,12 @@ ogle version [flags]
   -h, --help   help for version
 ```
 
+### Options inherited from parent commands
+
+```
+      --config string   config file (default is $HOME/.ogle/config)
+```
+
 ### SEE ALSO
 
 * [ogle](ogle.md)	 - A brief description of your application

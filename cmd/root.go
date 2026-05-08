@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -98,15 +99,16 @@ func Execute(version, commit, date string) {
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	handler := tint.NewHandler(os.Stderr, &tint.Options{
+		Level: logLevel,
+	})
+	logger = slog.New(handler)
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle.yaml)")
+	const defaultTimeout = 3 * time.Minute
+	viper.SetDefault("timeout", defaultTimeout)
 
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.PersistentFlags().
+		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
 
 	rootCmd.AddCommand(newVersionCommand())
 }

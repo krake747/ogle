@@ -3,6 +3,7 @@ module github.com/ma-tf/ogle
 go 1.26.1
 
 require (
+	github.com/lmittmann/tint v1.1.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 )

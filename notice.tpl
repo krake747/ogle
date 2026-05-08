@@ -1,6 +1,6 @@
 NOTICE - Third Party Dependencies
 
-This file lists the third-party dependencies used by meta1v and their licenses.
+This file lists the third-party dependencies used by ogle and their licenses.
 
 {{ range . -}}
 --------------------------------------------------------------------------------

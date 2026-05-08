@@ -12,7 +12,7 @@ coverage:
 
 .PHONY: build
 build:
-	go build -o ./bin/meta1v .
+	go build -o ./bin/ogle .
 
 .PHONY: tidy
 tidy:

@@ -14,8 +14,8 @@ to quickly create a Cobra application.
 ### Options
 
 ```
-  -h, --help     help for ogle
-  -t, --toggle   Help message for toggle
+      --config string   config file (default is $HOME/.ogle/config)
+  -h, --help            help for ogle
 ```
 
 ### SEE ALSO
