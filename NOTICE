@@ -1,0 +1,29 @@
+NOTICE - Third Party Dependencies
+
+This file lists the third-party dependencies used by meta1v and their licenses.
+
+--------------------------------------------------------------------------------
+Package: github.com/ma-tf/ogle
+Version: Unknown
+License: Unknown
+License URL: Unknown
+
+--------------------------------------------------------------------------------
+Package: github.com/ma-tf/ogle/cmd
+Version: Unknown
+License: Unknown
+License URL: Unknown
+
+--------------------------------------------------------------------------------
+Package: github.com/spf13/cobra
+Version: v1.10.2
+License: Apache-2.0
+License URL: https://github.com/spf13/cobra/blob/v1.10.2/LICENSE.txt
+
+--------------------------------------------------------------------------------
+Package: github.com/spf13/pflag
+Version: v1.0.9
+License: BSD-3-Clause
+License URL: https://github.com/spf13/pflag/blob/v1.0.9/LICENSE
+
+
