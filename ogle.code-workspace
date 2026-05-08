@@ -15,21 +15,15 @@
 		]
 	},
 	"settings": {
-		"files.associations": {
-			"*.tpl": "go-template"
-		},
 		"[go]": {
 			"editor.formatOnSave": true,
 			"editor.codeActionsOnSave": {
 				"source.organizeImports": "always"
 			}
 		},
-		"go.lintTool": "golangci-lint",
-		"go.lintOnSave": "package",
-		"go.lintFlags": ["--fix"],
 		"[yaml]": {
 			"editor.formatOnSave": true,
-			"editor.defaultFormatter": "redhat.vscode-yaml"
+			"editor.defaultFormatter": "redhat.vscode-yaml",
 		},
 		"[markdown]": {
 			"editor.formatOnSave": true,
@@ -54,6 +48,6 @@
 		"[makefile]": {
 			"editor.insertSpaces": false,
 			"editor.tabSize": 4
-		}
+		},
 	}
 }

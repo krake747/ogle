@@ -10,23 +10,15 @@ import (
 	"time"
 
 	"github.com/lmittmann/tint"
+	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// Config holds the application configuration loaded from file, environment, or flags.
-type Config struct {
-	ProjectFile string `mapstructure:"project-file"`
-	Log         struct {
-		Level string `mapstructure:"level"`
-	} `mapstructure:"log"`
-	Timeout time.Duration `mapstructure:"timeout"`
-}
-
 var (
 	cfgFile       string
-	config        Config
+	cfg           config.Config
 	logger        *slog.Logger
 	logLevel      = new(slog.LevelVar)
 	cancelTimeout context.CancelFunc
@@ -44,7 +36,7 @@ var (
 
 			level := slog.LevelWarn
 
-			switch strings.ToLower(config.Log.Level) {
+			switch strings.ToLower(cfg.Log.Level) {
 			case "debug":
 				level = slog.LevelDebug
 			case "info":
@@ -64,7 +56,7 @@ var (
 				slog.String("cfgFile", viper.ConfigFileUsed()),
 			)
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), config.Timeout)
+			ctx, cancel := context.WithTimeout(cmd.Context(), cfg.Timeout)
 			cancelTimeout = cancel
 
 			cmd.SetContext(ctx)
@@ -72,7 +64,9 @@ var (
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			_, err := internal.Start().Run()
+			program := internal.Start()
+
+			_, err := program.Run()
 			return err
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
@@ -111,7 +105,7 @@ func init() {
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
 
 	rootCmd.PersistentFlags().
-		StringVarP(&config.ProjectFile, "project-file", "f", "", "path to docker compose file (default is ./docker-compose.yml)")
+		StringVarP(&cfg.ProjectFile, "project-file", "f", "", "path to docker compose file (default is ./docker-compose.yml)")
 
 	rootCmd.AddCommand(newVersionCommand())
 }
@@ -153,7 +147,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to bind inherited config flags: %w", err)
 	}
 
-	if err := viper.Unmarshal(&config); err != nil {
+	if err := viper.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
