@@ -1,5 +1,5 @@
 .PHONY: all
-all: tidy fix build test notice
+all: tidy fix build test docs man notice
 
 .PHONY: test
 test:
@@ -43,6 +43,19 @@ clean:
 update:
 	go get -u ./...
 	go mod tidy
+
+.PHONY: docs
+docs:
+	@echo "Generating CLI documentation..."
+	@go run internal/tools/docgen/main.go --out ./docs --format markdown
+	@echo "CLI documentation generated in ./docs"
+
+.PHONY: man
+man:
+	@echo "Generating man pages..."
+	@go run internal/tools/docgen/main.go --out ./man --format man
+	@echo "Man pages generated in ./man"
+
 
 .PHONY: notice
 notice:
