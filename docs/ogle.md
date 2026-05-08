@@ -18,3 +18,7 @@ to quickly create a Cobra application.
   -t, --toggle   Help message for toggle
 ```
 
+### SEE ALSO
+
+* [ogle version](ogle_version.md)	 - Print version information
+

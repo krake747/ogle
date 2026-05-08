@@ -3,10 +3,52 @@ NOTICE - Third Party Dependencies
 This file lists the third-party dependencies used by meta1v and their licenses.
 
 --------------------------------------------------------------------------------
+Package: github.com/fsnotify/fsnotify
+Version: v1.9.0
+License: BSD-3-Clause
+License URL: https://github.com/fsnotify/fsnotify/blob/v1.9.0/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/go-viper/mapstructure/v2
+Version: v2.4.0
+License: MIT
+License URL: https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE
+
+--------------------------------------------------------------------------------
 Package: github.com/ma-tf/ogle
 Version: Unknown
 License: AGPL-3.0
 License URL: https://github.com/ma-tf/ogle/blob/HEAD/COPYING
+
+--------------------------------------------------------------------------------
+Package: github.com/pelletier/go-toml/v2
+Version: v2.2.4
+License: MIT
+License URL: https://github.com/pelletier/go-toml/blob/v2.2.4/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/sagikazarmark/locafero
+Version: v0.11.0
+License: MIT
+License URL: https://github.com/sagikazarmark/locafero/blob/v0.11.0/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/sourcegraph/conc
+Version: v0.3.1-0.20240121214520-5f936abd7ae8
+License: MIT
+License URL: https://github.com/sourcegraph/conc/blob/5f936abd7ae8/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/spf13/afero
+Version: v1.15.0
+License: Apache-2.0
+License URL: https://github.com/spf13/afero/blob/v1.15.0/LICENSE.txt
+
+--------------------------------------------------------------------------------
+Package: github.com/spf13/cast
+Version: v1.10.0
+License: MIT
+License URL: https://github.com/spf13/cast/blob/v1.10.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/spf13/cobra
@@ -19,5 +61,35 @@ Package: github.com/spf13/pflag
 Version: v1.0.10
 License: BSD-3-Clause
 License URL: https://github.com/spf13/pflag/blob/v1.0.10/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/spf13/viper
+Version: v1.21.0
+License: MIT
+License URL: https://github.com/spf13/viper/blob/v1.21.0/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/subosito/gotenv
+Version: v1.6.0
+License: MIT
+License URL: https://github.com/subosito/gotenv/blob/v1.6.0/LICENSE
+
+--------------------------------------------------------------------------------
+Package: go.yaml.in/yaml/v3
+Version: v3.0.4
+License: MIT
+License URL: https://github.com/yaml/go-yaml/blob/v3.0.4/LICENSE
+
+--------------------------------------------------------------------------------
+Package: golang.org/x/sys/unix
+Version: v0.29.0
+License: BSD-3-Clause
+License URL: https://cs.opensource.google/go/x/sys/+/v0.29.0:LICENSE
+
+--------------------------------------------------------------------------------
+Package: golang.org/x/text
+Version: v0.28.0
+License: BSD-3-Clause
+License URL: https://cs.opensource.google/go/x/text/+/v0.28.0:LICENSE
 
 
