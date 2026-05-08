@@ -33,13 +33,7 @@ var (
 	buildDate     string
 	rootCmd       = &cobra.Command{
 		Use:   "ogle",
-		Short: "A brief description of your application",
-		Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+		Short: "A TUI for monitoring Docker Compose projects.",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			err := initialiseConfig(cmd)
 			if err != nil {
