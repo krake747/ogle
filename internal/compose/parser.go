@@ -87,7 +87,7 @@ func Parse(projectPath string) (*Project, error) {
 		return nil, fmt.Errorf("%w: %w", ErrParseComposeFile, err)
 	}
 
-	var name string = cf.Name
+	var name = cf.Name
 	if name == "" {
 		name = filepath.Base(filepath.Dir(path))
 	}
