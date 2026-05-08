@@ -2,6 +2,10 @@
 
 A TUI for monitoring Docker Compose projects.
 
+```
+ogle [flags]
+```
+
 ### Options
 
 ```
