@@ -11,7 +11,8 @@ import (
 
 	"github.com/lmittmann/tint"
 	"github.com/ma-tf/ogle/config"
-	"github.com/ma-tf/ogle/internal"
+	"github.com/ma-tf/ogle/internal/app"
+	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -63,8 +64,14 @@ var (
 
 			return nil
 		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			program := internal.Start()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			if cfg.ProjectFile != "" {
+				if err := validateProjectFile(cfg.ProjectFile); err != nil {
+					return err
+				}
+			}
+
+			program := app.Setup(cmd.Context(), cfg)
 
 			_, err := program.Run()
 			return err
@@ -105,7 +112,7 @@ func init() {
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
 
 	rootCmd.PersistentFlags().
-		StringVarP(&cfg.ProjectFile, "project-file", "f", "", "path to docker compose file (default is ./docker-compose.yml)")
+		StringVarP(&cfg.ProjectFile, "project-file", "f", "", "path to docker compose file")
 
 	rootCmd.AddCommand(newVersionCommand())
 }
@@ -149,6 +156,25 @@ func initialiseConfig(cmd *cobra.Command) error {
 
 	if err := viper.Unmarshal(&cfg); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return nil
+}
+
+// validateProjectFile checks that path is a valid, parseable compose file.
+// It is called only when the -f flag is explicitly provided.
+func validateProjectFile(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return fmt.Errorf("project file not found: %w", err)
+	}
+
+	if info.IsDir() {
+		return fmt.Errorf("project file %q is a directory, expected a compose file", path)
+	}
+
+	if err := compose.Validate(path); err != nil {
+		return fmt.Errorf("invalid compose file: %w", err)
 	}
 
 	return nil

@@ -4,6 +4,7 @@ go 1.26.1
 
 require (
 	charm.land/bubbletea/v2 v2.0.6
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/lmittmann/tint v1.1.3
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -22,7 +23,6 @@ require (
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect

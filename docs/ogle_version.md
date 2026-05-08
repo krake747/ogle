@@ -20,7 +20,7 @@ ogle version [flags]
 
 ```
       --config string         config file (default is $HOME/.ogle/config)
-  -f, --project-file string   path to docker compose file (default is ./docker-compose.yml)
+  -f, --project-file string   path to docker compose file
 ```
 
 ### SEE ALSO
