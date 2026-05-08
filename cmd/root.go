@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/lmittmann/tint"
+	"github.com/ma-tf/ogle/internal"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -68,6 +69,10 @@ var (
 			cmd.SetContext(ctx)
 
 			return nil
+		},
+		RunE: func(cmd *cobra.Command, args []string) error {
+			_, err := internal.Start().Run()
+			return err
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
 			if cancelTimeout != nil {
