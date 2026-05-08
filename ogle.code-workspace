@@ -1,0 +1,59 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"extensions": {
+		"recommendations": [
+			"golang.go",
+			"redhat.vscode-yaml",
+			"github.vscode-github-actions",
+			"davidanson.vscode-markdownlint",
+			"timonwong.shellcheck",
+			"foxundermoon.shell-format",
+		]
+	},
+	"settings": {
+		"files.associations": {
+			"*.tpl": "go-template"
+		},
+		"[go]": {
+			"editor.formatOnSave": true,
+			"editor.codeActionsOnSave": {
+				"source.organizeImports": "always"
+			}
+		},
+		"go.lintTool": "golangci-lint",
+		"go.lintOnSave": "package",
+		"go.lintFlags": ["--fix"],
+		"[yaml]": {
+			"editor.formatOnSave": true,
+			"editor.defaultFormatter": "redhat.vscode-yaml"
+		},
+		"[markdown]": {
+			"editor.formatOnSave": true,
+			"editor.defaultFormatter": "oxc.oxc-vscode"
+		},
+		"[json]": {
+			"editor.formatOnSave": true,
+			"editor.quickSuggestions": {
+				"strings": true
+			}
+		},
+		"[jsonc]": {
+			"editor.formatOnSave": true,
+			"editor.quickSuggestions": {
+				"strings": true
+			}
+		},
+		"[shellscript]": {
+			"editor.formatOnSave": true
+		},
+		"shellcheck.run": "onSave",
+		"[makefile]": {
+			"editor.insertSpaces": false,
+			"editor.tabSize": 4
+		}
+	}
+}
