@@ -1,0 +1,16 @@
+{
+	"[json]": {
+		"editor.quickSuggestions": {
+			"strings": true
+		},
+		"editor.suggest.insertMode": "replace",
+		"editor.formatOnSave": true,
+	},
+	"[markdown]": {
+		"editor.quickSuggestions": {
+			"strings": true
+		},
+		"editor.suggest.insertMode": "replace",
+		"editor.formatOnSave": true,
+	}
+}
