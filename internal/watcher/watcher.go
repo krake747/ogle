@@ -17,10 +17,25 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 )
 
-// Watcher monitors a directory for filesystem events on known compose
+// Watcher monitors a directory for filesystem changes and delivers
+// msgs.FileAvailabilityChanged snapshots to the Bubble Tea runtime.
+type Watcher interface {
+	// Dir returns the directory being monitored.
+	Dir() string
+	// Next returns a tea.Cmd that blocks until the next snapshot is ready.
+	// Re-call after each FileAvailabilityChanged to continue listening.
+	Next() tea.Cmd
+	// Snapshot returns a tea.Cmd that delivers the current filesystem state
+	// as a msgs.FileAvailabilityChanged without waiting for a change event.
+	Snapshot() tea.Cmd
+	// Close stops the background goroutine and releases resources.
+	Close() error
+}
+
+// fsWatcher monitors a directory for filesystem events on known compose
 // filenames and delivers msgs.FileAvailabilityChanged snapshots to the
 // Bubble Tea runtime.
-type Watcher struct {
+type fsWatcher struct {
 	fw     *fsnotify.Watcher
 	dir    string
 	logger *slog.Logger
@@ -30,26 +45,26 @@ type Watcher struct {
 }
 
 // New creates a Watcher that monitors dir and starts the background event
-// loop. Call Close when the watcher is no longer needed.
-func New(dir string, logger *slog.Logger) (*Watcher, error) {
+// loop. On failure, a NullWatcher is returned alongside the error so the
+// caller always receives a valid Watcher.
+func New(dir string, logger *slog.Logger) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
-		return nil, fmt.Errorf("create fsnotify watcher: %w", err)
+		return NewNull(), fmt.Errorf("create fsnotify watcher: %w", err)
 	}
 
 	if addErr := fw.Add(dir); addErr != nil {
 		closeErr := fw.Close()
 
-		return nil, fmt.Errorf("watch directory %s: %w", dir, errors.Join(addErr, closeErr))
+		return NewNull(), fmt.Errorf("watch directory %s: %w", dir, errors.Join(addErr, closeErr))
 	}
 
-	w := &Watcher{
+	w := &fsWatcher{
 		fw:     fw,
 		dir:    dir,
 		logger: logger,
 		events: make(chan tea.Msg, 1),
 		done:   make(chan struct{}),
-		once:   sync.Once{},
 	}
 
 	go w.run()
@@ -57,14 +72,14 @@ func New(dir string, logger *slog.Logger) (*Watcher, error) {
 	return w, nil
 }
 
-// Dir returns the directory this Watcher monitors.
-func (w *Watcher) Dir() string {
+// Dir returns the directory this fsWatcher monitors.
+func (w *fsWatcher) Dir() string {
 	return w.dir
 }
 
 // Close stops the background event loop and releases the underlying fsnotify
 // watcher. Safe to call more than once.
-func (w *Watcher) Close() error {
+func (w *fsWatcher) Close() error {
 	w.once.Do(func() {
 		close(w.done)
 	})
@@ -80,7 +95,7 @@ func (w *Watcher) Close() error {
 // ready and returns it as a msgs.FileAvailabilityChanged. After receiving a
 // message in Update, call Next again to continue listening. Returns nil if the
 // watcher is closed.
-func (w *Watcher) Next() tea.Cmd {
+func (w *fsWatcher) Next() tea.Cmd {
 	return func() tea.Msg {
 		select {
 		case msg := <-w.events:
@@ -91,8 +106,16 @@ func (w *Watcher) Next() tea.Cmd {
 	}
 }
 
+// Snapshot returns a tea.Cmd that delivers the current filesystem state as a
+// msgs.FileAvailabilityChanged without waiting for a change event.
+func (w *fsWatcher) Snapshot() tea.Cmd {
+	return func() tea.Msg {
+		return msgs.FileAvailabilityChanged{Files: compose.ScanAll(w.dir)}
+	}
+}
+
 // run is the background goroutine that processes fsnotify events.
-func (w *Watcher) run() {
+func (w *fsWatcher) run() {
 	for {
 		select {
 		case <-w.done:

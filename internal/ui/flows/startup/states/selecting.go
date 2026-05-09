@@ -9,18 +9,18 @@ import (
 
 // Selecting is the state rendered when two or more valid compose files are
 // found. The fileselect view (Project Selector) is active.
-//
-// HandleFiles is injected by startup.makeHandleFiles so this state carries no
-// ambient dir string.
 type Selecting struct {
-	Model       fileselect.Model
-	HandleFiles func([]string, tea.Model) (tea.Model, tea.Cmd)
+	model   fileselect.Model
+	handler fileHandler
+}
+
+// withError returns a copy of s with an error set on the underlying view for path.
+func (s Selecting) withError(path string, err error) Selecting {
+	return Selecting{model: s.model.SetError(path, err), handler: s.handler}
 }
 
 // Init implements tea.Model.
-func (s Selecting) Init() tea.Cmd {
-	return nil
-}
+func (s Selecting) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
 func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -28,22 +28,20 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.FileAvailabilityChanged:
 		switch valid := validateFiles(msg.Files); len(valid) {
 		case 0, 1:
-			return s.HandleFiles(valid, s)
+			return s.handler.handle(valid, s)
 		default:
-			return Selecting{Model: s.Model.SetFiles(valid), HandleFiles: s.HandleFiles}, nil
+			return Selecting{model: s.model.SetFiles(valid), handler: s.handler}, nil
 		}
 
 	case msgs.FileSelected:
 		parse := ParseCmd(msg.Path)
-
-		return Parsing{Path: msg.Path, Parse: parse, Display: s}, parse
+		return Parsing{path: msg.Path, parse: parse, display: s}, parse
 
 	default:
-		updated, cmd := s.Model.Update(msg)
-
-		return Selecting{Model: updated, HandleFiles: s.HandleFiles}, cmd
+		updated, cmd := s.model.Update(msg)
+		return Selecting{model: updated, handler: s.handler}, cmd
 	}
 }
 
 // View implements tea.Model.
-func (s Selecting) View() tea.View { return tea.NewView(s.Model.View()) }
+func (s Selecting) View() tea.View { return tea.NewView(s.model.View()) }

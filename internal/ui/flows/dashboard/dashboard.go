@@ -12,7 +12,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/config"
-	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
@@ -21,14 +20,14 @@ import (
 
 // watcherReadyMsg is delivered when a watcher retry succeeds, carrying the
 // newly-created Watcher.
-type watcherReadyMsg struct{ w *watcher.Watcher }
+type watcherReadyMsg struct{ w watcher.Watcher }
 
 // Model is the root flow orchestrator.
 type Model struct {
 	cfg     config.Config
 	dir     string
 	logger  *slog.Logger
-	w       *watcher.Watcher // nil if initialisation failed
+	w       watcher.Watcher
 	current tea.Model
 }
 
@@ -43,22 +42,19 @@ func New(cfg config.Config, logger *slog.Logger) Model {
 		cfg:     cfg,
 		dir:     dir,
 		logger:  logger,
-		w:       w, // nil on failure
+		w:       w,
 		current: startup.New(cfg, dir, watcherErr),
 	}
 }
 
 // Init fires the first batch of commands:
 //   - current.Init() kicks off either a scan or an immediate parse (-f case).
-//   - If the watcher is healthy, w.Next() begins the subscription loop.
+//   - w.Next() begins the watcher subscription loop.
 func (m Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.current.Init()}
-
-	if m.w != nil {
-		cmds = append(cmds, m.w.Next())
-	}
-
-	return tea.Batch(cmds...)
+	return tea.Batch(
+		m.current.Init(),
+		m.w.Next(),
+	)
 }
 
 // Update drives the root state machine. msgs.WatcherError is forwarded
@@ -73,10 +69,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.FileAvailabilityChanged:
 		// Re-subscribe before forwarding so the next snapshot is not missed.
-		var watchCmd tea.Cmd
-		if m.w != nil {
-			watchCmd = m.w.Next()
-		}
+		watchCmd := m.w.Next()
 
 		next, subCmd := m.current.Update(msg)
 		m.current = next
@@ -96,7 +89,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, tea.Batch(
 			m.w.Next(),
-			scanAndNotify(m.w.Dir()),
+			m.w.Snapshot(),
 		)
 	}
 
@@ -133,13 +126,5 @@ func retryWatcherCmd(dir string, logger *slog.Logger) tea.Cmd {
 		}
 
 		return watcherReadyMsg{w: w}
-	}
-}
-
-func scanAndNotify(dir string) tea.Cmd {
-	return func() tea.Msg {
-		return msgs.FileAvailabilityChanged{
-			Files: compose.ScanAll(dir),
-		}
 	}
 }
