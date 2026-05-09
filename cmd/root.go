@@ -64,12 +64,16 @@ var (
 				}
 			}
 
+			model := dashboard.New(cfg, logger)
 			program := tea.NewProgram(
-				dashboard.New(cfg, logger),
+				model,
 				tea.WithContext(cmd.Context()),
 			)
 
-			_, err := program.Run()
+			final, err := program.Run()
+			if closeErr := final.(dashboard.Model).Close(); closeErr != nil {
+				logger.Error("close watcher", "err", closeErr)
+			}
 			if err != nil {
 				return fmt.Errorf("run program: %w", err)
 			}

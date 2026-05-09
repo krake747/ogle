@@ -30,6 +30,10 @@ func (n *nullWatcher) Next() tea.Cmd {
 	}
 }
 
+// Snapshot delivers an empty file list. In practice unreachable on a
+// nullWatcher — Snapshot is only called via the watcherReadyMsg handler, which
+// is only produced on successful watcher creation (i.e. never for a
+// nullWatcher).
 func (n *nullWatcher) Snapshot() tea.Cmd {
 	return func() tea.Msg {
 		return msgs.FileAvailabilityChanged{}

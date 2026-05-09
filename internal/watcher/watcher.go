@@ -78,14 +78,17 @@ func (w *fsWatcher) Dir() string {
 }
 
 // Close stops the background event loop and releases the underlying fsnotify
-// watcher. Safe to call more than once.
+// watcher. Safe to call more than once; subsequent calls are no-ops.
 func (w *fsWatcher) Close() error {
+	var fwErr error
+
 	w.once.Do(func() {
 		close(w.done)
+		fwErr = w.fw.Close()
 	})
 
-	if err := w.fw.Close(); err != nil {
-		return fmt.Errorf("close fsnotify watcher: %w", err)
+	if fwErr != nil {
+		return fmt.Errorf("close fsnotify watcher: %w", fwErr)
 	}
 
 	return nil
