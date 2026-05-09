@@ -9,6 +9,7 @@ type Scanning struct {
 	HandleFiles func([]string, tea.Model) (tea.Model, tea.Cmd)
 }
 
+// Init returns the scan command, kicking off the directory scan.
 func (s Scanning) Init() tea.Cmd {
 	return s.Scan
 }

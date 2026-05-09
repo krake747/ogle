@@ -144,10 +144,10 @@ func (m Model) View() string {
 	out += "\n"
 
 	switch m.state {
+	case stateIdle, stateNotice:
+		out += "ctrl+c quit\n"
 	case stateError:
 		out += "r retry   ctrl+c quit\n"
-	default:
-		out += "ctrl+c quit\n"
 	}
 
 	return out

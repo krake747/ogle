@@ -26,6 +26,7 @@ func ScanCmd(dir string) tea.Cmd {
 	}
 }
 
+// ParseCmd runs compose.Parse asynchronously, returning a parseDoneMsg.
 func ParseCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		project, err := compose.Parse(path)

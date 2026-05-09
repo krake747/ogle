@@ -17,10 +17,12 @@ type Selecting struct {
 	HandleFiles func([]string, tea.Model) (tea.Model, tea.Cmd)
 }
 
+// Init implements tea.Model.
 func (s Selecting) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.FileAvailabilityChanged:
@@ -43,4 +45,5 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
+// View implements tea.Model.
 func (s Selecting) View() tea.View { return tea.NewView(s.Model.View()) }

@@ -20,8 +20,10 @@ func New(project *compose.Project) Model {
 	return Model{current: states.NewIdle(project)}
 }
 
+// Init implements tea.Model.
 func (m Model) Init() tea.Cmd { return m.current.Init() }
 
+// Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.current.Update(msg)
 	m.current = next
@@ -29,4 +31,5 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m Model) View() tea.View { return tea.NewView(m.current.View()) }

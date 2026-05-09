@@ -15,10 +15,12 @@ type Idle struct {
 	project *compose.Project
 }
 
+// NewIdle returns an Idle state initialised with the given project.
 func NewIdle(project *compose.Project) State {
 	return Idle{project: project}
 }
 
+// Init implements tea.Model.
 func (s Idle) Init() tea.Cmd { return nil }
 
 // Update handles the quit key. Full input handling is deferred.

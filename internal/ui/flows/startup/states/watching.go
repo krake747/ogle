@@ -20,6 +20,7 @@ func (w Watching) Init() tea.Cmd {
 	return nil
 }
 
+// Update implements tea.Model.
 func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if fac, ok := msg.(msgs.FileAvailabilityChanged); ok {
 		valid := validateFiles(fac.Files)
@@ -32,4 +33,5 @@ func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return Watching{Model: updated, HandleFiles: w.HandleFiles}, cmd
 }
 
+// View implements tea.Model.
 func (w Watching) View() tea.View { return tea.NewView(w.Model.View()) }

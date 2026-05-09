@@ -10,7 +10,9 @@ import (
 )
 
 var (
-	ErrReadComposeFile  = errors.New("failed to read compose file")
+	// ErrReadComposeFile is returned when the compose file cannot be read from disk.
+	ErrReadComposeFile = errors.New("failed to read compose file")
+	// ErrParseComposeFile is returned when the compose file cannot be parsed as valid YAML.
 	ErrParseComposeFile = errors.New("failed to parse compose file")
 )
 
@@ -19,7 +21,7 @@ type composeFile struct {
 	Name     string `yaml:"name"`
 	Services map[string]struct {
 		Image         string `yaml:"image"`
-		ContainerName string `yaml:"container_name"`
+		ContainerName string `yaml:"containerName"`
 		Build         any    `yaml:"build"`
 	} `yaml:"services"`
 }

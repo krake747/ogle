@@ -16,11 +16,13 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
 
+// Model is the startup flow orchestrator.
 type Model struct {
 	dir     string
 	current tea.Model
 }
 
+// New constructs a startup Model, selecting the initial state from cfg and watcherErr.
 func New(cfg config.Config, dir string, watcherErr error) Model {
 	hf := makeHandleFiles(dir)
 
@@ -43,6 +45,7 @@ func New(cfg config.Config, dir string, watcherErr error) Model {
 	return Model{dir: dir, current: current}
 }
 
+// Init implements tea.Model.
 func (m Model) Init() tea.Cmd { return m.current.Init() }
 
 // Update delegates to the current state. msgs.WatcherError is intercepted here
@@ -65,6 +68,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// View implements tea.Model.
 func (m Model) View() tea.View { return m.current.View() }
 
 // makeHandleFiles produces the central 0/1/2+ dispatch function for a given
