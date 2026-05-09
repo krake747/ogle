@@ -22,3 +22,12 @@ type FileSelected struct {
 type ProjectLoaded struct {
 	Project *compose.Project
 }
+
+// WatcherError is delivered when watcher.New fails — either on initial startup
+// or after a retry attempt. The startup flow forwards this to the watching view
+// to enter watchingError state.
+type WatcherError struct{ Err error }
+
+// RetryWatcher is emitted by the watching view when the user presses 'r' in
+// the watchingError state. app.go handles it by retrying watcher.New.
+type RetryWatcher struct{}

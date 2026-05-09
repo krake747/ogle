@@ -3,6 +3,7 @@
 package watcher
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/fsnotify/fsnotify"
+
 	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/ma-tf/ogle/internal/msgs"
 )
@@ -21,6 +23,7 @@ import (
 type Watcher struct {
 	fw     *fsnotify.Watcher
 	dir    string
+	logger *slog.Logger
 	events chan tea.Msg
 	done   chan struct{}
 	once   sync.Once
@@ -28,27 +31,35 @@ type Watcher struct {
 
 // New creates a Watcher that monitors dir and starts the background event
 // loop. Call Close when the watcher is no longer needed.
-func New(dir string) (*Watcher, error) {
+func New(dir string, logger *slog.Logger) (*Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("create fsnotify watcher: %w", err)
 	}
 
-	if err := fw.Add(dir); err != nil {
-		fw.Close() //nolint:errcheck // best-effort cleanup on construction failure
-		return nil, fmt.Errorf("watch directory %s: %w", dir, err)
+	if addErr := fw.Add(dir); addErr != nil {
+		closeErr := fw.Close()
+
+		return nil, fmt.Errorf("watch directory %s: %w", dir, errors.Join(addErr, closeErr))
 	}
 
 	w := &Watcher{
 		fw:     fw,
 		dir:    dir,
+		logger: logger,
 		events: make(chan tea.Msg, 1),
 		done:   make(chan struct{}),
+		once:   sync.Once{},
 	}
 
 	go w.run()
 
 	return w, nil
+}
+
+// Dir returns the directory this Watcher monitors.
+func (w *Watcher) Dir() string {
+	return w.dir
 }
 
 // Close stops the background event loop and releases the underlying fsnotify
@@ -57,7 +68,11 @@ func (w *Watcher) Close() error {
 	w.once.Do(func() {
 		close(w.done)
 	})
-	return w.fw.Close()
+	if err := w.fw.Close(); err != nil {
+		return fmt.Errorf("close fsnotify watcher: %w", err)
+	}
+
+	return nil
 }
 
 // Next returns a tea.Cmd that blocks until the next availability snapshot is
@@ -87,7 +102,7 @@ func (w *Watcher) run() {
 				return
 			}
 
-			if !slices.Contains(compose.KnownFilenames, filepath.Base(event.Name)) {
+			if !slices.Contains(compose.KnownFilenames(), filepath.Base(event.Name)) {
 				continue
 			}
 
@@ -112,7 +127,7 @@ func (w *Watcher) run() {
 			if !ok {
 				return
 			}
-			slog.Error("watcher: fsnotify error", "dir", w.dir, "err", err)
+			w.logger.Error("watcher: fsnotify error", "dir", w.dir, "err", err)
 		}
 	}
 }

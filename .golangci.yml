@@ -256,30 +256,7 @@ linters:
           - gochecknoglobals
           - gochecknoinits
           - sloglint
-      # watcher intentionally uses channel-based lifecycle instead of context.
-      # Bubble Tea tea.Cmd functions block on channels, not context cancellation.
-      - path: internal/watcher/
-        linters:
-          - contextcheck
-      # nolint directives don't need a trailing period.
-      - source: '// ?nolint'
-        linters:
-          - godot
-      # Comments on exported names don't need to be full sentences in revive's view;
-      # we enforce content but not punctuation via godot.
-      - text: 'should have a package comment'
-        linters: [ revive ]
-      - text: 'exported \S+ \S+ should have comment( \(or a comment on this block\))? or be unexported'
-        linters: [ revive ]
-      # Test files: relax a subset of strict rules that add noise without safety benefit.
-      - path: '_test\.go'
-        linters:
-          - dupl
-          - funlen
-          - goconst
-          - gosec
-          - wrapcheck
-          - exhaustruct
+
     paths:
       - internal/tools/  # build-time docgen tool; uses log.Fatal intentionally
 

@@ -91,8 +91,6 @@ Scanning   — Init: ScanAll + Validate Cmds in flight; no screen rendered
 Watching   — Watching view active
 Selecting  — fileselect view active (Project Selector)
 Parsing    — Parse Cmd in flight; invisible; current view held (no UI change)
-Error      — Parse failed after Validate succeeded (race: file changed between steps)
-             shown inline on the current view (Watching or Selecting)
 ```
 
 ### From Scanning
@@ -124,17 +122,10 @@ FileSelected{Path}
 
 ```
 Parse result
-├── success   → emit ProjectLoaded{Project} → app transitions to appDashboard
-└── failure   → Error (inline notice on current view)
-               → after next FileAvailabilityChanged, re-evaluate and clear error
-```
-
-### From Error
-
-```
-FileAvailabilityChanged{Files}
-└── re-evaluate (same logic as Watching / Selecting)
-    clears the error notice on the current view
+├── success                → emit ProjectLoaded{Project} → app transitions to appDashboard
+├── failure (parse error)  → Watching (notice on sub-model)
+│                          or Selecting (error on sub-model)
+└── failure (read error)   → return to display state; watcher will correct
 ```
 
 ---

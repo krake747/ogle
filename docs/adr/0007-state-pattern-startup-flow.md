@@ -13,7 +13,9 @@ Two alternatives were considered:
 
 ## Decision
 
-The State pattern is adopted. Each startup state (`Scanning`, `Watching`, `Selecting`, `Parsing`, `Error`) is a concrete struct in `internal/ui/flows/startup/states/`. They implement a `State` interface with `Init()`, `Update()`, and `View()` methods. `startup.Model` shrinks to three fields and delegates all three methods to `m.current`.
+The State pattern is adopted. Each startup state (`Scanning`, `Watching`, `Selecting`, `Parsing`) is a concrete struct in `internal/ui/flows/startup/states/`. They implement a `State` interface with `Init()`, `Update()`, and `View()` methods. `startup.Model` shrinks to two fields and delegates all three methods to `m.current`.
+
+`Error` was considered as a fifth state but rejected. Parse failures transition directly back to `Watching` or `Selecting` with the error set on the sub-model, which already carries error/notice sub-states (`SetError`, `SetNotice`). A wrapping `Error` struct adds no unique behaviour.
 
 States live in a `states/` sub-package (not in `startup/` directly) to keep the startup package thin and to make states independently testable.
 
@@ -23,4 +25,5 @@ States live in a `states/` sub-package (not in `startup/` directly) to keep the 
 - Adding a new startup state requires adding one file in `states/` and one transition; no switch statements need updating.
 - The `startup.go` file is reduced to a factory (`New`) and three one-line delegation methods.
 - States are value types; transitions return new state instances. This is safe with Bubble Tea's immutable model convention.
+- `startup.Model` shrinks to **two** fields (`dir string`, `current State`) — not three as originally stated. `cfg` is removed entirely; `dir` is retained for cross-cutting `msgs.WatcherError` transitions.
 - The `states/` sub-package introduces an additional import path but avoids a circular dependency: `startup` imports `states`; `states` imports `ui/views/*` directly. This import direction is intentional — state objects own transitions that instantiate view sub-models (`Watching`, `Selecting`). If view construction were delegated to the startup flow instead, the flow would need to understand each state's view requirements, which defeats the purpose of the pattern.

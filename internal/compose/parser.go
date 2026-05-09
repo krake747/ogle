@@ -14,13 +14,6 @@ var (
 	ErrParseComposeFile = errors.New("failed to parse compose file")
 )
 
-var KnownFilenames = []string{
-	"compose.yml",
-	"compose.yaml",
-	"docker-compose.yml",
-	"docker-compose.yaml",
-}
-
 // composeFile is the minimal YAML structure required for parsing.
 type composeFile struct {
 	Name     string `yaml:"name"`
@@ -43,20 +36,6 @@ type Service struct {
 	Name          string
 	Image         string
 	ContainerName string
-}
-
-// ScanAll returns the absolute paths of all KnownFilenames that exist in dir,
-// in priority order. Files that do not exist are silently omitted. No YAML
-// validation is performed; call Validate on each path before use.
-func ScanAll(dir string) []string {
-	var found []string
-	for _, name := range KnownFilenames {
-		path := filepath.Join(dir, name)
-		if _, err := os.Stat(path); err == nil {
-			found = append(found, path)
-		}
-	}
-	return found
 }
 
 // Validate returns nil if path exists on disk and can be parsed as a valid
@@ -107,8 +86,8 @@ func readAndUnmarshal(path string) (composeFile, error) {
 	}
 
 	var cf composeFile
-	if err := yaml.Unmarshal(data, &cf); err != nil {
-		return composeFile{}, fmt.Errorf("%w: %w", ErrParseComposeFile, err)
+	if unmarshalErr := yaml.Unmarshal(data, &cf); unmarshalErr != nil {
+		return composeFile{}, fmt.Errorf("%w: %w", ErrParseComposeFile, unmarshalErr)
 	}
 
 	return cf, nil
