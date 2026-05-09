@@ -11,18 +11,16 @@ import (
 // watching view is active and the user waits for a file to appear.
 type Watching struct {
 	Model       watching.Model
-	HandleFiles func([]string, State) (State, tea.Cmd)
+	HandleFiles func([]string, tea.Model) (tea.Model, tea.Cmd)
 }
 
-// Init has no startup command; the watcher subscription is managed by the
-// dashboard orchestrator, not the startup flow.
+// Init returns nil — the watcher subscription is managed by the dashboard
+// orchestrator, not the startup flow.
 func (w Watching) Init() tea.Cmd {
 	return nil
 }
 
-// Update reacts to file availability changes and forwards all other messages
-// to the watching sub-model.
-func (w Watching) Update(msg tea.Msg) (State, tea.Cmd) {
+func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if fac, ok := msg.(msgs.FileAvailabilityChanged); ok {
 		valid := validateFiles(fac.Files)
 
@@ -34,7 +32,4 @@ func (w Watching) Update(msg tea.Msg) (State, tea.Cmd) {
 	return Watching{Model: updated, HandleFiles: w.HandleFiles}, cmd
 }
 
-// View renders the watching screen.
-func (w Watching) View() string {
-	return w.Model.View()
-}
+func (w Watching) View() tea.View { return tea.NewView(w.Model.View()) }

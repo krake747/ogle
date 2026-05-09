@@ -6,8 +6,6 @@ import (
 	"github.com/ma-tf/ogle/internal/compose"
 )
 
-// ---- internal messages -----------------------------------------------------
-
 // scanDoneMsg is the result of the initial ScanAll+Validate sweep.
 type scanDoneMsg struct{ valid []string }
 
@@ -17,11 +15,8 @@ type parseDoneMsg struct {
 	err     error
 }
 
-// ---- cmds ------------------------------------------------------------------
-
-// ScanCmd runs ScanAll then Validate on each candidate. Only paths that pass
-// Validate are included in the result. Injected into Scanning as its Scan
-// field at construction time by startup.New.
+// ScanCmd runs ScanAll then Validate on each candidate, returning only paths
+// that pass Validate.
 func ScanCmd(dir string) tea.Cmd {
 	return func() tea.Msg {
 		candidates := compose.ScanAll(dir)
@@ -31,9 +26,6 @@ func ScanCmd(dir string) tea.Cmd {
 	}
 }
 
-// ParseCmd runs compose.Parse on path and returns a parseDoneMsg. Applied at
-// transition time (when a file is chosen) by startup.makeHandleFiles and by
-// Selecting.Update.
 func ParseCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		project, err := compose.Parse(path)
@@ -42,9 +34,6 @@ func ParseCmd(path string) tea.Cmd {
 	}
 }
 
-// ---- internal helpers ------------------------------------------------------
-
-// validateFiles filters paths to those that pass compose.Validate.
 func validateFiles(paths []string) []string {
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {

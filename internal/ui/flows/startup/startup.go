@@ -1,10 +1,5 @@
 // Package startup implements the startup flow: the orchestration state machine
 // that runs from app launch until a compose project is successfully loaded.
-//
-// State transitions are owned by the concrete state types in the states
-// sub-package. startup.Model delegates Init, Update, and View entirely to
-// m.current, intercepting only msgs.WatcherError (a cross-cutting transition
-// that requires rebuilding the handleFiles closure, which is scoped here).
 package startup
 
 import (
@@ -16,31 +11,20 @@ import (
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/flows"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup/states"
 	"github.com/ma-tf/ogle/internal/ui/views/fileselect"
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
 
-// Model is the startup flow orchestrator. It implements flows.State.
-// Its shape is unchanged from before: {dir, current}. All ambient data that
-// states previously held as a dir string is now baked into the handleFiles
-// closure produced by makeHandleFiles.
 type Model struct {
 	dir     string
-	current states.State
+	current tea.Model
 }
 
-// New constructs the startup model using single-phase construction.
-//
-//   - If watcherErr is non-nil, starts in Watching (error shown).
-//   - If cfg.ProjectFile is set, cmd/root.go has already validated it; starts
-//     in Parsing and Init will fire ParseCmd immediately.
-//   - Otherwise starts in Scanning.
 func New(cfg config.Config, dir string, watcherErr error) Model {
 	hf := makeHandleFiles(dir)
 
-	var current states.State
+	var current tea.Model
 
 	switch {
 	case watcherErr != nil:
@@ -59,13 +43,12 @@ func New(cfg config.Config, dir string, watcherErr error) Model {
 	return Model{dir: dir, current: current}
 }
 
-// Init fires the first command for the current state.
 func (m Model) Init() tea.Cmd { return m.current.Init() }
 
 // Update delegates to the current state. msgs.WatcherError is intercepted here
 // because the transition is identical for all states and requires rebuilding
 // the handleFiles closure with the same dir.
-func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if we, ok := msg.(msgs.WatcherError); ok {
 		hf := makeHandleFiles(m.dir)
 		m.current = states.Watching{
@@ -82,8 +65,7 @@ func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
 	return m, cmd
 }
 
-// View delegates rendering to the current state.
-func (m Model) View() string { return m.current.View() }
+func (m Model) View() tea.View { return m.current.View() }
 
 // makeHandleFiles produces the central 0/1/2+ dispatch function for a given
 // directory. It is a pure function of dir: calling it twice with the same dir
@@ -92,12 +74,10 @@ func (m Model) View() string { return m.current.View() }
 // The var-hf pattern allows newWatching and the returned closure to reference
 // each other safely; both inner functions are only ever called after hf is
 // assigned.
-func makeHandleFiles(dir string) func([]string, states.State) (states.State, tea.Cmd) {
-	var hf func([]string, states.State) (states.State, tea.Cmd)
+func makeHandleFiles(dir string) func([]string, tea.Model) (tea.Model, tea.Cmd) {
+	var hf func([]string, tea.Model) (tea.Model, tea.Cmd)
 
-	// newWatching builds a cold Watching state, adding a parse notice if a
-	// known filename exists but fails Validate.
-	newWatching := func() states.State {
+	newWatching := func() tea.Model {
 		m := watching.New(dir)
 
 		for _, name := range compose.KnownFilenames() {
@@ -114,22 +94,20 @@ func makeHandleFiles(dir string) func([]string, states.State) (states.State, tea
 		return states.Watching{Model: m, HandleFiles: hf}
 	}
 
-	// visibleState returns the state to store as Parsing.Display. If current
-	// is already Parsing, it unwraps the inner Display. If current is Scanning
-	// (no visible state yet), it returns a cold Watching as fallback.
-	visibleState := func(current states.State) states.State {
+	// visibleState returns the state to store as Parsing.Display, unwrapping
+	// nested Parsing and falling back to a cold Watching for Scanning.
+	visibleState := func(current tea.Model) tea.Model {
 		switch c := current.(type) {
 		case states.Parsing:
 			return c.Display
 		case states.Watching, states.Selecting:
 			return current
 		default:
-			// Scanning or unknown: no visible state yet; use a bare cold Watching.
 			return states.Watching{Model: watching.New(dir), HandleFiles: hf}
 		}
 	}
 
-	hf = func(valid []string, current states.State) (states.State, tea.Cmd) {
+	hf = func(valid []string, current tea.Model) (tea.Model, tea.Cmd) {
 		switch len(valid) {
 		case 0:
 			return newWatching(), nil

@@ -9,21 +9,16 @@ import (
 	"github.com/ma-tf/ogle/internal/compose"
 )
 
-// Idle is the initial project state. It renders a minimal project summary —
-// the same view previously provided by internal/ui/views/dashboard — while
-// the full dashboard implementation is deferred.
-//
-// Idle supersedes internal/ui/views/dashboard (deleted in migration step 4).
+// Idle is the initial project state. It renders a minimal project summary
+// while the full dashboard implementation is deferred.
 type Idle struct {
 	project *compose.Project
 }
 
-// NewIdle returns an Idle state loaded with the given project.
 func NewIdle(project *compose.Project) State {
 	return Idle{project: project}
 }
 
-// Init has no startup commands.
 func (s Idle) Init() tea.Cmd { return nil }
 
 // Update handles the quit key. Full input handling is deferred.

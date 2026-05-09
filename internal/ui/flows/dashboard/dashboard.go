@@ -1,9 +1,6 @@
 // Package dashboard implements the root flow orchestrator. It owns the watcher
 // lifecycle (creation, subscription, retry, reconnect) and drives the top-level
 // flow transitions: startup → project on msgs.ProjectLoaded.
-//
-// dashboard.Model implements flows.State so that app.go can remain a minimal
-// tea.Model adapter shim with no domain knowledge.
 package dashboard
 
 import (
@@ -17,23 +14,22 @@ import (
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/flows"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/watcher"
 )
 
-// watcherReadyMsg is dashboard-internal. It is delivered when a watcher retry
-// succeeds, carrying the newly-created Watcher.
+// watcherReadyMsg is delivered when a watcher retry succeeds, carrying the
+// newly-created Watcher.
 type watcherReadyMsg struct{ w *watcher.Watcher }
 
-// Model is the root flow orchestrator. It implements flows.State.
+// Model is the root flow orchestrator.
 type Model struct {
 	cfg     config.Config
 	dir     string
 	logger  *slog.Logger
 	w       *watcher.Watcher // nil if initialisation failed
-	current flows.State
+	current tea.Model
 }
 
 // New constructs the dashboard Model. Watcher creation is synchronous; a
@@ -65,20 +61,10 @@ func (m Model) Init() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-// Update drives the root state machine.
-//
-// Intercepted centrally:
-//   - tea.KeyPressMsg "ctrl+c" → quit
-//   - msgs.FileAvailabilityChanged → re-subscribe watcher, forward to current
-//   - msgs.ProjectLoaded → transition current to project.New
-//   - msgs.RetryWatcher → fire retryWatcherCmd
-//   - watcherReadyMsg → store new watcher, resume subscription + scan
-//
-// Everything else (msgs.WatcherError, all input, window events) is forwarded
-// to the active state. WatcherError routing: startup.Model handles it during
-// the startup phase; project.Model handles it during the project phase. Each
-// flow owns its own error semantics.
-func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
+// Update drives the root state machine. msgs.WatcherError is forwarded
+// unhandled to the active state — startup.Model and project.Model each own
+// their own error semantics.
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
@@ -114,7 +100,6 @@ func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
 		)
 	}
 
-	// Forward all remaining messages to the active state.
 	next, cmd := m.current.Update(msg)
 	m.current = next
 
@@ -122,11 +107,8 @@ func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
 }
 
 // View delegates rendering to the active state.
-func (m Model) View() string { return m.current.View() }
+func (m Model) View() tea.View { return m.current.View() }
 
-// ---- helpers ---------------------------------------------------------------
-
-// watchDir returns the directory that should be monitored.
 func watchDir(cfg config.Config) string {
 	if cfg.ProjectFile != "" {
 		return filepath.Dir(cfg.ProjectFile)
@@ -143,8 +125,6 @@ func watchDir(cfg config.Config) string {
 	return dir
 }
 
-// retryWatcherCmd attempts to create a new Watcher for dir. It returns either
-// a watcherReadyMsg (success) or a msgs.WatcherError (failure).
 func retryWatcherCmd(dir string, logger *slog.Logger) tea.Cmd {
 	return func() tea.Msg {
 		w, err := watcher.New(dir, logger)
@@ -156,9 +136,6 @@ func retryWatcherCmd(dir string, logger *slog.Logger) tea.Cmd {
 	}
 }
 
-// scanAndNotify runs a fresh ScanAll sweep and delivers the result as a
-// msgs.FileAvailabilityChanged. Used after a successful watcher retry so the
-// startup flow can evaluate the current state of the directory.
 func scanAndNotify(dir string) tea.Cmd {
 	return func() tea.Msg {
 		return msgs.FileAvailabilityChanged{

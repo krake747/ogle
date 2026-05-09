@@ -7,11 +7,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/compose"
-	"github.com/ma-tf/ogle/internal/ui/flows"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 )
 
-// Model is the project flow orchestrator. It implements flows.State.
+// Model is the project flow orchestrator.
 type Model struct {
 	current states.State
 }
@@ -21,16 +20,13 @@ func New(project *compose.Project) Model {
 	return Model{current: states.NewIdle(project)}
 }
 
-// Init fires the first command for the current state.
 func (m Model) Init() tea.Cmd { return m.current.Init() }
 
-// Update delegates to the current state.
-func (m Model) Update(msg tea.Msg) (flows.State, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	next, cmd := m.current.Update(msg)
 	m.current = next
 
 	return m, cmd
 }
 
-// View delegates rendering to the current state.
-func (m Model) View() string { return m.current.View() }
+func (m Model) View() tea.View { return tea.NewView(m.current.View()) }

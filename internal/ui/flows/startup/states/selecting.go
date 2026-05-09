@@ -14,17 +14,14 @@ import (
 // ambient dir string.
 type Selecting struct {
 	Model       fileselect.Model
-	HandleFiles func([]string, State) (State, tea.Cmd)
+	HandleFiles func([]string, tea.Model) (tea.Model, tea.Cmd)
 }
 
-// Init has no startup command.
 func (s Selecting) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles file availability changes, file selection confirmation, and
-// forwards all other messages to the fileselect sub-model.
-func (s Selecting) Update(msg tea.Msg) (State, tea.Cmd) {
+func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.FileAvailabilityChanged:
 		switch valid := validateFiles(msg.Files); len(valid) {
@@ -46,7 +43,4 @@ func (s Selecting) Update(msg tea.Msg) (State, tea.Cmd) {
 	}
 }
 
-// View renders the fileselect screen.
-func (s Selecting) View() string {
-	return s.Model.View()
-}
+func (s Selecting) View() tea.View { return tea.NewView(s.Model.View()) }

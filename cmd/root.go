@@ -7,13 +7,14 @@ import (
 	"os"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
 	"github.com/ma-tf/ogle/config"
-	"github.com/ma-tf/ogle/internal/app"
 	"github.com/ma-tf/ogle/internal/compose"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 )
 
 var (
@@ -63,7 +64,10 @@ var (
 				}
 			}
 
-			program := app.Setup(cmd.Context(), cfg, logger)
+			program := tea.NewProgram(
+				dashboard.New(cfg, logger),
+				tea.WithContext(cmd.Context()),
+			)
 
 			_, err := program.Run()
 			if err != nil {
