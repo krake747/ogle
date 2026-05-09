@@ -21,7 +21,9 @@ func New(project *compose.Project) Model {
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return m.current.Init() }
+func (m Model) Init() tea.Cmd {
+	return m.current.Init()
+}
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {

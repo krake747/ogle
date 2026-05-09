@@ -1,6 +1,6 @@
 # ADR-0006: Null Object pattern for Watcher; no nil sentinel
 
-**Status:** Accepted
+**Status:** Proposed
 
 ## Context
 

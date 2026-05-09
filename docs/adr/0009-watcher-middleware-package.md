@@ -1,6 +1,6 @@
 # ADR-0009: Watcher middleware in internal/watcher/middleware/
 
-**Status:** Accepted
+**Status:** Proposed
 
 ## Context
 

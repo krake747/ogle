@@ -53,33 +53,33 @@ fsnotify event (create/write in CWD)
 
 ## Watcher Lifetime
 
-The watcher is created at app startup and runs for the entire process lifetime — including while the dashboard is active. `app.Init()` starts `watcher.Next()` and the app root re-subscribes after every `FileAvailabilityChanged` by returning another `watcher.Next()` Cmd from `Update`. The active sub-model (startup flow or dashboard) receives the message via the app root's dispatch logic.
+The watcher is created at app startup and runs for the entire process lifetime — including while the dashboard is active. `dashboard.Init()` starts `watcher.Next()` and the root orchestrator re-subscribes after every `FileAvailabilityChanged` by returning another `watcher.Next()` Cmd from `Update`. The active sub-model (startup flow or project) receives the message via the root orchestrator's dispatch logic.
 
 ---
 
-## App Root (`internal/app`)
+## Root Orchestrator (`internal/ui/flows/dashboard`)
 
 ```
-appStartup    — startup flow is the active sub-model
-appDashboard  — dashboard is the active sub-model
+startup    — startup flow is the active sub-model
+project    — project sub-model is active (post ProjectLoaded)
 ```
 
 ### Init (two Cmds in parallel)
 
 ```
-app.Init()
-├── ScanAll(CWD) + Validate each candidate   → feeds startup flow initial state
-└── watcher.Next()                           → begins perpetual watcher subscription
+dashboard.Init()
+├── current.Init()    → kicks off scan (or immediate parse for -f case)
+└── watcher.Next()    → begins perpetual watcher subscription
 ```
 
-If `-f` was given (already validated in `cmd/root.go`), the initial scan is skipped and the startup flow goes directly to `startupParsing` with the provided path.
+If `-f` was given (already validated in `cmd/root.go`), the initial scan is skipped and the startup flow goes directly to `Parsing` with the provided path.
 
 ### FileAvailabilityChanged dispatch
 
 ```
 FileAvailabilityChanged received
-├── appStartup   → forward to startup flow
-└── appDashboard → forward to dashboard
+├── startup active   → re-subscribe watcher, forward to startup flow
+└── project active   → re-subscribe watcher, forward to project sub-model
 ```
 
 ---
@@ -171,7 +171,7 @@ On a new `FileAvailabilityChanged` the list is refreshed. If the previously erro
 
 ---
 
-## Dashboard (`internal/ui/views/dashboard`)
+## Dashboard (`internal/ui/flows/dashboard/project`)
 
 Entered after the startup flow emits `ProjectLoaded{Project}`.
 
@@ -211,8 +211,10 @@ dashboardLoaded
 
 ## Message Types (`internal/msgs`)
 
-| Message                          | Emitted by          | Consumed by                          |
-|----------------------------------|---------------------|--------------------------------------|
-| `FileAvailabilityChanged{Files}` | `watcher`           | app root → startup flow or dashboard |
-| `FileSelected{Path}`             | fileselect view     | startup flow                         |
-| `ProjectLoaded{Project}`         | startup flow        | app root                             |
+| Message                          | Emitted by          | Consumed by                                      |
+|----------------------------------|---------------------|--------------------------------------------------|
+| `FileAvailabilityChanged{Files}` | `watcher`           | root orchestrator → startup flow or project      |
+| `FileSelected{Path}`             | fileselect view     | startup flow                                     |
+| `ProjectLoaded{Project}`         | startup flow        | root orchestrator                                |
+| `WatcherError{Err}`              | root orchestrator   | startup flow → watching view (error state)       |
+| `RetryWatcher{}`                 | watching view       | root orchestrator (triggers watcher re-creation) |

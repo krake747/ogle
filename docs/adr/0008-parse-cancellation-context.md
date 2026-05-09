@@ -1,6 +1,6 @@
 # ADR-0008: Parse cancellation via context.CancelFunc on the Parsing state
 
-**Status:** Accepted
+**Status:** Proposed
 
 ## Context
 
