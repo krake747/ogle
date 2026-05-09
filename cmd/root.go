@@ -1,13 +1,11 @@
 package cmd
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
@@ -19,15 +17,14 @@ import (
 )
 
 var (
-	cfgFile       string
-	cfg           config.Config
-	logger        *slog.Logger
-	logLevel      = new(slog.LevelVar)
-	cancelTimeout context.CancelFunc
-	buildVersion  string
-	buildCommit   string
-	buildDate     string
-	rootCmd       = &cobra.Command{
+	cfgFile      string
+	cfg          config.Config
+	logger       *slog.Logger
+	logLevel     = new(slog.LevelVar)
+	buildVersion string
+	buildCommit  string
+	buildDate    string
+	rootCmd      = &cobra.Command{
 		Use:   "ogle",
 		Short: "A TUI for monitoring Docker Compose projects.",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -57,11 +54,6 @@ var (
 				slog.String("cfgFile", viper.ConfigFileUsed()),
 			)
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), cfg.Timeout)
-			cancelTimeout = cancel
-
-			cmd.SetContext(ctx)
-
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -76,13 +68,6 @@ var (
 			_, err := program.Run()
 			if err != nil {
 				return fmt.Errorf("run program: %w", err)
-			}
-
-			return nil
-		},
-		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
-			if cancelTimeout != nil {
-				cancelTimeout()
 			}
 
 			return nil
@@ -108,9 +93,6 @@ func init() {
 		Level: logLevel,
 	})
 	logger = slog.New(handler)
-
-	const defaultTimeout = 3 * time.Minute
-	viper.SetDefault("timeout", defaultTimeout)
 
 	rootCmd.PersistentFlags().
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
