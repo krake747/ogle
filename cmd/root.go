@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/lmittmann/tint"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/app"
 	"github.com/ma-tf/ogle/internal/compose"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var (
@@ -50,7 +51,6 @@ var (
 
 			logLevel.Set(level)
 
-			//nolint:sloglint // global logger is fine here
 			logger.DebugContext(
 				cmd.Context(),
 				"Configuration initialised. Using config file:",
@@ -71,10 +71,14 @@ var (
 				}
 			}
 
-			program := app.Setup(cmd.Context(), cfg)
+			program := app.Setup(cmd.Context(), cfg, logger)
 
 			_, err := program.Run()
-			return err
+			if err != nil {
+				return fmt.Errorf("run program: %w", err)
+			}
+
+			return nil
 		},
 		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
 			if cancelTimeout != nil {
@@ -173,8 +177,8 @@ func validateProjectFile(path string) error {
 		return fmt.Errorf("project file %q is a directory, expected a compose file", path)
 	}
 
-	if err := compose.Validate(path); err != nil {
-		return fmt.Errorf("invalid compose file: %w", err)
+	if validateErr := compose.Validate(path); validateErr != nil {
+		return fmt.Errorf("invalid compose file: %w", validateErr)
 	}
 
 	return nil

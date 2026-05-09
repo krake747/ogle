@@ -47,14 +47,14 @@ update:
 .PHONY: docs
 docs:
 	@echo "Generating CLI documentation..."
-	@go run internal/tools/docgen/main.go --out ./docs --format markdown
-	@echo "CLI documentation generated in ./docs"
+	@go run internal/tools/docgen/main.go --out ./docs/cli --format markdown
+	@echo "CLI documentation generated in ./docs/cli"
 
 .PHONY: man
 man:
 	@echo "Generating man pages..."
-	@go run internal/tools/docgen/main.go --out ./man --format man
-	@echo "Man pages generated in ./man"
+	@go run internal/tools/docgen/main.go --out ./docs/cli/man --format man
+	@echo "Man pages generated in ./docs/cli/man"
 
 
 .PHONY: notice

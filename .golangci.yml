@@ -89,6 +89,8 @@ linters:
     - mnd
     # --- Lint directive hygiene ---
     - nolintlint
+    # --- Return / branch clarity ---
+    - nlreturn
 
   settings:
     cyclop:
