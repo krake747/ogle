@@ -52,6 +52,7 @@ func (m Model) SetFiles(files []string) Model {
 	// Clear error if the offending file is gone.
 	if m.state == stateError {
 		found := false
+
 		for _, f := range files {
 			if filepath.Base(f) == m.errFile {
 				found = true
@@ -59,6 +60,7 @@ func (m Model) SetFiles(files []string) Model {
 				break
 			}
 		}
+
 		if !found {
 			m.state = stateBrowsing
 			m.parseErr = nil
@@ -126,14 +128,13 @@ func (m Model) View() string {
 		if i == m.cursor {
 			cursor = "> "
 		}
-		sb.WriteString(fmt.Sprintf("  %s%s\n", cursor, filepath.Base(f)))
+
+		fmt.Fprintf(&sb, "  %s%s\n", cursor, filepath.Base(f))
 	}
 
 	if m.state == stateError {
-		sb.WriteString(fmt.Sprintf(
-			"\nnotice: %s could not be parsed: %v\n",
-			m.errFile, m.parseErr,
-		))
+		fmt.Fprintf(&sb, "\nnotice: %s could not be parsed: %v\n",
+			m.errFile, m.parseErr)
 	}
 
 	sb.WriteString("\n↑/↓ navigate   enter select   ctrl+c quit\n")

@@ -142,6 +142,7 @@ func (m Model) View() string {
 	}
 
 	out += "\n"
+
 	switch m.state {
 	case stateError:
 		out += "r retry   ctrl+c quit\n"

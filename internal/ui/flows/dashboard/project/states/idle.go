@@ -49,7 +49,7 @@ func (s Idle) View() string {
 	fmt.Fprintf(&sb, "Project: %s   (%s)\n", s.project.Name, s.project.File)
 
 	count := len(s.project.Services)
-	sb.WriteString(fmt.Sprintf("Services: %d", count))
+	fmt.Fprintf(&sb, "Services: %d", count)
 
 	if count > 0 {
 		names := make([]string, 0, count)

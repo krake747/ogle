@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ma-tf/ogle/cmd"
 	"github.com/spf13/cobra/doc"
+
+	"github.com/ma-tf/ogle/cmd"
 )
 
 func main() {

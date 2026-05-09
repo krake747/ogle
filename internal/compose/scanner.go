@@ -22,6 +22,7 @@ func KnownFilenames() []string {
 // validation is performed; call Validate on each path before use.
 func ScanAll(dir string) []string {
 	var found []string
+
 	for _, name := range KnownFilenames() {
 		path := filepath.Join(dir, name)
 		if _, err := os.Stat(path); err == nil {

@@ -68,6 +68,7 @@ func (w *Watcher) Close() error {
 	w.once.Do(func() {
 		close(w.done)
 	})
+
 	if err := w.fw.Close(); err != nil {
 		return fmt.Errorf("close fsnotify watcher: %w", err)
 	}
@@ -127,6 +128,7 @@ func (w *Watcher) run() {
 			if !ok {
 				return
 			}
+
 			w.logger.Error("watcher: fsnotify error", "dir", w.dir, "err", err)
 		}
 	}
