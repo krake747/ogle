@@ -3,10 +3,28 @@ NOTICE - Third Party Dependencies
 This file lists the third-party dependencies used by ogle and their licenses.
 
 --------------------------------------------------------------------------------
+Package: charm.land/bubbles/v2
+Version: v2.1.0
+License: MIT
+License URL: https://github.com/charmbracelet/bubbles/blob/v2.1.0/LICENSE
+
+--------------------------------------------------------------------------------
 Package: charm.land/bubbletea/v2
 Version: v2.0.6
 License: MIT
 License URL: https://github.com/charmbracelet/bubbletea/blob/v2.0.6/LICENSE
+
+--------------------------------------------------------------------------------
+Package: charm.land/lipgloss/v2
+Version: v2.0.2
+License: MIT
+License URL: https://github.com/charmbracelet/lipgloss/blob/v2.0.2/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/atotto/clipboard
+Version: v0.1.4
+License: BSD-3-Clause
+License URL: https://github.com/atotto/clipboard/blob/v0.1.4/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/charmbracelet/colorprofile
@@ -115,6 +133,12 @@ Package: github.com/sagikazarmark/locafero
 Version: v0.11.0
 License: MIT
 License URL: https://github.com/sagikazarmark/locafero/blob/v0.11.0/LICENSE
+
+--------------------------------------------------------------------------------
+Package: github.com/sahilm/fuzzy
+Version: v0.1.1
+License: MIT
+License URL: https://github.com/sahilm/fuzzy/blob/v0.1.1/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/sourcegraph/conc

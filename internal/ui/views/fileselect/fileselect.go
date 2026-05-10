@@ -1,62 +1,62 @@
-// Package fileselect provides the file-picker view: displayed during startup
-// when two or more valid compose files are found in the watched directory.
 package fileselect
 
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 )
 
-type state int
+// fileItem is a single entry in the list component.
+type fileItem struct{ path string }
 
-const (
-	stateBrowsing state = iota // navigating the list
-	stateError                 // last confirmed selection failed to parse
-)
+func (f fileItem) Title() string       { return filepath.Base(f.path) }
+func (f fileItem) Description() string { return f.path }
+func (f fileItem) FilterValue() string { return filepath.Base(f.path) }
 
 // Model is the fileselect view. It is a value type; all mutating methods
 // return a new Model.
 type Model struct {
-	files    []string // absolute paths of valid compose files
-	cursor   int
-	state    state
+	list     list.Model
 	parseErr error
-	errFile  string // basename of the file that failed to parse
+	errFile  string // basename of the file that produced a parse error
 	parsing  bool
-	width    int
-	height   int
+	files    []string // kept for cursor-clamp and error-clear logic in SetFiles
+}
+
+func toItems(files []string) []list.Item {
+	items := make([]list.Item, len(files))
+	for i, f := range files {
+		items[i] = fileItem{path: f}
+	}
+
+	return items
 }
 
 // New returns a Model pre-loaded with the given file paths. files must be
 // non-empty; callers should not construct a fileselect model with 0 files.
 func New(files []string, width, height int) Model {
+	l := list.New(toItems(files), list.NewDefaultDelegate(), width, height)
+	l.Title = "ogle"
+	l.SetFilteringEnabled(true)
+
+	//nolint:exhaustruct // list.Model has many fields, but only a few are relevant to us
 	return Model{
-		files:    files,
-		cursor:   0,
-		state:    stateBrowsing,
-		parseErr: nil,
-		errFile:  "",
-		parsing:  false,
-		width:    width,
-		height:   height,
+		list:  l,
+		files: files,
 	}
 }
 
-// SetFiles refreshes the list. The cursor is clamped to the new last index if
-// it would otherwise be out of bounds. If the previously-errored file is no
-// longer in the list the error is cleared.
+// SetFiles refreshes the list. If the previously-errored file is no longer
+// present the error is cleared.
 func (m Model) SetFiles(files []string) Model {
 	m.files = files
-	if m.cursor >= len(files) && len(files) > 0 {
-		m.cursor = len(files) - 1
-	}
-	// Clear error if the offending file is gone.
-	if m.state == stateError {
+	m.list.SetItems(toItems(files))
+
+	if m.errFile != "" {
 		found := false
 
 		for _, f := range files {
@@ -68,7 +68,6 @@ func (m Model) SetFiles(files []string) Model {
 		}
 
 		if !found {
-			m.state = stateBrowsing
 			m.parseErr = nil
 			m.errFile = ""
 		}
@@ -77,129 +76,62 @@ func (m Model) SetFiles(files []string) Model {
 	return m
 }
 
-// SetError enters stateError with an inline parse-failure notice. path is the
+// SetError surfaces a parse-failure notice in the list status bar. path is the
 // absolute path of the file that failed.
 func (m Model) SetError(path string, err error) Model {
-	m.state = stateError
 	m.parseErr = err
 	m.errFile = filepath.Base(path)
+	m.list.NewStatusMessage(fmt.Sprintf("notice: %s could not be parsed: %v", m.errFile, err))
 
 	return m
 }
 
 // SetParsing sets the parsing indicator. When true, a "Parsing..." notice is
-// shown inline. Consistent with SetError.
+// shown in the list status bar.
 func (m Model) SetParsing(v bool) Model {
 	m.parsing = v
+	if v {
+		m.list.NewStatusMessage("Parsing...")
+	}
 
 	return m
 }
 
-// Init satisfies tea.Model. The fileselect view has no startup commands.
+// Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles keyboard navigation and selection.
-//   - ↑ / k   move cursor up
-//   - ↓ / j   move cursor down
-//   - enter    emit msgs.FileSelected for the highlighted file
+// Update handles keyboard navigation, mouse clicks, and selection.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if sz, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = sz.Width
-		m.height = sz.Height
+	var cmd tea.Cmd
 
-		return m, nil
-	}
+	m.list, cmd = m.list.Update(msg)
 
-	keyMsg, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return m, nil
-	}
+	var emit func() tea.Msg
 
-	switch keyMsg.String() {
-	case "up", "k":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-	case "down", "j":
-		if m.cursor < len(m.files)-1 {
-			m.cursor++
-		}
-	case "enter":
-		if len(m.files) > 0 {
-			selected := m.files[m.cursor]
+	switch msg.(type) {
+	case tea.MouseReleaseMsg, tea.KeyPressMsg:
+		if item, ok := m.list.SelectedItem().(fileItem); ok {
+			// Only emit on enter key, not on arbitrary mouse releases.
+			if _, isKey := msg.(tea.MouseReleaseMsg); isKey {
+				emit = func() tea.Msg { return msgs.FileSelected{Path: item.path} }
+			}
 
-			return m, func() tea.Msg { return msgs.FileSelected{Path: selected} }
+			if kp, isKey := msg.(tea.KeyPressMsg); isKey && kp.String() == "enter" {
+				emit = func() tea.Msg { return msgs.FileSelected{Path: item.path} }
+			}
 		}
 	}
 
-	return m, nil
+	if emit != nil {
+		return m, tea.Batch(cmd, emit)
+	}
+
+	return m, cmd
 }
 
-// View renders the fileselect screen with the title pinned top-left and the
-// file-list block anchored to the bottom-left.
+// View renders the Project Selector screen.
 func (m Model) View() string {
-	h := m.height
-
-	// Assemble the bottom block (everything except the title).
-	var bottomLines []string
-
-	bottomLines = append(bottomLines, "Multiple compose files found. Select one:")
-	bottomLines = append(bottomLines, "")
-
-	for i, f := range m.files {
-		cursor := "  "
-		if i == m.cursor {
-			cursor = "> "
-		}
-
-		bottomLines = append(bottomLines, fmt.Sprintf("  %s%s", cursor, filepath.Base(f)))
-	}
-
-	if m.state == stateError {
-		bottomLines = append(bottomLines, "")
-		bottomLines = append(bottomLines, fmt.Sprintf("notice: %s could not be parsed: %v", m.errFile, m.parseErr))
-	}
-
-	// parsing.go clears the flag before entering stateError; guard is
-	// defensive — prevents both notices rendering if call ordering ever changes.
-	if m.parsing && m.state != stateError {
-		bottomLines = append(bottomLines, "")
-		bottomLines = append(bottomLines, "Parsing...")
-	}
-
-	footer := "↑/↓ navigate   enter select   ctrl+c quit"
-
-	availableRows := h - 1 // last row reserved for footer
-	titleRows := 1
-	blankRow := 1 // separator between bottom block and footer
-	bottomStart := availableRows - len(bottomLines) - blankRow
-
-	var sb strings.Builder
-
-	// Title at row 1, column 1.
-	sb.WriteString("ogle\n")
-
-	// Gap between title and bottom block.
-	gap := max(bottomStart-titleRows, 0)
-
-	for range gap {
-		sb.WriteByte('\n')
-	}
-
-	for _, l := range bottomLines {
-		if l == "" {
-			sb.WriteByte('\n')
-		} else {
-			sb.WriteString(l + "\n")
-		}
-	}
-
-	// Blank separator row before footer.
-	sb.WriteByte('\n')
-
-	sb.WriteString(footer)
-
-	return sb.String()
+	return m.list.View()
 }
