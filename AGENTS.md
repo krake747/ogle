@@ -4,6 +4,13 @@
 
 When you finish implementing a plan from `docs/plans/` and the build passes, move the plan file to `docs/plans/archive/`. Do not commit the move — leave that to the user.
 
+## Code comments
+
+Only write a comment when it explains *why* — motivation, constraint, or
+non-obvious consequence. Never write comments that restate what the code
+visibly does. If a comment would read like a prose description of the next
+line, omit it.
+
 ## Agent skills
 
 The following project-specific skills are available in `.agents/skills/`:
