@@ -1,6 +1,8 @@
 .PHONY: all
 all: tidy fix build test docs man notice
 
+PKGS := $(shell go list ./... 2>/dev/null | grep -Ev '(/cmd$$|/tools/|^github\.com/ma-tf/ogle$$)')
+
 .PHONY: test
 test:
 	go test -race $(PKGS)
