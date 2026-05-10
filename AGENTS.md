@@ -6,7 +6,7 @@ When you finish implementing a plan from `docs/plans/` and the build passes, mov
 
 ## Agent skills
 
-The following project-specific skills are available in `docs/agents/skills/`:
+The following project-specific skills are available in `.agents/skills/`:
 
 | Skill | Description | Trigger |
 |---|---|---|
