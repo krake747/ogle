@@ -34,14 +34,6 @@ const (
 	stateError               // watcher.New failed; recoverable via 'r'
 )
 
-const (
-	// 0 to allow minimal terminal sizes; the view is designed to degrade
-	// gracefully and still show the title and error/notice messages at
-	// very small sizes.
-	minWidth  = 0
-	minHeight = 0
-)
-
 // Model is the watching view. It is a value type; all mutating methods return
 // a new Model.
 type Model struct {
@@ -137,8 +129,8 @@ func (m Model) Init() tea.Cmd {
 // app.go intercepts to retry watcher initialisation.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = max(sz.Width, minWidth)
-		m.height = max(sz.Height, minHeight)
+		m.width = sz.Width
+		m.height = sz.Height
 
 		return m, nil
 	}
@@ -156,14 +148,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // body block anchored to the bottom-left.
 func (m Model) View() string {
 	w := m.width
-	if w == 0 {
-		w = minWidth
-	}
-
 	h := m.height
-	if h == 0 {
-		h = minHeight
-	}
 
 	// Build body text.
 	var bodyText string
