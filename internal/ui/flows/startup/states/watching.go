@@ -40,6 +40,7 @@ func (w Watching) Init() tea.Cmd { return nil }
 func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if fac, ok := msg.(msgs.FileAvailabilityChanged); ok {
 		valid := validateFiles(fac.Files)
+
 		return w.handler.handle(valid, w)
 	}
 

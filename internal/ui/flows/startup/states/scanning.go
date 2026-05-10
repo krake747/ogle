@@ -12,6 +12,7 @@ type Scanning struct {
 // NewScanning constructs the initial Scanning state for the given directory.
 func NewScanning(dir string) tea.Model {
 	fh := fileHandler{dir: dir}
+
 	return Scanning{scan: ScanCmd(dir), handler: fh}
 }
 

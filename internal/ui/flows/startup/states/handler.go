@@ -23,6 +23,7 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 		return fh.newWatching(), nil
 	case 1:
 		parse := ParseCmd(valid[0])
+
 		return Parsing{
 			path:    valid[0],
 			parse:   parse,
@@ -42,10 +43,12 @@ func (fh fileHandler) newWatching() tea.Model {
 		if err := compose.Validate(path); err != nil {
 			if !errors.Is(err, compose.ErrReadComposeFile) {
 				m = m.SetNotice(name + " exists but could not be parsed")
+
 				break
 			}
 		}
 	}
+
 	return Watching{model: m, handler: fh}
 }
 

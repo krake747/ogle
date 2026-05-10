@@ -64,6 +64,7 @@ func (p Parsing) handleParseDone(done parseDoneMsg) (tea.Model, tea.Cmd) {
 		return d.withError(p.path, done.err), nil
 	case Watching:
 		notice := fmt.Sprintf("%s could not be parsed: %v", filepath.Base(p.path), done.err)
+
 		return d.withNotice(notice), nil
 	default:
 		return p.display, nil

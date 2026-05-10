@@ -18,14 +18,20 @@ type nullWatcher struct {
 
 // NewNull returns a Watcher that never delivers events.
 func NewNull() Watcher {
-	return &nullWatcher{done: make(chan struct{})}
+	return &nullWatcher{
+		done: make(chan struct{}),
+		once: sync.Once{},
+	}
 }
 
-func (n *nullWatcher) Dir() string { return "" }
+func (n *nullWatcher) Dir() string {
+	return ""
+}
 
 func (n *nullWatcher) Next() tea.Cmd {
 	return func() tea.Msg {
 		<-n.done
+
 		return nil
 	}
 }
@@ -42,5 +48,6 @@ func (n *nullWatcher) Snapshot() tea.Cmd {
 
 func (n *nullWatcher) Close() error {
 	n.once.Do(func() { close(n.done) })
+
 	return nil
 }

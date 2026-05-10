@@ -29,6 +29,8 @@ var (
 		Use:   "ogle",
 		Short: "A TUI for monitoring Docker Compose projects.",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+
 			err := initialiseConfig(cmd)
 			if err != nil {
 				return fmt.Errorf("failed to initialise configuration: %w", err)
@@ -50,7 +52,7 @@ var (
 			logLevel.Set(level)
 
 			logger.DebugContext(
-				cmd.Context(),
+				ctx,
 				"Configuration initialised. Using config file:",
 				slog.String("cfgFile", viper.ConfigFileUsed()),
 			)
@@ -58,6 +60,8 @@ var (
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+
 			if cfg.ProjectFile != "" {
 				if err := validateProjectFile(cfg.ProjectFile); err != nil {
 					return err
@@ -67,13 +71,16 @@ var (
 			model := dashboard.New(cfg, logger)
 			program := tea.NewProgram(
 				model,
-				tea.WithContext(cmd.Context()),
+				tea.WithContext(ctx),
 			)
 
 			final, err := program.Run()
-			if closeErr := final.(dashboard.Model).Close(); closeErr != nil {
-				logger.Error("close watcher", "err", closeErr)
+			if m, ok := final.(dashboard.Model); ok {
+				if closeErr := m.Close(); closeErr != nil {
+					logger.ErrorContext(ctx, "close watcher", "err", closeErr)
+				}
 			}
+
 			if err != nil {
 				return fmt.Errorf("run program: %w", err)
 			}

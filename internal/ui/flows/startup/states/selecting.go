@@ -35,10 +35,12 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.FileSelected:
 		parse := ParseCmd(msg.Path)
+
 		return Parsing{path: msg.Path, parse: parse, display: s}, parse
 
 	default:
 		updated, cmd := s.model.Update(msg)
+
 		return Selecting{model: updated, handler: s.handler}, cmd
 	}
 }

@@ -100,11 +100,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View delegates rendering to the active state.
-func (m Model) View() tea.View { return m.current.View() }
+func (m Model) View() tea.View {
+	return m.current.View()
+}
 
 // Close releases the watcher and unblocks any goroutine blocked in w.Next().
 // Call after the Bubble Tea program returns.
-func (m Model) Close() error { return m.w.Close() }
+func (m Model) Close() error {
+	if err := m.w.Close(); err != nil {
+		return fmt.Errorf("close watcher: %w", err)
+	}
+
+	return nil
+}
 
 func watchDir(cfg config.Config) string {
 	if cfg.ProjectFile != "" {
@@ -128,6 +136,7 @@ func retryWatcherCmd(dir string, logger *slog.Logger) tea.Cmd {
 		if err != nil {
 			// w is a NullWatcher on failure; close it to release the done channel.
 			_ = w.Close()
+
 			return msgs.WatcherError{Err: fmt.Errorf("retry failed: %w", err)}
 		}
 

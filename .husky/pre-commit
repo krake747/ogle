@@ -1,6 +1,14 @@
 #!/bin/bash
 echo "⚙️   Started pre-commit checks..."
 
+# Lint — fail fast before generating artifacts
+echo "🔍  Running lint..."
+if ! make lint; then
+    echo "❌  Lint failed. Fix errors before committing."
+    exit 1
+fi
+echo "✅  Lint passed"
+
 # Generate NOTICE file with dependency licenses
 echo "📄  Generating NOTICE file..."
 

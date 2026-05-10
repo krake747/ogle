@@ -65,6 +65,7 @@ func New(dir string, logger *slog.Logger) (Watcher, error) {
 		logger: logger,
 		events: make(chan tea.Msg, 1),
 		done:   make(chan struct{}),
+		once:   sync.Once{},
 	}
 
 	go w.run()

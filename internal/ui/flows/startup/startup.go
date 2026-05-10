@@ -41,6 +41,7 @@ func (m Model) Init() tea.Cmd { return m.current.Init() }
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if we, ok := msg.(msgs.WatcherError); ok {
 		m.current = states.NewWatchingWithError(m.dir, we.Err)
+
 		return m, nil
 	}
 
