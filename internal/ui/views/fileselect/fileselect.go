@@ -40,7 +40,7 @@ type Model struct {
 
 // New returns a Model pre-loaded with the given file paths. files must be
 // non-empty; callers should not construct a fileselect model with 0 files.
-func New(files []string) Model {
+func New(files []string, width, height int) Model {
 	return Model{
 		files:    files,
 		cursor:   0,
@@ -48,8 +48,8 @@ func New(files []string) Model {
 		parseErr: nil,
 		errFile:  "",
 		parsing:  false,
-		width:    0,
-		height:   0,
+		width:    width,
+		height:   height,
 	}
 }
 

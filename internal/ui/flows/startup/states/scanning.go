@@ -19,10 +19,20 @@ func NewScanning(
 	dir string,
 	sc scanner.Scanner,
 	p parser.Parser,
+	width, height int,
 ) tea.Model {
-	fh := fileHandler{dir: dir, scanner: sc, parser: p}
+	fh := fileHandler{
+		dir:     dir,
+		scanner: sc,
+		parser:  p,
+		width:   width,
+		height:  height,
+	}
 
-	return Scanning{scan: ScanCmd(dir, sc, p), handler: fh}
+	return Scanning{
+		scan:    ScanCmd(dir, sc, p),
+		handler: fh,
+	}
 }
 
 // Init returns the scan command, kicking off the directory scan.

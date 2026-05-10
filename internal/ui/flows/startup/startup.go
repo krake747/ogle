@@ -15,6 +15,8 @@ import (
 // Model is the startup flow orchestrator.
 type Model struct {
 	dir     string
+	width   int
+	height  int
 	scanner scanner.Scanner
 	parser  parser.Parser
 	current tea.Model
@@ -27,19 +29,28 @@ func New(
 	watcherErr error,
 	sc scanner.Scanner,
 	p parser.Parser,
+	width,
+	height int,
 ) Model {
 	var current tea.Model
 
 	switch {
 	case watcherErr != nil:
-		current = states.NewWatchingWithError(dir, watcherErr, sc, p)
+		current = states.NewWatchingWithError(dir, watcherErr, sc, p, width, height)
 	case cfg.ProjectFile != "":
-		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p), p)
+		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p, width, height), p)
 	default:
-		current = states.NewScanning(dir, sc, p)
+		current = states.NewScanning(dir, sc, p, width, height)
 	}
 
-	return Model{dir: dir, scanner: sc, parser: p, current: current}
+	return Model{
+		dir:     dir,
+		width:   width,
+		height:  height,
+		scanner: sc,
+		parser:  p,
+		current: current,
+	}
 }
 
 // Init implements tea.Model.
@@ -49,8 +60,13 @@ func (m Model) Init() tea.Cmd { return m.current.Init() }
 // because the transition is identical for all states and requires no knowledge
 // of the current state's internals.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = sz.Width
+		m.height = sz.Height
+	}
+
 	if we, ok := msg.(msgs.WatcherError); ok {
-		m.current = states.NewWatchingWithError(m.dir, we.Err, m.scanner, m.parser)
+		m.current = states.NewWatchingWithError(m.dir, we.Err, m.scanner, m.parser, m.width, m.height)
 
 		return m, nil
 	}

@@ -55,7 +55,7 @@ type Model struct {
 }
 
 // New returns a cold-mode Model watching dir.
-func New(dir string) Model {
+func New(dir string, width, height int) Model {
 	return Model{
 		mode:       ModeCold,
 		dir:        dir,
@@ -64,14 +64,14 @@ func New(dir string) Model {
 		notice:     "",
 		watcherErr: nil,
 		parsing:    false,
-		width:      0,
-		height:     0,
+		width:      width,
+		height:     height,
 	}
 }
 
 // NewDisconnected returns a disconnected-mode Model waiting for targetFile to
 // reappear. targetFile must be a basename (e.g. "docker-compose.yaml").
-func NewDisconnected(targetFile string) Model {
+func NewDisconnected(targetFile string, width, height int) Model {
 	return Model{
 		mode:       ModeDisconnected,
 		dir:        "",
@@ -80,8 +80,8 @@ func NewDisconnected(targetFile string) Model {
 		notice:     "",
 		watcherErr: nil,
 		parsing:    false,
-		width:      0,
-		height:     0,
+		width:      width,
+		height:     height,
 	}
 }
 

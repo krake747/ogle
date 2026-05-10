@@ -21,10 +21,12 @@ func NewWatching(
 	dir string,
 	sc scanner.Scanner,
 	p parser.Parser,
+	width int,
+	height int,
 ) tea.Model {
 	return Watching{
-		model:   watching.New(dir),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p},
+		model:   watching.New(dir, width, height),
+		handler: fileHandler{dir: dir, scanner: sc, parser: p, width: width, height: height},
 	}
 }
 
@@ -34,10 +36,11 @@ func NewWatchingWithError(
 	err error,
 	sc scanner.Scanner,
 	p parser.Parser,
+	width, height int,
 ) tea.Model {
 	return Watching{
-		model:   watching.New(dir).SetError(err),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p},
+		model:   watching.New(dir, width, height).SetError(err),
+		handler: fileHandler{dir: dir, scanner: sc, parser: p, width: width, height: height},
 	}
 }
 
@@ -57,6 +60,11 @@ func (w Watching) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
 func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		w.handler.width = sz.Width
+		w.handler.height = sz.Height
+	}
+
 	if fac, ok := msg.(msgs.FileAvailabilityChanged); ok {
 		valid := validateFiles(fac.Files, w.handler.parser)
 

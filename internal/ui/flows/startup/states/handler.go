@@ -19,6 +19,8 @@ type fileHandler struct {
 	dir     string
 	scanner scanner.Scanner
 	parser  parser.Parser
+	width   int
+	height  int
 }
 
 // handle dispatches on the count of valid files and returns the next state.
@@ -35,14 +37,14 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 			display: fh.visibleState(current),
 		}, parse
 	default:
-		return Selecting{model: fileselect.New(valid), handler: fh}, nil
+		return Selecting{model: fileselect.New(valid, fh.width, fh.height), handler: fh}, nil
 	}
 }
 
 // newWatching constructs a Watching state. If a file exists on disk but
 // cannot be parsed, a notice is set on the watching view.
 func (fh fileHandler) newWatching() tea.Model {
-	m := watching.New(fh.dir)
+	m := watching.New(fh.dir, fh.width, fh.height)
 	for _, name := range fh.scanner.KnownFilenames() {
 		path := filepath.Join(fh.dir, name)
 		if err := fh.parser.Validate(path); err != nil {
@@ -67,6 +69,6 @@ func (fh fileHandler) visibleState(current tea.Model) tea.Model {
 	case Watching, Selecting:
 		return current
 	default:
-		return Watching{model: watching.New(fh.dir), handler: fh}
+		return Watching{model: watching.New(fh.dir, fh.width, fh.height), handler: fh}
 	}
 }

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/term"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -51,6 +52,11 @@ func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Pa
 
 	w, watcherErr := svcwatcher.New(dir, sc, logger)
 
+	width, height, err := term.GetSize(os.Stdout.Fd())
+	if err != nil {
+		width, height = 0, 0
+	}
+
 	return Model{
 		cfg:     cfg,
 		dir:     dir,
@@ -58,7 +64,7 @@ func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Pa
 		scanner: sc,
 		parser:  p,
 		w:       w,
-		current: startup.New(cfg, dir, watcherErr, sc, p),
+		current: startup.New(cfg, dir, watcherErr, sc, p, width, height),
 	}
 }
 
