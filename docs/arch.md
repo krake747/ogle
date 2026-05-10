@@ -26,15 +26,19 @@ internal/
 │   │   ├── fileselect/         # file picker view (Project Selector)
 │   │   └── watching/           # Watching and Disconnected waiting screen
 │   └── components/             # shared UI primitives (spinner, key help bar, etc.)
-├── compose/
-│   └── parser.go               # ScanAll(), Validate(), Parse() — file discovery and parsing
-├── watcher/
-│   └── watcher.go              # *Watcher concrete type (fsnotify wrapper)
-│                               # NullWatcher + Watcher interface: see ADR-0006 (Proposed)
-│                               # middleware sub-package: see ADR-0009 (Proposed)
+├── services/
+│   ├── scanner/
+│   │   └── service.go          # ScanAll(), KnownFilenames() — file discovery (stdlib only)
+│   ├── parser/
+│   │   └── service.go          # Validate(), Parse() — Compose File parsing; depends on domain
+│   └── watcher/
+│       ├── service.go          # *Service concrete type (fsnotify wrapper)
+│       └── null.go             # NullWatcher: Watcher interface satisfied; never delivers events
+│                               # see ADR-0006 (Accepted), ADR-0009 (Proposed)
+├── domain/
+│   └── domain.go               # canonical domain types: Project, ServiceDef
 ├── msgs/
 │   └── msgs.go                 # all inter-component tea.Msg types (no logic, types only)
-├── docker/                     # future: Docker daemon client
 └── tools/
     └── docgen/                 # CLI documentation generation tooling
 ```
@@ -43,14 +47,16 @@ internal/
 
 ```
 cmd → ui/flows/dashboard
-ui/flows/dashboard → ui/flows/startup, ui/flows/dashboard/project, msgs, watcher
+ui/flows/dashboard → ui/flows/startup, ui/flows/dashboard/project, msgs, services/watcher
 ui/flows/startup → ui/flows/startup/states, msgs
-ui/flows/startup/states → ui/views/watching, ui/views/fileselect, msgs, compose
-ui/flows/dashboard/project → ui/flows/dashboard/project/states, msgs, compose
+ui/flows/startup/states → ui/views/watching, ui/views/fileselect, msgs, services/parser, services/scanner
+ui/flows/dashboard/project → ui/flows/dashboard/project/states, msgs, services/parser
 ui/views/* → msgs, ui/components
-watcher → msgs, compose
-compose → (stdlib + yaml)
-msgs → compose
+services/watcher → msgs, services/scanner
+services/parser → domain
+services/scanner → (stdlib only)
+domain → (stdlib only)
+msgs → domain
 ```
 
 No circular imports are possible with this layout.

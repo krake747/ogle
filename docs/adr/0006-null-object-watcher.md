@@ -1,6 +1,6 @@
 # ADR-0006: Null Object pattern for Watcher; no nil sentinel
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 
@@ -8,7 +8,7 @@
 
 ## Decision
 
-A `NullWatcher` is introduced (`internal/watcher/null.go`). It satisfies the `Watcher` interface but never delivers events — its `Next()` blocks until `Close()` is called. When `watcher.New()` fails, `app.go` assigns `watcher.NewNull()` instead of leaving `w` as `nil`. All nil guards are removed.
+A `NullWatcher` is introduced (`internal/services/watcher/null.go`). It satisfies the `Watcher` interface but never delivers events — its `Next()` blocks until `Close()` is called. When `watcher.New()` fails, `app.go` assigns `watcher.NewNull()` instead of leaving `w` as `nil`. All nil guards are removed.
 
 `watcher.New()` return type changes from `(*Watcher, error)` to `(Watcher, error)`.
 
@@ -16,5 +16,5 @@ A `NullWatcher` is introduced (`internal/watcher/null.go`). It satisfies the `Wa
 
 - `app.model.w` is always non-nil; call sites need no guards.
 - The error from `watcher.New()` is still surfaced to the UI (as a `WatcherError` message to the watching view), but the watcher field itself is always a valid object.
-- `NullWatcher` lives in the same package as the interface it satisfies (`internal/watcher/null.go`), following Go convention for Null Object placement.
+- `NullWatcher` lives in the same package as the interface it satisfies (`internal/services/watcher/null.go`), following Go convention for Null Object placement.
 - Callers that previously handled `nil` watcher as "no watcher" now express that state through the `Watcher` interface itself — a more honest representation.

@@ -20,6 +20,9 @@ const (
 )
 
 const (
+	// 0 to allow minimal terminal sizes; the view is designed to degrade
+	// gracefully and still show the title and error/notice messages at
+	// very small sizes.
 	minWidth  = 0
 	minHeight = 0
 )

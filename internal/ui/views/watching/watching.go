@@ -35,9 +35,11 @@ const (
 )
 
 const (
-	minWidth        = 80
-	minHeight       = 24
-	maxContentWidth = 120
+	// 0 to allow minimal terminal sizes; the view is designed to degrade
+	// gracefully and still show the title and error/notice messages at
+	// very small sizes.
+	minWidth  = 0
+	minHeight = 0
 )
 
 // Model is the watching view. It is a value type; all mutating methods return
@@ -150,7 +152,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the watching screen with a centred layout.
+// View renders the watching screen with the title pinned top-left and the
+// body block anchored to the bottom-left.
 func (m Model) View() string {
 	w := m.width
 	if w == 0 {
@@ -162,11 +165,6 @@ func (m Model) View() string {
 		h = minHeight
 	}
 
-	// Effective content width: fluid up to maxContentWidth, centred beyond that.
-	contentWidth := min(w, maxContentWidth)
-
-	leftPad := (w - contentWidth) / 2 //nolint:mnd // integer halving for centering
-
 	// Build body text.
 	var bodyText string
 
@@ -177,30 +175,28 @@ func (m Model) View() string {
 		bodyText = fmt.Sprintf("Disconnected — waiting for %s...", m.targetFile)
 	}
 
-	// Assemble content lines (each wrapped to contentWidth).
-	var lines []string
+	// Assemble the bottom block (everything except the title).
+	var bottomLines []string
 
-	lines = append(lines, "ogle")
-	lines = append(lines, "")
-	lines = append(lines, wrapLine(bodyText, contentWidth)...)
+	bottomLines = append(bottomLines, wrapLine(bodyText, w)...)
 
 	switch m.state {
 	case stateIdle:
 		// nothing extra in idle
 	case stateNotice:
-		lines = append(lines, "")
-		lines = append(lines, wrapLine("notice: "+m.notice, contentWidth)...)
+		bottomLines = append(bottomLines, "")
+		bottomLines = append(bottomLines, wrapLine("notice: "+m.notice, w)...)
 	case stateError:
-		lines = append(lines, "")
-		lines = append(lines, wrapLine(fmt.Sprintf("Error: %v", m.watcherErr), contentWidth)...)
+		bottomLines = append(bottomLines, "")
+		bottomLines = append(bottomLines, wrapLine(fmt.Sprintf("Error: %v", m.watcherErr), w)...)
 	}
 
 	// Rendered after the state block so it appears in all states, consistent
 	// with fileselect. parsing.go clears the flag before entering notice/error
 	// states, so this is a no-op in practice when state != stateIdle.
 	if m.parsing {
-		lines = append(lines, "")
-		lines = append(lines, "Parsing...")
+		bottomLines = append(bottomLines, "")
+		bottomLines = append(bottomLines, "Parsing...")
 	}
 
 	// Footer text.
@@ -213,37 +209,36 @@ func (m Model) View() string {
 		footer = "r retry   ctrl+c quit"
 	}
 
-	// Vertical centering: content block centred in (h-1) rows, footer on row h.
 	availableRows := h - 1 // last row reserved for footer
-
-	topPad := max((availableRows-len(lines))/2, 0) //nolint:mnd // integer halving for centering
+	titleRows := 1
+	blankRow := 1 // separator between bottom block and footer
+	bottomStart := availableRows - len(bottomLines) - blankRow
 
 	var sb strings.Builder
 
-	pad := strings.Repeat(" ", leftPad)
+	// Title at row 1, column 1.
+	sb.WriteString("ogle\n")
 
-	// Leading blank lines.
-	for range topPad {
+	// Gap between title and bottom block.
+	gap := max(bottomStart-titleRows, 0)
+
+	for range gap {
 		sb.WriteByte('\n')
 	}
 
-	// Content.
-	for _, l := range lines {
+	for _, l := range bottomLines {
 		if l == "" {
 			sb.WriteByte('\n')
 		} else {
-			sb.WriteString(pad + l + "\n")
+			sb.WriteString(l + "\n")
 		}
 	}
 
-	// Fill remaining rows before footer.
-	rendered := topPad + len(lines)
-	for i := rendered; i < availableRows; i++ {
-		sb.WriteByte('\n')
-	}
+	// Blank separator row before footer.
+	sb.WriteByte('\n')
 
 	// Footer on last row (no trailing newline — bubbletea handles cursor).
-	sb.WriteString(pad + footer)
+	sb.WriteString(footer)
 
 	return sb.String()
 }
