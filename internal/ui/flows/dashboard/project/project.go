@@ -27,6 +27,13 @@ func (m Model) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// WindowSizeMsg is intercepted here to keep state dimensions current via
+	// SetSize. The message is still forwarded to Update so states can return
+	// commands or trigger transitions in response to resize.
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.current.SetSize(sz.Width, sz.Height)
+	}
+
 	next, cmd := m.current.Update(msg)
 	m.current = next
 

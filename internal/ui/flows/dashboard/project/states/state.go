@@ -9,4 +9,5 @@ type State interface {
 	Init() tea.Cmd
 	Update(msg tea.Msg) (State, tea.Cmd)
 	View() string
+	SetSize(w, h int)
 }
