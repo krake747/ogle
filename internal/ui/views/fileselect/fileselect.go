@@ -20,9 +20,8 @@ const (
 )
 
 const (
-	minWidth        = 80
-	minHeight       = 24
-	maxContentWidth = 120
+	minWidth  = 0
+	minHeight = 0
 )
 
 // Model is the fileselect view. It is a value type; all mutating methods
@@ -143,30 +142,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the fileselect screen with a centred layout.
+// View renders the fileselect screen with the title pinned top-left and the
+// file-list block anchored to the bottom-left.
 func (m Model) View() string {
-	w := m.width
-	if w == 0 {
-		w = minWidth
-	}
-
 	h := m.height
 	if h == 0 {
 		h = minHeight
 	}
 
-	contentWidth := min(w, maxContentWidth)
+	// Assemble the bottom block (everything except the title).
+	var bottomLines []string
 
-	leftPad := (w - contentWidth) / 2 //nolint:mnd // integer halving for centering
-	pad := strings.Repeat(" ", leftPad)
-
-	// Assemble content lines.
-	var lines []string
-
-	lines = append(lines, "ogle")
-	lines = append(lines, "")
-	lines = append(lines, "Multiple compose files found. Select one:")
-	lines = append(lines, "")
+	bottomLines = append(bottomLines, "Multiple compose files found. Select one:")
+	bottomLines = append(bottomLines, "")
 
 	for i, f := range m.files {
 		cursor := "  "
@@ -174,47 +162,52 @@ func (m Model) View() string {
 			cursor = "> "
 		}
 
-		lines = append(lines, fmt.Sprintf("  %s%s", cursor, filepath.Base(f)))
+		bottomLines = append(bottomLines, fmt.Sprintf("  %s%s", cursor, filepath.Base(f)))
 	}
 
 	if m.state == stateError {
-		lines = append(lines, "")
-		lines = append(lines, fmt.Sprintf("notice: %s could not be parsed: %v", m.errFile, m.parseErr))
+		bottomLines = append(bottomLines, "")
+		bottomLines = append(bottomLines, fmt.Sprintf("notice: %s could not be parsed: %v", m.errFile, m.parseErr))
 	}
 
 	// parsing.go clears the flag before entering stateError; guard is
 	// defensive — prevents both notices rendering if call ordering ever changes.
 	if m.parsing && m.state != stateError {
-		lines = append(lines, "")
-		lines = append(lines, "Parsing...")
+		bottomLines = append(bottomLines, "")
+		bottomLines = append(bottomLines, "Parsing...")
 	}
 
 	footer := "↑/↓ navigate   enter select   ctrl+c quit"
 
-	availableRows := h - 1
-
-	topPad := max((availableRows-len(lines))/2, 0) //nolint:mnd // integer halving for centering
+	availableRows := h - 1 // last row reserved for footer
+	titleRows := 1
+	blankRow := 1 // separator between bottom block and footer
+	bottomStart := availableRows - len(bottomLines) - blankRow
 
 	var sb strings.Builder
 
-	for range topPad {
+	// Title at row 1, column 1.
+	sb.WriteString("ogle\n")
+
+	// Gap between title and bottom block.
+	gap := max(bottomStart-titleRows, 0)
+
+	for range gap {
 		sb.WriteByte('\n')
 	}
 
-	for _, l := range lines {
+	for _, l := range bottomLines {
 		if l == "" {
 			sb.WriteByte('\n')
 		} else {
-			sb.WriteString(pad + l + "\n")
+			sb.WriteString(l + "\n")
 		}
 	}
 
-	rendered := topPad + len(lines)
-	for i := rendered; i < availableRows; i++ {
-		sb.WriteByte('\n')
-	}
+	// Blank separator row before footer.
+	sb.WriteByte('\n')
 
-	sb.WriteString(pad + footer)
+	sb.WriteString(footer)
 
 	return sb.String()
 }
