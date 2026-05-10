@@ -17,8 +17,8 @@ import (
 // determines which state the startup flow enters next.
 type fileHandler struct {
 	dir     string
-	scanner scanner.Service
-	parser  parser.Service
+	scanner scanner.Scanner
+	parser  parser.Parser
 }
 
 // handle dispatches on the count of valid files and returns the next state.

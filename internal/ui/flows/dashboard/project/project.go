@@ -6,7 +6,7 @@ package project
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 )
 
@@ -16,7 +16,7 @@ type Model struct {
 }
 
 // New constructs a project Model initialised in the Idle state.
-func New(project *parser.Project) Model {
+func New(project *domain.Project) Model {
 	return Model{current: states.NewIdle(project)}
 }
 

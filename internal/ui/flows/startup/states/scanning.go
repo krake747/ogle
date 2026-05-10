@@ -15,10 +15,14 @@ type Scanning struct {
 }
 
 // NewScanning constructs the initial Scanning state for the given directory.
-func NewScanning(dir string, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
-	fh := fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc}
+func NewScanning(
+	dir string,
+	sc scanner.Scanner,
+	p parser.Parser,
+) tea.Model {
+	fh := fileHandler{dir: dir, scanner: sc, parser: p}
 
-	return Scanning{scan: ScanCmd(dir, scannerSvc, parserSvc), handler: fh}
+	return Scanning{scan: ScanCmd(dir, sc, p), handler: fh}
 }
 
 // Init returns the scan command, kicking off the directory scan.

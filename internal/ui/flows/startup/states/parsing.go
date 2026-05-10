@@ -23,8 +23,12 @@ type Parsing struct {
 // NewParsing constructs a Parsing state for the given path, using display as
 // the underlying visible state. It activates the "Parsing..." notice on the
 // display view.
-func NewParsing(path string, display tea.Model, parserSvc parser.Service) tea.Model {
-	return Parsing{path: path, parse: ParseCmd(path, parserSvc), display: setParsing(display, true)}
+func NewParsing(
+	path string,
+	display tea.Model,
+	p parser.Parser,
+) tea.Model {
+	return Parsing{path: path, parse: ParseCmd(path, p), display: setParsing(display, true)}
 }
 
 // Init fires the parse command. Only meaningful for the -f startup case;

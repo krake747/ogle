@@ -17,18 +17,27 @@ type Watching struct {
 }
 
 // NewWatching constructs a Watching state for the given directory.
-func NewWatching(dir string, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
+func NewWatching(
+	dir string,
+	sc scanner.Scanner,
+	p parser.Parser,
+) tea.Model {
 	return Watching{
 		model:   watching.New(dir),
-		handler: fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc},
+		handler: fileHandler{dir: dir, scanner: sc, parser: p},
 	}
 }
 
 // NewWatchingWithError constructs a Watching state with an error displayed.
-func NewWatchingWithError(dir string, err error, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
+func NewWatchingWithError(
+	dir string,
+	err error,
+	sc scanner.Scanner,
+	p parser.Parser,
+) tea.Model {
 	return Watching{
 		model:   watching.New(dir).SetError(err),
-		handler: fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc},
+		handler: fileHandler{dir: dir, scanner: sc, parser: p},
 	}
 }
 

@@ -29,8 +29,8 @@ type Model struct {
 	cfg     config.Config
 	dir     string
 	logger  *slog.Logger
-	scanner scanner.Service
-	parser  parser.Service
+	scanner scanner.Scanner
+	parser  parser.Parser
 	w       svcwatcher.Watcher
 	current tea.Model
 }
@@ -38,18 +38,27 @@ type Model struct {
 // New constructs the dashboard Model. Watcher creation is synchronous; a
 // failure is surfaced to the startup flow as a WatcherError so the watching
 // view enters its error state with a retry keybinding.
-func New(cfg config.Config, logger *slog.Logger, scannerSvc scanner.Service, parserSvc parser.Service) Model {
-	dir := watchDir(cfg)
-	w, watcherErr := svcwatcher.New(dir, scannerSvc, logger)
+func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Parser) Model {
+	var dir string
+	if cfg.ProjectFile != "" {
+		dir = filepath.Dir(cfg.ProjectFile)
+	} else {
+		var err error
+		if dir, err = os.Getwd(); err != nil {
+			dir = "."
+		}
+	}
+
+	w, watcherErr := svcwatcher.New(dir, sc, logger)
 
 	return Model{
 		cfg:     cfg,
 		dir:     dir,
 		logger:  logger,
-		scanner: scannerSvc,
-		parser:  parserSvc,
+		scanner: sc,
+		parser:  p,
 		w:       w,
-		current: startup.New(cfg, dir, watcherErr, scannerSvc, parserSvc),
+		current: startup.New(cfg, dir, watcherErr, sc, p),
 	}
 }
 
@@ -123,25 +132,13 @@ func (m Model) Close() error {
 	return nil
 }
 
-func watchDir(cfg config.Config) string {
-	if cfg.ProjectFile != "" {
-		return filepath.Dir(cfg.ProjectFile)
-	}
-
-	dir, err := os.Getwd()
-	if err != nil {
-		// Getwd failing means something is deeply wrong with the process
-		// environment. Fall back to "." so the program can still start and
-		// surface a useful error via the watcher.
-		return "."
-	}
-
-	return dir
-}
-
-func retryWatcherCmd(dir string, scannerSvc scanner.Service, logger *slog.Logger) tea.Cmd {
+func retryWatcherCmd(
+	dir string,
+	sc scanner.Scanner,
+	logger *slog.Logger,
+) tea.Cmd {
 	return func() tea.Msg {
-		w, err := svcwatcher.New(dir, scannerSvc, logger)
+		w, err := svcwatcher.New(dir, sc, logger)
 		if err != nil {
 			// w is a NullWatcher on failure; close it to release the done channel.
 			_ = w.Close()

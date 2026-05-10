@@ -9,12 +9,23 @@ import (
 	"path/filepath"
 
 	"go.yaml.in/yaml/v3"
+
+	"github.com/ma-tf/ogle/internal/domain"
 )
 
 var (
 	ErrReadComposeFile  = errors.New("failed to read compose file")
 	ErrParseComposeFile = errors.New("failed to parse compose file")
 )
+
+//nolint:exhaustruct // compile-time assertion that Service satisfies Parser.
+var _ Parser = Service{}
+
+// Parser validates and parses Compose Files into Projects.
+type Parser interface {
+	Validate(path string) error
+	Parse(path string) (*domain.Project, error)
+}
 
 // composeFile is the minimal YAML structure required for parsing.
 type composeFile struct {
@@ -24,20 +35,6 @@ type composeFile struct {
 		ContainerName string `yaml:"containerName"`
 		Build         any    `yaml:"build"`
 	} `yaml:"services"`
-}
-
-// Project represents a parsed Docker Compose project.
-type Project struct {
-	Name     string
-	File     string
-	Services []ServiceDef
-}
-
-// ServiceDef represents a single service declared within a Docker Compose project.
-type ServiceDef struct {
-	Name          string
-	Image         string
-	ContainerName string
 }
 
 // Service exposes compose file validation and parsing.
@@ -62,7 +59,7 @@ func (s Service) Validate(path string) error {
 // Parse reads and parses the compose file at path into a Project. path must
 // be an absolute path to an existing, valid compose file; callers should use
 // ScanAll and Validate before calling Parse.
-func (s Service) Parse(path string) (*Project, error) {
+func (s Service) Parse(path string) (*domain.Project, error) {
 	cf, err := readAndUnmarshal(path)
 	if err != nil {
 		return nil, err
@@ -73,16 +70,16 @@ func (s Service) Parse(path string) (*Project, error) {
 		name = filepath.Base(filepath.Dir(path))
 	}
 
-	services := make([]ServiceDef, 0, len(cf.Services))
+	services := make([]domain.ServiceDef, 0, len(cf.Services))
 	for serviceName, svc := range cf.Services {
-		services = append(services, ServiceDef{
+		services = append(services, domain.ServiceDef{
 			Name:          serviceName,
 			Image:         svc.Image,
 			ContainerName: svc.ContainerName,
 		})
 	}
 
-	return &Project{
+	return &domain.Project{
 		Name:     name,
 		File:     path,
 		Services: services,

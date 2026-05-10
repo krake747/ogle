@@ -7,9 +7,18 @@ import (
 	"path/filepath"
 )
 
+//nolint:exhaustruct // compile-time assertion that Service satisfies Scanner.
+var _ Scanner = Service{}
+
 // Service performs file discovery for Docker Compose files.
 type Service struct {
 	logger *slog.Logger
+}
+
+// Scanner finds Compose Files on disk.
+type Scanner interface {
+	KnownFilenames() []string
+	ScanAll(dir string) []string
 }
 
 // New constructs a Service with the given logger.

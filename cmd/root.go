@@ -63,16 +63,18 @@ var (
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			scannerSvc := scanner.New(logger)
-			parserSvc := parser.New(logger)
+			var (
+				sc scanner.Scanner = scanner.New(logger)
+				p  parser.Parser   = parser.New(logger)
+			)
 
 			if cfg.ProjectFile != "" {
-				if err := validateProjectFile(cfg.ProjectFile, parserSvc); err != nil {
+				if err := validateProjectFile(cfg.ProjectFile, p); err != nil {
 					return err
 				}
 			}
 
-			model := dashboard.New(cfg, logger, scannerSvc, parserSvc)
+			model := dashboard.New(cfg, logger, sc, p)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
@@ -168,7 +170,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 
 // validateProjectFile checks that path is a valid, parseable compose file.
 // It is called only when the -f flag is explicitly provided.
-func validateProjectFile(path string, parserSvc parser.Service) error {
+func validateProjectFile(path string, p parser.Parser) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("project file not found: %w", err)
@@ -178,7 +180,7 @@ func validateProjectFile(path string, parserSvc parser.Service) error {
 		return fmt.Errorf("project file %q is a directory, expected a compose file", path)
 	}
 
-	if validateErr := parserSvc.Validate(path); validateErr != nil {
+	if validateErr := p.Validate(path); validateErr != nil {
 		return fmt.Errorf("invalid compose file: %w", validateErr)
 	}
 

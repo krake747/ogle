@@ -1,6 +1,6 @@
 package msgs
 
-import "github.com/ma-tf/ogle/internal/services/parser"
+import "github.com/ma-tf/ogle/internal/domain"
 
 // FileAvailabilityChanged is emitted by the watcher whenever compose file
 // presence in the watched directory changes. Files contains the absolute paths
@@ -20,7 +20,7 @@ type FileSelected struct {
 // ProjectLoaded is emitted by the startup flow after a successful
 // parser.Service.Parse call and signals the app root to transition to the dashboard.
 type ProjectLoaded struct {
-	Project *parser.Project
+	Project *domain.Project
 }
 
 // WatcherError is delivered when watcher.New fails — either on initial startup

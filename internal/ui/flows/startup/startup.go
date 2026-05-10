@@ -15,25 +15,31 @@ import (
 // Model is the startup flow orchestrator.
 type Model struct {
 	dir     string
-	scanner scanner.Service
-	parser  parser.Service
+	scanner scanner.Scanner
+	parser  parser.Parser
 	current tea.Model
 }
 
 // New constructs a startup Model, selecting the initial state from cfg and watcherErr.
-func New(cfg config.Config, dir string, watcherErr error, scannerSvc scanner.Service, parserSvc parser.Service) Model {
+func New(
+	cfg config.Config,
+	dir string,
+	watcherErr error,
+	sc scanner.Scanner,
+	p parser.Parser,
+) Model {
 	var current tea.Model
 
 	switch {
 	case watcherErr != nil:
-		current = states.NewWatchingWithError(dir, watcherErr, scannerSvc, parserSvc)
+		current = states.NewWatchingWithError(dir, watcherErr, sc, p)
 	case cfg.ProjectFile != "":
-		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, scannerSvc, parserSvc), parserSvc)
+		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p), p)
 	default:
-		current = states.NewScanning(dir, scannerSvc, parserSvc)
+		current = states.NewScanning(dir, sc, p)
 	}
 
-	return Model{dir: dir, scanner: scannerSvc, parser: parserSvc, current: current}
+	return Model{dir: dir, scanner: sc, parser: p, current: current}
 }
 
 // Init implements tea.Model.
