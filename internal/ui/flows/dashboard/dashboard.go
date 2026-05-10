@@ -34,6 +34,8 @@ type Model struct {
 	parser  parser.Parser
 	w       svcwatcher.Watcher
 	current tea.Model
+	width   int
+	height  int
 }
 
 // New constructs the dashboard Model. Watcher creation is synchronous; a
@@ -65,6 +67,8 @@ func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Pa
 		parser:  p,
 		w:       w,
 		current: startup.New(cfg, dir, watcherErr, sc, p, width, height),
+		width:   width,
+		height:  height,
 	}
 }
 
@@ -83,6 +87,10 @@ func (m Model) Init() tea.Cmd {
 // their own error semantics.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
@@ -98,7 +106,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = project.New(msg.Project)
+		m.current = project.New(msg.Project, m.width, m.height)
 
 		return m, m.current.Init()
 

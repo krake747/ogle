@@ -15,9 +15,12 @@ type Model struct {
 	current states.State
 }
 
-// New constructs a project Model initialised in the Idle state.
-func New(project *domain.Project) Model {
-	return Model{current: states.NewIdle(project)}
+// New constructs a project Model initialised in the Dashboard state.
+func New(project *domain.Project, w, h int) Model {
+	m := Model{current: states.NewDashboard(project)}
+	m.current.SetSize(w, h)
+
+	return m
 }
 
 // Init implements tea.Model.
