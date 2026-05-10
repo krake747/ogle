@@ -37,6 +37,11 @@ func (w Watching) withNotice(notice string) Watching {
 	return Watching{model: w.model.SetNotice(notice), handler: w.handler}
 }
 
+// withParsing returns a copy of w with the parsing indicator set.
+func (w Watching) withParsing(v bool) Watching {
+	return Watching{model: w.model.SetParsing(v), handler: w.handler}
+}
+
 // Init returns nil — the watcher subscription is managed by the dashboard
 // orchestrator, not the startup flow.
 func (w Watching) Init() tea.Cmd { return nil }

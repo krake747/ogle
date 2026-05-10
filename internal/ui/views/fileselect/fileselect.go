@@ -19,6 +19,12 @@ const (
 	stateError                 // last confirmed selection failed to parse
 )
 
+const (
+	minWidth        = 80
+	minHeight       = 24
+	maxContentWidth = 120
+)
+
 // Model is the fileselect view. It is a value type; all mutating methods
 // return a new Model.
 type Model struct {
@@ -27,6 +33,9 @@ type Model struct {
 	state    state
 	parseErr error
 	errFile  string // basename of the file that failed to parse
+	parsing  bool
+	width    int
+	height   int
 }
 
 // New returns a Model pre-loaded with the given file paths. files must be
@@ -38,6 +47,9 @@ func New(files []string) Model {
 		state:    stateBrowsing,
 		parseErr: nil,
 		errFile:  "",
+		parsing:  false,
+		width:    0,
+		height:   0,
 	}
 }
 
@@ -81,6 +93,14 @@ func (m Model) SetError(path string, err error) Model {
 	return m
 }
 
+// SetParsing sets the parsing indicator. When true, a "Parsing..." notice is
+// shown inline. Consistent with SetError.
+func (m Model) SetParsing(v bool) Model {
+	m.parsing = v
+
+	return m
+}
+
 // Init satisfies tea.Model. The fileselect view has no startup commands.
 func (m Model) Init() tea.Cmd {
 	return nil
@@ -91,6 +111,13 @@ func (m Model) Init() tea.Cmd {
 //   - ↓ / j   move cursor down
 //   - enter    emit msgs.FileSelected for the highlighted file
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = max(sz.Width, minWidth)
+		m.height = max(sz.Height, minHeight)
+
+		return m, nil
+	}
+
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return m, nil
@@ -116,12 +143,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the fileselect screen. All output fits within 80 columns.
+// View renders the fileselect screen with a centred layout.
 func (m Model) View() string {
-	var sb strings.Builder
+	w := m.width
+	if w == 0 {
+		w = minWidth
+	}
 
-	sb.WriteString("ogle\n\n")
-	sb.WriteString("Multiple compose files found. Select one:\n\n")
+	h := m.height
+	if h == 0 {
+		h = minHeight
+	}
+
+	contentWidth := min(w, maxContentWidth)
+
+	leftPad := (w - contentWidth) / 2 //nolint:mnd // integer halving for centering
+	pad := strings.Repeat(" ", leftPad)
+
+	// Assemble content lines.
+	var lines []string
+
+	lines = append(lines, "ogle")
+	lines = append(lines, "")
+	lines = append(lines, "Multiple compose files found. Select one:")
+	lines = append(lines, "")
 
 	for i, f := range m.files {
 		cursor := "  "
@@ -129,15 +174,47 @@ func (m Model) View() string {
 			cursor = "> "
 		}
 
-		fmt.Fprintf(&sb, "  %s%s\n", cursor, filepath.Base(f))
+		lines = append(lines, fmt.Sprintf("  %s%s", cursor, filepath.Base(f)))
 	}
 
 	if m.state == stateError {
-		fmt.Fprintf(&sb, "\nnotice: %s could not be parsed: %v\n",
-			m.errFile, m.parseErr)
+		lines = append(lines, "")
+		lines = append(lines, fmt.Sprintf("notice: %s could not be parsed: %v", m.errFile, m.parseErr))
 	}
 
-	sb.WriteString("\n↑/↓ navigate   enter select   ctrl+c quit\n")
+	// parsing.go clears the flag before entering stateError; guard is
+	// defensive — prevents both notices rendering if call ordering ever changes.
+	if m.parsing && m.state != stateError {
+		lines = append(lines, "")
+		lines = append(lines, "Parsing...")
+	}
+
+	footer := "↑/↓ navigate   enter select   ctrl+c quit"
+
+	availableRows := h - 1
+
+	topPad := max((availableRows-len(lines))/2, 0) //nolint:mnd // integer halving for centering
+
+	var sb strings.Builder
+
+	for range topPad {
+		sb.WriteByte('\n')
+	}
+
+	for _, l := range lines {
+		if l == "" {
+			sb.WriteByte('\n')
+		} else {
+			sb.WriteString(pad + l + "\n")
+		}
+	}
+
+	rendered := topPad + len(lines)
+	for i := rendered; i < availableRows; i++ {
+		sb.WriteByte('\n')
+	}
+
+	sb.WriteString(pad + footer)
 
 	return sb.String()
 }

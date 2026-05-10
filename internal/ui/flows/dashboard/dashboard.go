@@ -107,7 +107,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View delegates rendering to the active state.
 func (m Model) View() tea.View {
-	return m.current.View()
+	v := m.current.View()
+	v.AltScreen = true
+
+	return v
 }
 
 // Close releases the watcher and unblocks any goroutine blocked in w.Next().

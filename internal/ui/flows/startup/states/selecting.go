@@ -19,6 +19,11 @@ func (s Selecting) withError(path string, err error) Selecting {
 	return Selecting{model: s.model.SetError(path, err), handler: s.handler}
 }
 
+// withParsing returns a copy of s with the parsing indicator set.
+func (s Selecting) withParsing(v bool) Selecting {
+	return Selecting{model: s.model.SetParsing(v), handler: s.handler}
+}
+
 // Init implements tea.Model.
 func (s Selecting) Init() tea.Cmd { return nil }
 
@@ -35,8 +40,9 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.FileSelected:
 		parse := ParseCmd(msg.Path, s.handler.parser)
+		display := s.withParsing(true)
 
-		return Parsing{path: msg.Path, parse: parse, display: s}, parse
+		return Parsing{path: msg.Path, parse: parse, display: display}, parse
 
 	default:
 		updated, cmd := s.model.Update(msg)

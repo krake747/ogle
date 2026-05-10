@@ -21,9 +21,10 @@ type Parsing struct {
 }
 
 // NewParsing constructs a Parsing state for the given path, using display as
-// the underlying visible state.
+// the underlying visible state. It activates the "Parsing..." notice on the
+// display view.
 func NewParsing(path string, display tea.Model, parserSvc parser.Service) tea.Model {
-	return Parsing{path: path, parse: ParseCmd(path, parserSvc), display: display}
+	return Parsing{path: path, parse: ParseCmd(path, parserSvc), display: setParsing(display, true)}
 }
 
 // Init fires the parse command. Only meaningful for the -f startup case;
@@ -55,18 +56,31 @@ func (p Parsing) handleParseDone(done parseDoneMsg) (tea.Model, tea.Cmd) {
 	// Race: file disappeared between Validate and Parse. The watcher will
 	// deliver FileAvailabilityChanged shortly; return to display and wait.
 	if errors.Is(done.err, parser.ErrReadComposeFile) {
-		return p.display, nil
+		return setParsing(p.display, false), nil
 	}
 
 	// Parse failed with a real error: surface it on the display state's sub-model.
 	switch d := p.display.(type) {
 	case Selecting:
-		return d.withError(p.path, done.err), nil
+		return d.withParsing(false).withError(p.path, done.err), nil
 	case Watching:
 		notice := fmt.Sprintf("%s could not be parsed: %v", filepath.Base(p.path), done.err)
 
-		return d.withNotice(notice), nil
+		return d.withParsing(false).withNotice(notice), nil
 	default:
 		return p.display, nil
 	}
+}
+
+// setParsing sets the parsing indicator on display if it is a known display
+// type. Unknown display types are returned unchanged.
+func setParsing(display tea.Model, v bool) tea.Model {
+	switch d := display.(type) {
+	case Watching:
+		return d.withParsing(v)
+	case Selecting:
+		return d.withParsing(v)
+	}
+
+	return display
 }

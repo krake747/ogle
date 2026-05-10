@@ -6,6 +6,7 @@ package watching
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -33,6 +34,12 @@ const (
 	stateError               // watcher.New failed; recoverable via 'r'
 )
 
+const (
+	minWidth        = 80
+	minHeight       = 24
+	maxContentWidth = 120
+)
+
 // Model is the watching view. It is a value type; all mutating methods return
 // a new Model.
 type Model struct {
@@ -42,6 +49,9 @@ type Model struct {
 	state      state
 	notice     string // set in stateNotice
 	watcherErr error  // set in stateError
+	parsing    bool
+	width      int
+	height     int
 }
 
 // New returns a cold-mode Model watching dir.
@@ -53,6 +63,9 @@ func New(dir string) Model {
 		state:      stateIdle,
 		notice:     "",
 		watcherErr: nil,
+		parsing:    false,
+		width:      0,
+		height:     0,
 	}
 }
 
@@ -66,6 +79,9 @@ func NewDisconnected(targetFile string) Model {
 		state:      stateIdle,
 		notice:     "",
 		watcherErr: nil,
+		parsing:    false,
+		width:      0,
+		height:     0,
 	}
 }
 
@@ -102,6 +118,14 @@ func (m Model) ClearError() Model {
 	return m
 }
 
+// SetParsing sets the parsing indicator. When true, a "Parsing..." notice is
+// shown inline. Consistent with SetNotice / SetError.
+func (m Model) SetParsing(v bool) Model {
+	m.parsing = v
+
+	return m
+}
+
 // Init satisfies tea.Model. The watching view has no startup commands.
 func (m Model) Init() tea.Cmd {
 	return nil
@@ -110,6 +134,13 @@ func (m Model) Init() tea.Cmd {
 // Update handles key input. In stateError, 'r' emits msgs.RetryWatcher which
 // app.go intercepts to retry watcher initialisation.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = max(sz.Width, minWidth)
+		m.height = max(sz.Height, minHeight)
+
+		return m, nil
+	}
+
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		if m.state == stateError && keyMsg.String() == "r" {
 			return m, func() tea.Msg { return msgs.RetryWatcher{} }
@@ -119,35 +150,136 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders the watching screen. All output fits within 80 columns.
+// View renders the watching screen with a centred layout.
 func (m Model) View() string {
-	var body string
+	w := m.width
+	if w == 0 {
+		w = minWidth
+	}
+
+	h := m.height
+	if h == 0 {
+		h = minHeight
+	}
+
+	// Effective content width: fluid up to maxContentWidth, centred beyond that.
+	contentWidth := min(w, maxContentWidth)
+
+	leftPad := (w - contentWidth) / 2 //nolint:mnd // integer halving for centering
+
+	// Build body text.
+	var bodyText string
 
 	switch m.mode {
 	case ModeCold:
-		body = fmt.Sprintf("Watching %s for a compose file...", m.dir)
+		bodyText = fmt.Sprintf("Watching %s for a compose file...", m.dir)
 	case ModeDisconnected:
-		body = fmt.Sprintf("Disconnected — waiting for %s...", m.targetFile)
+		bodyText = fmt.Sprintf("Disconnected — waiting for %s...", m.targetFile)
 	}
 
-	out := "ogle\n\n" + body + "\n"
+	// Assemble content lines (each wrapped to contentWidth).
+	var lines []string
+
+	lines = append(lines, "ogle")
+	lines = append(lines, "")
+	lines = append(lines, wrapLine(bodyText, contentWidth)...)
 
 	switch m.state {
 	case stateIdle:
-		// No additional output in idle state.
+		// nothing extra in idle
 	case stateNotice:
-		out += "\nnotice: " + m.notice + "\n"
+		lines = append(lines, "")
+		lines = append(lines, wrapLine("notice: "+m.notice, contentWidth)...)
 	case stateError:
-		out += fmt.Sprintf("\nError: %v\n", m.watcherErr)
+		lines = append(lines, "")
+		lines = append(lines, wrapLine(fmt.Sprintf("Error: %v", m.watcherErr), contentWidth)...)
 	}
 
-	out += "\n"
+	// Rendered after the state block so it appears in all states, consistent
+	// with fileselect. parsing.go clears the flag before entering notice/error
+	// states, so this is a no-op in practice when state != stateIdle.
+	if m.parsing {
+		lines = append(lines, "")
+		lines = append(lines, "Parsing...")
+	}
+
+	// Footer text.
+	var footer string
 
 	switch m.state {
 	case stateIdle, stateNotice:
-		out += "ctrl+c quit\n"
+		footer = "ctrl+c quit"
 	case stateError:
-		out += "r retry   ctrl+c quit\n"
+		footer = "r retry   ctrl+c quit"
+	}
+
+	// Vertical centering: content block centred in (h-1) rows, footer on row h.
+	availableRows := h - 1 // last row reserved for footer
+
+	topPad := max((availableRows-len(lines))/2, 0) //nolint:mnd // integer halving for centering
+
+	var sb strings.Builder
+
+	pad := strings.Repeat(" ", leftPad)
+
+	// Leading blank lines.
+	for range topPad {
+		sb.WriteByte('\n')
+	}
+
+	// Content.
+	for _, l := range lines {
+		if l == "" {
+			sb.WriteByte('\n')
+		} else {
+			sb.WriteString(pad + l + "\n")
+		}
+	}
+
+	// Fill remaining rows before footer.
+	rendered := topPad + len(lines)
+	for i := rendered; i < availableRows; i++ {
+		sb.WriteByte('\n')
+	}
+
+	// Footer on last row (no trailing newline — bubbletea handles cursor).
+	sb.WriteString(pad + footer)
+
+	return sb.String()
+}
+
+// wrapLine wraps s into lines of at most width runes. Operates on runes to
+// handle multi-byte characters (e.g. em dash) correctly.
+func wrapLine(s string, width int) []string {
+	runes := []rune(s)
+	if width <= 0 || len(runes) <= width {
+		return []string{s}
+	}
+
+	var out []string
+
+	for len(runes) > width {
+		// Scan backwards from width for a space break point.
+		cut := width
+		for i := width - 1; i > 0; i-- {
+			if runes[i] == ' ' {
+				cut = i
+
+				break
+			}
+		}
+
+		out = append(out, string(runes[:cut]))
+		runes = runes[cut:]
+
+		// Trim leading spaces from the remainder.
+		for len(runes) > 0 && runes[0] == ' ' {
+			runes = runes[1:]
+		}
+	}
+
+	if len(runes) > 0 {
+		out = append(out, string(runes))
 	}
 
 	return out
