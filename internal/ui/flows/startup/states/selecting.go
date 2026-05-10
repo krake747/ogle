@@ -26,7 +26,7 @@ func (s Selecting) Init() tea.Cmd { return nil }
 func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.FileAvailabilityChanged:
-		switch valid := validateFiles(msg.Files); len(valid) {
+		switch valid := validateFiles(msg.Files, s.handler.parser); len(valid) {
 		case 0, 1:
 			return s.handler.handle(valid, s)
 		default:
@@ -34,7 +34,7 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case msgs.FileSelected:
-		parse := ParseCmd(msg.Path)
+		parse := ParseCmd(msg.Path, s.handler.parser)
 
 		return Parsing{path: msg.Path, parse: parse, display: s}, parse
 

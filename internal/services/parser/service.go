@@ -1,8 +1,10 @@
-package compose
+// Package parser provides parsing and validation of Docker Compose files.
+package parser
 
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -10,9 +12,7 @@ import (
 )
 
 var (
-	// ErrReadComposeFile is returned when the compose file cannot be read from disk.
-	ErrReadComposeFile = errors.New("failed to read compose file")
-	// ErrParseComposeFile is returned when the compose file cannot be parsed as valid YAML.
+	ErrReadComposeFile  = errors.New("failed to read compose file")
 	ErrParseComposeFile = errors.New("failed to parse compose file")
 )
 
@@ -30,20 +30,30 @@ type composeFile struct {
 type Project struct {
 	Name     string
 	File     string
-	Services []Service
+	Services []ServiceDef
 }
 
-// Service represents a single service within a Docker Compose project.
-type Service struct {
+// ServiceDef represents a single service declared within a Docker Compose project.
+type ServiceDef struct {
 	Name          string
 	Image         string
 	ContainerName string
 }
 
+// Service exposes compose file validation and parsing.
+type Service struct {
+	logger *slog.Logger
+}
+
+// New constructs a Service with the given logger.
+func New(logger *slog.Logger) Service {
+	return Service{logger: logger}
+}
+
 // Validate returns nil if path exists on disk and can be parsed as a valid
 // compose YAML file. It returns a wrapped ErrReadComposeFile or
 // ErrParseComposeFile on failure.
-func Validate(path string) error {
+func (s Service) Validate(path string) error {
 	_, err := readAndUnmarshal(path)
 
 	return err
@@ -52,7 +62,7 @@ func Validate(path string) error {
 // Parse reads and parses the compose file at path into a Project. path must
 // be an absolute path to an existing, valid compose file; callers should use
 // ScanAll and Validate before calling Parse.
-func Parse(path string) (*Project, error) {
+func (s Service) Parse(path string) (*Project, error) {
 	cf, err := readAndUnmarshal(path)
 	if err != nil {
 		return nil, err
@@ -63,9 +73,9 @@ func Parse(path string) (*Project, error) {
 		name = filepath.Base(filepath.Dir(path))
 	}
 
-	services := make([]Service, 0, len(cf.Services))
+	services := make([]ServiceDef, 0, len(cf.Services))
 	for serviceName, svc := range cf.Services {
-		services = append(services, Service{
+		services = append(services, ServiceDef{
 			Name:          serviceName,
 			Image:         svc.Image,
 			ContainerName: svc.ContainerName,
@@ -79,8 +89,6 @@ func Parse(path string) (*Project, error) {
 	}, nil
 }
 
-// readAndUnmarshal reads path from disk and unmarshals it into a composeFile.
-// It is the shared implementation used by both Validate and Parse.
 func readAndUnmarshal(path string) (composeFile, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

@@ -1,6 +1,11 @@
 package states
 
-import tea "charm.land/bubbletea/v2"
+import (
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
+)
 
 // Scanning is the initial state: a directory scan is in flight and no view is
 // rendered.
@@ -10,10 +15,10 @@ type Scanning struct {
 }
 
 // NewScanning constructs the initial Scanning state for the given directory.
-func NewScanning(dir string) tea.Model {
-	fh := fileHandler{dir: dir}
+func NewScanning(dir string, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
+	fh := fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc}
 
-	return Scanning{scan: ScanCmd(dir), handler: fh}
+	return Scanning{scan: ScanCmd(dir, scannerSvc, parserSvc), handler: fh}
 }
 
 // Init returns the scan command, kicking off the directory scan.

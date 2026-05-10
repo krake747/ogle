@@ -7,11 +7,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/compose"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/services/parser"
 )
 
-// Parsing is the invisible state while a compose.Parse call is in flight. It
+// Parsing is the invisible state while a parser.Service.Parse call is in flight. It
 // holds the last visible state (Watching or Selecting) so View() and input
 // forwarding remain unchanged during the parse.
 type Parsing struct {
@@ -22,8 +22,8 @@ type Parsing struct {
 
 // NewParsing constructs a Parsing state for the given path, using display as
 // the underlying visible state.
-func NewParsing(path string, display tea.Model) tea.Model {
-	return Parsing{path: path, parse: ParseCmd(path), display: display}
+func NewParsing(path string, display tea.Model, parserSvc parser.Service) tea.Model {
+	return Parsing{path: path, parse: ParseCmd(path, parserSvc), display: display}
 }
 
 // Init fires the parse command. Only meaningful for the -f startup case;
@@ -54,7 +54,7 @@ func (p Parsing) handleParseDone(done parseDoneMsg) (tea.Model, tea.Cmd) {
 
 	// Race: file disappeared between Validate and Parse. The watcher will
 	// deliver FileAvailabilityChanged shortly; return to display and wait.
-	if errors.Is(done.err, compose.ErrReadComposeFile) {
+	if errors.Is(done.err, parser.ErrReadComposeFile) {
 		return p.display, nil
 	}
 

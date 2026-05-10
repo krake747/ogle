@@ -6,7 +6,8 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/compose"
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/ui/views/fileselect"
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
@@ -14,7 +15,11 @@ import (
 // fileHandler is the single source of truth for startup state transitions.
 // It encodes the 0/1/2+ dispatch: how many valid compose files are present
 // determines which state the startup flow enters next.
-type fileHandler struct{ dir string }
+type fileHandler struct {
+	dir     string
+	scanner scanner.Service
+	parser  parser.Service
+}
 
 // handle dispatches on the count of valid files and returns the next state.
 func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.Cmd) {
@@ -22,7 +27,7 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 	case 0:
 		return fh.newWatching(), nil
 	case 1:
-		parse := ParseCmd(valid[0])
+		parse := ParseCmd(valid[0], fh.parser)
 
 		return Parsing{
 			path:    valid[0],
@@ -38,10 +43,10 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 // cannot be parsed, a notice is set on the watching view.
 func (fh fileHandler) newWatching() tea.Model {
 	m := watching.New(fh.dir)
-	for _, name := range compose.KnownFilenames() {
+	for _, name := range fh.scanner.KnownFilenames() {
 		path := filepath.Join(fh.dir, name)
-		if err := compose.Validate(path); err != nil {
-			if !errors.Is(err, compose.ErrReadComposeFile) {
+		if err := fh.parser.Validate(path); err != nil {
+			if !errors.Is(err, parser.ErrReadComposeFile) {
 				m = m.SetNotice(name + " exists but could not be parsed")
 
 				break

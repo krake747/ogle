@@ -13,37 +13,43 @@ import (
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
+	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
-	"github.com/ma-tf/ogle/internal/watcher"
 )
 
 // watcherReadyMsg is delivered when a watcher retry succeeds, carrying the
 // newly-created Watcher.
-type watcherReadyMsg struct{ w watcher.Watcher }
+type watcherReadyMsg struct{ w svcwatcher.Watcher }
 
 // Model is the root flow orchestrator.
 type Model struct {
 	cfg     config.Config
 	dir     string
 	logger  *slog.Logger
-	w       watcher.Watcher
+	scanner scanner.Service
+	parser  parser.Service
+	w       svcwatcher.Watcher
 	current tea.Model
 }
 
 // New constructs the dashboard Model. Watcher creation is synchronous; a
 // failure is surfaced to the startup flow as a WatcherError so the watching
 // view enters its error state with a retry keybinding.
-func New(cfg config.Config, logger *slog.Logger) Model {
+func New(cfg config.Config, logger *slog.Logger, scannerSvc scanner.Service, parserSvc parser.Service) Model {
 	dir := watchDir(cfg)
-	w, watcherErr := watcher.New(dir, logger)
+	w, watcherErr := svcwatcher.New(dir, scannerSvc, logger)
 
 	return Model{
 		cfg:     cfg,
 		dir:     dir,
 		logger:  logger,
+		scanner: scannerSvc,
+		parser:  parserSvc,
 		w:       w,
-		current: startup.New(cfg, dir, watcherErr),
+		current: startup.New(cfg, dir, watcherErr, scannerSvc, parserSvc),
 	}
 }
 
@@ -82,7 +88,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.current.Init()
 
 	case msgs.RetryWatcher:
-		return m, retryWatcherCmd(m.dir, m.logger)
+		return m, retryWatcherCmd(m.dir, m.scanner, m.logger)
 
 	case watcherReadyMsg:
 		m.w = msg.w
@@ -130,9 +136,9 @@ func watchDir(cfg config.Config) string {
 	return dir
 }
 
-func retryWatcherCmd(dir string, logger *slog.Logger) tea.Cmd {
+func retryWatcherCmd(dir string, scannerSvc scanner.Service, logger *slog.Logger) tea.Cmd {
 	return func() tea.Msg {
-		w, err := watcher.New(dir, logger)
+		w, err := svcwatcher.New(dir, scannerSvc, logger)
 		if err != nil {
 			// w is a NullWatcher on failure; close it to release the done channel.
 			_ = w.Close()

@@ -6,17 +6,17 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/compose"
+	"github.com/ma-tf/ogle/internal/services/parser"
 )
 
 // Idle is the initial project state. It renders a minimal project summary
 // while the full dashboard implementation is deferred.
 type Idle struct {
-	project *compose.Project
+	project *parser.Project
 }
 
 // NewIdle returns an Idle state initialised with the given project.
-func NewIdle(project *compose.Project) State {
+func NewIdle(project *parser.Project) State {
 	return Idle{project: project}
 }
 

@@ -3,42 +3,43 @@ package states
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/compose"
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
 )
 
 // scanDoneMsg is the result of the initial ScanAll+Validate sweep.
 type scanDoneMsg struct{ valid []string }
 
-// parseDoneMsg is the result of a compose.Parse call.
+// parseDoneMsg is the result of a parser.Service.Parse call.
 type parseDoneMsg struct {
-	project *compose.Project
+	project *parser.Project
 	err     error
 }
 
 // ScanCmd runs ScanAll then Validate on each candidate, returning only paths
 // that pass Validate.
-func ScanCmd(dir string) tea.Cmd {
+func ScanCmd(dir string, scannerSvc scanner.Service, parserSvc parser.Service) tea.Cmd {
 	return func() tea.Msg {
-		candidates := compose.ScanAll(dir)
-		valid := validateFiles(candidates)
+		candidates := scannerSvc.ScanAll(dir)
+		valid := validateFiles(candidates, parserSvc)
 
 		return scanDoneMsg{valid: valid}
 	}
 }
 
-// ParseCmd runs compose.Parse asynchronously, returning a parseDoneMsg.
-func ParseCmd(path string) tea.Cmd {
+// ParseCmd runs parser.Service.Parse asynchronously, returning a parseDoneMsg.
+func ParseCmd(path string, parserSvc parser.Service) tea.Cmd {
 	return func() tea.Msg {
-		project, err := compose.Parse(path)
+		project, err := parserSvc.Parse(path)
 
 		return parseDoneMsg{project: project, err: err}
 	}
 }
 
-func validateFiles(paths []string) []string {
+func validateFiles(paths []string, parserSvc parser.Service) []string {
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {
-		if compose.Validate(p) == nil {
+		if parserSvc.Validate(p) == nil {
 			out = append(out, p)
 		}
 	}

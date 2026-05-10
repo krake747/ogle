@@ -1,12 +1,12 @@
 package msgs
 
-import "github.com/ma-tf/ogle/internal/compose"
+import "github.com/ma-tf/ogle/internal/services/parser"
 
 // FileAvailabilityChanged is emitted by the watcher whenever compose file
 // presence in the watched directory changes. Files contains the absolute paths
 // of all compose filenames that currently exist on disk. Consumers are
-// responsible for calling compose.Validate on each path before use; the watcher
-// only performs existence checks.
+// responsible for calling parser.Service.Validate on each path before use;
+// the watcher only performs existence checks.
 type FileAvailabilityChanged struct {
 	Files []string
 }
@@ -18,9 +18,9 @@ type FileSelected struct {
 }
 
 // ProjectLoaded is emitted by the startup flow after a successful
-// compose.Parse call and signals the app root to transition to the dashboard.
+// parser.Service.Parse call and signals the app root to transition to the dashboard.
 type ProjectLoaded struct {
-	Project *compose.Project
+	Project *parser.Project
 }
 
 // WatcherError is delivered when watcher.New fails — either on initial startup

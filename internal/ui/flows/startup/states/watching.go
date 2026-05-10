@@ -4,6 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
 
@@ -15,15 +17,18 @@ type Watching struct {
 }
 
 // NewWatching constructs a Watching state for the given directory.
-func NewWatching(dir string) tea.Model {
-	return Watching{model: watching.New(dir), handler: fileHandler{dir: dir}}
+func NewWatching(dir string, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
+	return Watching{
+		model:   watching.New(dir),
+		handler: fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc},
+	}
 }
 
 // NewWatchingWithError constructs a Watching state with an error displayed.
-func NewWatchingWithError(dir string, err error) tea.Model {
+func NewWatchingWithError(dir string, err error, scannerSvc scanner.Service, parserSvc parser.Service) tea.Model {
 	return Watching{
 		model:   watching.New(dir).SetError(err),
-		handler: fileHandler{dir: dir},
+		handler: fileHandler{dir: dir, scanner: scannerSvc, parser: parserSvc},
 	}
 }
 
@@ -39,7 +44,7 @@ func (w Watching) Init() tea.Cmd { return nil }
 // Update implements tea.Model.
 func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if fac, ok := msg.(msgs.FileAvailabilityChanged); ok {
-		valid := validateFiles(fac.Files)
+		valid := validateFiles(fac.Files, w.handler.parser)
 
 		return w.handler.handle(valid, w)
 	}
