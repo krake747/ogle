@@ -107,7 +107,8 @@ func (d *Dashboard) SetSize(w, h int) {
 	paneH := max(h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)
 
-	d.serviceList = d.serviceList.SetSize(leftContentW, innerH)
+	// svcX=1: left border column; svcY=1: top border row
+	d.serviceList = d.serviceList.SetBounds(1, 1, leftContentW, innerH)
 }
 
 // Update handles the quit key and forwards messages to the service list.
