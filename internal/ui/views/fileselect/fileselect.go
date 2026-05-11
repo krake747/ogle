@@ -151,6 +151,9 @@ func (m Model) hitTest(mouseX, mouseY int) (int, bool) {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	// WindowSizeMsg is handled before m.list.Update to avoid double-resizing:
+	// bubbles list.Update also handles this message internally. We call
+	// SetSize directly and return early so the list never sees the message.
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.w = sz.Width
 		m.h = sz.Height
@@ -162,23 +165,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	m.list, cmd = m.list.Update(msg)
 
-	var emit func() tea.Msg
-
 	switch msg := msg.(type) {
 	case tea.MouseMotionMsg:
-		newHover := -1
-
-		if idx, ok := m.hitTest(msg.X, msg.Y); ok {
-			newHover = idx
+		idx, ok := m.hitTest(msg.X, msg.Y)
+		if !ok {
+			idx = -1
 		}
 
-		m.delegate.SetHover(newHover)
+		m.delegate.SetHover(idx)
 
 	case tea.MouseReleaseMsg:
 		if msg.Button == tea.MouseLeft {
 			if idx, ok := m.hitTest(msg.X, msg.Y); ok {
 				if item, isFile := m.list.VisibleItems()[idx].(fileItem); isFile {
-					emit = func() tea.Msg { return msgs.FileSelected{Path: item.path} }
+					return m, tea.Batch(cmd, func() tea.Msg { return msgs.FileSelected{Path: item.path} })
 				}
 			}
 		}
@@ -186,13 +186,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if item, ok := m.list.SelectedItem().(fileItem); ok {
 			if msg.String() == "enter" {
-				emit = func() tea.Msg { return msgs.FileSelected{Path: item.path} }
+				return m, tea.Batch(cmd, func() tea.Msg { return msgs.FileSelected{Path: item.path} })
 			}
 		}
-	}
-
-	if emit != nil {
-		return m, tea.Batch(cmd, emit)
 	}
 
 	return m, cmd

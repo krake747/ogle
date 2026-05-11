@@ -125,13 +125,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.MouseMotionMsg:
 		idx, ok := m.hitTest(msg.X, msg.Y)
-		newHover := -1
-
-		if ok {
-			newHover = idx
+		if !ok {
+			idx = -1
 		}
 
-		m.delegate.SetHover(newHover)
+		m.delegate.SetHover(idx)
 
 	case tea.MouseReleaseMsg:
 		if msg.Button == tea.MouseLeft {
