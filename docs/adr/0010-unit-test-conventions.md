@@ -39,23 +39,34 @@ define `testCase` without conflict). Fields are grouped and commented as
 `// arrange` and `// assert`. Terminology uses `expected` throughout, not
 `want`.
 
-**Fixture YAML:** inlined as a `yaml string` field on the test struct. No
-`testdata/` directory. Rationale: keeps the full test case (input and expected
-output) readable in one place; fixtures for this domain are small and not
-shared across packages.
+**Inline fixtures:** small input data (e.g. YAML strings) is inlined as a
+field on the test struct. No `testdata/` directory. Rationale: keeps the full
+test case — input and expected output — readable in one place; fixtures for
+this domain are small and not shared across packages.
 
-**Filesystem:** `t.TempDir()` with real files written in the test loop. No
-filesystem abstraction layer. Where a known directory name is required (e.g.
-to assert on a name derived from the parent directory), create a named
-subdirectory via a `dir string` arrange field rather than attempting to predict
-the generated temp path.
+**Parallelism:** every test function calls `t.Parallel()` at its top, and
+every `t.Run` subtest calls `t.Parallel()` as its first statement.
+
+**Per-case setup:** each test case carries a `setup func(tc *testCase, dir
+string)` arrange field. The test loop calls `tc.setup(&tc, t.TempDir())`
+before writing any files or calling the subject. The callback is responsible
+for all per-case environment preparation: constructing paths, creating
+subdirectories, and populating any mutable arrange fields (e.g. `path string`)
+whose values depend on the temp directory. This avoids branching logic in the
+test loop and keeps each case self-contained.
+
+**Filesystem:** `t.TempDir()` with real files. No filesystem abstraction
+layer. File writes are performed in the test loop after `setup` runs, guarded
+by whether the relevant input field is non-empty (e.g. `if tc.yaml != ""`).
 
 **Computed fields:** fields whose value cannot be known at table-definition
-time (e.g. an absolute file path) are assigned in the test loop immediately
-before the assertion, not hardcoded in the table.
+time are populated inside the `setup` callback, not hardcoded in the table and
+not assigned ad-hoc in the test loop.
 
-**Mocks:** hand-written `testify/mock` structs; no codegen tooling. Live in a
-`mocks/` subdirectory per package (e.g. `internal/services/parser/mocks/`).
+**Mocks:** generated via `mockery`. Named `MockFoo` in package `mocks`,
+constructed via `NewMockFoo(t)` which registers assertion cleanup
+automatically. Live in a `mocks/` subdirectory per package (e.g.
+`internal/services/parser/mocks/`). Do not edit generated mock files manually.
 
 ## Consequences
 
@@ -65,8 +76,13 @@ before the assertion, not hardcoded in the table.
   fields not under active test focus.
 - The `testCase` naming convention requires developers to read the enclosing
   function name for context — the struct name alone is not self-describing.
+- `t.Parallel()` on every subtest maximises parallelism but requires each
+  case to operate on its own `t.TempDir()` — shared mutable state across cases
+  is not permitted.
+- The `setup` callback makes each case self-describing but adds a small amount
+  of boilerplate per case compared to a flat struct.
 - `t.TempDir()` ties tests to the real filesystem; tests that write files are
   slightly slower than pure in-memory tests, which is acceptable for this
   domain.
-- Hand-written mocks require manual updates when interfaces change, but avoid
-  a codegen dependency in the build.
+- Mockery-generated mocks must be regenerated when interfaces change. The
+  generated files must not be edited manually.
