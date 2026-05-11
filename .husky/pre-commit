@@ -50,30 +50,27 @@ HELP
 fi
 
 # Generate CLI documentation
-echo "📚  Generating CLI documentation..."
+if git diff --cached --name-only | grep -qE '^(cmd|internal/tools/docgen)/'; then
+    echo "📚  Generating CLI documentation..."
 
-# Check if docs/cli directory exists
-if [ ! -d "docs/cli" ]; then
-    echo "❌  Error: docs/cli directory not found."
-    exit 1
-fi
+    if go run internal/tools/docgen/main.go --out ./docs/cli --format markdown; then
+        changed=$(git status --porcelain -- docs/cli | awk '{print $2}')
+        if [ -n "$changed" ]; then
+            echo "$changed" | xargs git add
+        fi
 
-# Generate markdown documentation
-if go run internal/tools/docgen/main.go --out ./docs/cli --format markdown 2> /dev/null; then
-    # Stage documentation for commit
-    git add docs/cli
-    
-    echo "✅  CLI documentation updated and staged"
-    echo "✅  Finished pre-commit checks"
-else
-    echo "❌  Failed to generate CLI documentation"
-    cat << 'HELP'
-    
+        echo "✅  CLI documentation updated and staged"
+    else
+        echo "❌  Failed to generate CLI documentation"
+        cat << 'HELP'
+
     Common issues:
     - Ensure you're in the project root directory
     - Check that internal/tools/docgen/main.go exists
-    - Verify that exiftool is installed and in PATH
     - Run 'go mod download' if modules are missing
 HELP
-    exit 1
+        exit 1
+    fi
 fi
+
+echo "✅  Finished pre-commit checks"
