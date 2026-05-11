@@ -31,3 +31,9 @@ type WatcherError struct{ Err error }
 // RetryWatcher is emitted by the watching view when the user presses 'r' in
 // the watchingError state. app.go handles it by retrying watcher.New.
 type RetryWatcher struct{}
+
+// ServiceSelected is emitted by the service list component when the cursor
+// moves to a new service.
+type ServiceSelected struct {
+	Service domain.ServiceDef
+}

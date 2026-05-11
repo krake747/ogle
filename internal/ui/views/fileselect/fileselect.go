@@ -41,7 +41,8 @@ func toItems(files []string) []list.Item {
 func New(files []string, width, height int) Model {
 	l := list.New(toItems(files), list.NewDefaultDelegate(), width, height)
 	l.Title = "ogle"
-	l.SetFilteringEnabled(true)
+	l.SetFilteringEnabled(false)
+	l.KeyMap.ForceQuit.SetEnabled(false)
 
 	//nolint:exhaustruct // list.Model has many fields, but only a few are relevant to us
 	return Model{
@@ -105,6 +106,12 @@ func (m Model) Init() tea.Cmd {
 // Update handles keyboard navigation, mouse clicks, and selection.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if sz, ok := msg.(tea.WindowSizeMsg); ok {
+		m.list.SetSize(sz.Width, sz.Height)
+
+		return m, nil
+	}
 
 	m.list, cmd = m.list.Update(msg)
 

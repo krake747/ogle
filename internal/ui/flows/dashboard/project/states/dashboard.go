@@ -3,10 +3,13 @@ package states
 import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 )
 
 type dashboardKeyMap struct {
@@ -19,6 +22,31 @@ func (k dashboardKeyMap) ShortHelp() []key.Binding {
 
 func (k dashboardKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{{k.Quit}}
+}
+
+// combinedKeyMap merges the dashboard-level bindings with the service list
+// bindings for the help bar.
+type combinedKeyMap struct {
+	dashboard dashboardKeyMap
+	list      list.KeyMap
+}
+
+func (c combinedKeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		c.list.CursorUp,
+		c.list.CursorDown,
+		c.list.Filter,
+		c.list.ClearFilter,
+		c.dashboard.Quit,
+	}
+}
+
+func (c combinedKeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{c.list.CursorUp, c.list.CursorDown, c.list.NextPage, c.list.PrevPage},
+		{c.list.Filter, c.list.ClearFilter, c.list.AcceptWhileFiltering, c.list.CancelWhileFiltering},
+		{c.dashboard.Quit},
+	}
 }
 
 //nolint:gochecknoglobals // list of key bindings should be global and immutable
@@ -45,21 +73,23 @@ const (
 // Dashboard is the main project state. It renders a two-pane horizontal split:
 // service list on the left, log/detail on the right.
 type Dashboard struct {
-	project *domain.Project
-	keys    dashboardKeyMap
-	help    help.Model
-	w, h    int
-	focus   int
+	project     *domain.Project
+	keys        dashboardKeyMap
+	help        help.Model
+	serviceList servicelist.Model
+	w, h        int
+	focus       int
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
 func NewDashboard(project *domain.Project) State {
-	//nolint:exhaustruct // keys and help have defaults
+	//nolint:exhaustruct // w, h set on first SetSize call
 	return &Dashboard{
-		project: project,
-		keys:    defaultDashboardKeys,
-		help:    help.New(),
-		focus:   focusLeft,
+		project:     project,
+		keys:        defaultDashboardKeys,
+		help:        help.New(),
+		serviceList: servicelist.New(project, 0, 0),
+		focus:       focusLeft,
 	}
 }
 
@@ -71,17 +101,33 @@ func (d *Dashboard) SetSize(w, h int) {
 	d.w = w
 	d.h = h
 	d.help.SetWidth(w)
+
+	leftW := min(w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
+	leftContentW := max(leftW-borderWidth, 0)
+	paneH := max(h-separatorRows-helpBarHeight, 0)
+	innerH := max(paneH-borderHeight, 0)
+
+	d.serviceList = d.serviceList.SetSize(leftContentW, innerH)
 }
 
-// Update handles the quit key.
+// Update handles the quit key and forwards messages to the service list.
 func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if key.Matches(keyMsg, d.keys.Quit) {
+		if key.Matches(keyMsg, d.keys.Quit) && !d.serviceList.IsFiltering() {
 			return d, tea.Quit
 		}
 	}
 
-	return d, nil
+	if loaded, ok := msg.(msgs.ProjectLoaded); ok {
+		d.project = loaded.Project
+		d.serviceList = d.serviceList.SetProject(loaded.Project)
+	}
+
+	var listCmd tea.Cmd
+
+	d.serviceList, listCmd = d.serviceList.Update(msg)
+
+	return d, listCmd
 }
 
 // View renders the two-pane dashboard layout with a help bar on the last row.
@@ -112,8 +158,7 @@ func (d *Dashboard) View() string {
 	leftInner := lipgloss.NewStyle().
 		Width(leftContentW).
 		Height(innerH).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render("services")
+		Render(d.serviceList.View())
 
 	rightInner := lipgloss.NewStyle().
 		Width(rightContentW).
@@ -137,5 +182,7 @@ func (d *Dashboard) View() string {
 
 	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
 
-	return panes + "\n" + d.help.View(d.keys)
+	km := combinedKeyMap{dashboard: d.keys, list: d.serviceList.KeyMap()}
+
+	return panes + "\n" + d.help.View(km)
 }
