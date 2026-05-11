@@ -2,11 +2,13 @@
 package parser
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"go.yaml.in/yaml/v3"
 
@@ -78,6 +80,10 @@ func (s Service) Parse(path string) (*domain.Project, error) {
 			ContainerName: svc.ContainerName,
 		})
 	}
+
+	slices.SortFunc(services, func(a, b domain.ServiceDef) int {
+		return cmp.Compare(a.Name, b.Name)
+	})
 
 	return &domain.Project{
 		Name:     name,

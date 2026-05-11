@@ -456,6 +456,9 @@ linters:
         linters: [ revive ]
       - text: 'exported var Err\w+ should have comment or be unexported'
         linters: [ revive ]
+      - path: '_test\.go'
+        linters:
+          - exhaustruct
       - path: 'cmd/root\.go'
         linters:
           - gochecknoglobals # Cobra root command requires package-level vars for flags and state

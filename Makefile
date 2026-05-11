@@ -1,5 +1,5 @@
 .PHONY: all
-all: tidy fix build test docs man notice
+all: tidy generate fix build test docs man notice
 
 PKGS := $(shell go list ./... 2>/dev/null | grep -Ev '(/cmd$$|/tools/|^github\.com/ma-tf/ogle$$)')
 
@@ -19,6 +19,10 @@ build:
 .PHONY: tidy
 tidy:
 	go mod tidy
+
+.PHONY: generate
+generate:
+	go tool mockery
 
 .PHONY: lint
 lint:

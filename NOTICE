@@ -82,9 +82,9 @@ License URL: https://github.com/fsnotify/fsnotify/blob/v1.9.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/go-viper/mapstructure/v2
-Version: v2.4.0
+Version: v2.5.0
 License: MIT
-License URL: https://github.com/go-viper/mapstructure/blob/v2.4.0/LICENSE
+License URL: https://github.com/go-viper/mapstructure/blob/v2.5.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/lmittmann/tint
@@ -130,21 +130,15 @@ License URL: https://github.com/rivo/uniseg/blob/v0.4.7/LICENSE.txt
 
 --------------------------------------------------------------------------------
 Package: github.com/sagikazarmark/locafero
-Version: v0.11.0
+Version: v0.12.0
 License: MIT
-License URL: https://github.com/sagikazarmark/locafero/blob/v0.11.0/LICENSE
+License URL: https://github.com/sagikazarmark/locafero/blob/v0.12.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/sahilm/fuzzy
 Version: v0.1.1
 License: MIT
 License URL: https://github.com/sahilm/fuzzy/blob/v0.1.1/LICENSE
-
---------------------------------------------------------------------------------
-Package: github.com/sourcegraph/conc
-Version: v0.3.1-0.20240121214520-5f936abd7ae8
-License: MIT
-License URL: https://github.com/sourcegraph/conc/blob/5f936abd7ae8/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/spf13/afero
@@ -208,8 +202,8 @@ License URL: https://cs.opensource.google/go/x/sys/+/v0.43.0:LICENSE
 
 --------------------------------------------------------------------------------
 Package: golang.org/x/text
-Version: v0.28.0
+Version: v0.34.0
 License: BSD-3-Clause
-License URL: https://cs.opensource.google/go/x/text/+/v0.28.0:LICENSE
+License URL: https://cs.opensource.google/go/x/text/+/v0.34.0:LICENSE
 
 
