@@ -5,7 +5,6 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -14,14 +13,15 @@ import (
 
 type dashboardKeyMap struct {
 	Quit key.Binding
+	Zoom key.Binding
 }
 
 func (k dashboardKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Quit}
+	return []key.Binding{k.Quit, k.Zoom}
 }
 
 func (k dashboardKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{{k.Quit}}
+	return [][]key.Binding{{k.Quit, k.Zoom}}
 }
 
 // combinedKeyMap merges the dashboard-level bindings with the service list
@@ -37,6 +37,7 @@ func (c combinedKeyMap) ShortHelp() []key.Binding {
 		c.list.CursorDown,
 		c.list.Filter,
 		c.list.ClearFilter,
+		c.dashboard.Zoom,
 		c.dashboard.Quit,
 	}
 }
@@ -45,7 +46,7 @@ func (c combinedKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{c.list.CursorUp, c.list.CursorDown, c.list.NextPage, c.list.PrevPage},
 		{c.list.Filter, c.list.ClearFilter, c.list.AcceptWhileFiltering, c.list.CancelWhileFiltering},
-		{c.dashboard.Quit},
+		{c.dashboard.Zoom, c.dashboard.Quit},
 	}
 }
 
@@ -55,19 +56,15 @@ var defaultDashboardKeys = dashboardKeyMap{
 		key.WithKeys("q"),
 		key.WithHelp("q", "quit"),
 	),
+	Zoom: key.NewBinding(
+		key.WithKeys("z"),
+		key.WithHelp("z", "fullscreen"),
+	),
 }
 
 const (
 	focusLeft  = 0
 	focusRight = 1 // reserved for tab/focus switching (out of scope this iteration)
-
-	servicePaneRatio    = 30
-	servicePaneRatioDen = 100
-	servicePaneMaxW     = 80
-	borderWidth         = 2
-	borderHeight        = 2
-	separatorRows       = 1
-	helpBarHeight       = 1
 )
 
 // Dashboard is the main project state. It renders a two-pane horizontal split:
@@ -77,18 +74,18 @@ type Dashboard struct {
 	keys        dashboardKeyMap
 	help        help.Model
 	serviceList servicelist.Model
-	w, h        int
+	layout      paneLayout
 	focus       int
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
 func NewDashboard(project *domain.Project) State {
-	//nolint:exhaustruct // w, h set on first SetSize call
 	return &Dashboard{
 		project:     project,
 		keys:        defaultDashboardKeys,
 		help:        help.New(),
 		serviceList: servicelist.New(project, 0, 0),
+		layout:      newPaneLayout(),
 		focus:       focusLeft,
 	}
 }
@@ -98,30 +95,36 @@ func (d *Dashboard) Init() tea.Cmd { return nil }
 
 // SetSize implements State.
 func (d *Dashboard) SetSize(w, h int) {
-	d.w = w
-	d.h = h
 	d.help.SetWidth(w)
+	d.layout = d.layout.SetSize(w, h)
 
-	leftW := min(w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
-	leftContentW := max(leftW-borderWidth, 0)
-	paneH := max(h-separatorRows-helpBarHeight, 0)
-	innerH := max(paneH-borderHeight, 0)
-
-	// svcX=1: left border column; svcY=1: top border row
-	d.serviceList = d.serviceList.SetBounds(1, 1, leftContentW, innerH)
+	b := d.layout.ServiceListBounds()
+	d.serviceList = d.serviceList.SetBounds(b.x, b.y, b.w, b.h)
 }
 
 // Update handles the quit key and forwards messages to the service list.
 func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if key.Matches(keyMsg, d.keys.Quit) && !d.serviceList.IsFiltering() {
+	switch msg := msg.(type) {
+	case tea.KeyPressMsg:
+		if key.Matches(msg, d.keys.Quit) && !d.serviceList.IsFiltering() {
 			return d, tea.Quit
 		}
-	}
 
-	if loaded, ok := msg.(msgs.ProjectLoaded); ok {
-		d.project = loaded.Project
-		d.serviceList = d.serviceList.SetProject(loaded.Project)
+		if key.Matches(msg, d.keys.Zoom) && !d.serviceList.IsFiltering() {
+			d.layout = d.layout.ToggleMode()
+			if d.layout.IsLogFullscreen() {
+				d.focus = focusRight
+			} else {
+				d.focus = focusLeft
+			}
+
+			b := d.layout.ServiceListBounds()
+			d.serviceList = d.serviceList.SetBounds(b.x, b.y, b.w, b.h)
+		}
+
+	case msgs.ProjectLoaded:
+		d.project = msg.Project
+		d.serviceList = d.serviceList.SetProject(msg.Project)
 	}
 
 	var listCmd tea.Cmd
@@ -133,57 +136,19 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 
 // View renders the two-pane dashboard layout with a help bar on the last row.
 func (d *Dashboard) View() string {
-	if d.w == 0 || d.h == 0 {
+	if d.layout.w == 0 || d.layout.h == 0 {
 		return ""
 	}
 
-	leftW := min(d.w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
-	rightW := d.w - leftW
-	leftContentW := max(leftW-borderWidth, 0)
-	rightContentW := max(rightW-borderWidth, 0)
-	paneH := max(d.h-separatorRows-helpBarHeight, 0)
-	innerH := max(paneH-borderHeight, 0)
-
-	highlight := lipgloss.Color("62")
-	dimmed := lipgloss.Color("240")
-
-	leftBorderColor := dimmed
-	rightBorderColor := dimmed
-
-	if d.focus == focusLeft {
-		leftBorderColor = highlight
-	} else {
-		rightBorderColor = highlight
+	zoomHelp := "fullscreen"
+	if d.layout.IsLogFullscreen() {
+		zoomHelp = "split"
 	}
 
-	leftInner := lipgloss.NewStyle().
-		Width(leftContentW).
-		Height(innerH).
-		Render(d.serviceList.View())
-
-	rightInner := lipgloss.NewStyle().
-		Width(rightContentW).
-		Height(innerH).
-		Align(lipgloss.Center, lipgloss.Center).
-		Render("logs")
-
-	leftPane := lipgloss.NewStyle().
-		Width(leftW).
-		Height(paneH).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(leftBorderColor).
-		Render(leftInner)
-
-	rightPane := lipgloss.NewStyle().
-		Width(rightW).
-		Height(paneH).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(rightBorderColor).
-		Render(rightInner)
-
-	panes := lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)
+	d.keys.Zoom = key.NewBinding(key.WithKeys("z"), key.WithHelp("z", zoomHelp))
 
 	km := combinedKeyMap{dashboard: d.keys, list: d.serviceList.KeyMap()}
 
-	return panes + "\n" + d.help.View(km)
+	return d.layout.View(d.serviceList.View(), "logs", d.focus == focusLeft) +
+		"\n" + d.help.View(km)
 }
