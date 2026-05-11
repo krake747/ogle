@@ -61,6 +61,7 @@ func New(project *domain.Project, w, h int) Model {
 	l.SetShowStatusBar(false)
 	l.SetShowPagination(false)
 	l.DisableQuitKeybindings()
+	l.InfiniteScrolling = true
 
 	//nolint:exhaustruct // lastSelected intentionally zero — no selection on construction
 	return Model{

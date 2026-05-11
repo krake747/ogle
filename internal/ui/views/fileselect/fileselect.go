@@ -60,6 +60,7 @@ func New(files []string, width, height int) Model {
 	l.Title = "ogle"
 	l.SetFilteringEnabled(false)
 	l.KeyMap.ForceQuit.SetEnabled(false)
+	l.InfiniteScrolling = true
 
 	//nolint:exhaustruct // list.Model has many fields, but only a few are relevant to us
 	return Model{
