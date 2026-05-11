@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -48,13 +49,13 @@ func New(project *domain.Project, w, h int) Model {
 	base := list.NewDefaultDelegate()
 	base.ShowDescription = false
 	base.SetSpacing(0)
-
 	hd := hoverlist.NewDelegate(base)
 
 	l := list.New(toItems(project.Services), hd, w, h)
 	l.Title = filepath.Base(project.File)
 	l.SetShowTitle(true)
-	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0)
+	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0).PaddingLeft(0)
+	l.Styles.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("240"))
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
 	l.SetShowStatusBar(false)
