@@ -26,8 +26,7 @@ type labelsModel struct {
 	focused  bool
 	hover    int // index under mouse, -1 if none
 	ctrlHeld bool
-	dragIdx  int // index being dragged, -1 if none
-	dragX    int
+	pressIdx int // index at left-button press, -1 if none; used to confirm Ctrl+click on same row
 }
 
 type labelPair struct {
@@ -53,9 +52,8 @@ func newLabelsModel(svc domain.ServiceDef) labelsModel {
 		offset:   0,
 		focused:  false,
 		hover:    -1,
-		dragIdx:  -1,
+		pressIdx: -1,
 		ctrlHeld: false,
-		dragX:    0,
 	}
 }
 
@@ -103,8 +101,7 @@ func (m labelsModel) handleMouseClick(msg tea.MouseClickMsg) labelsModel {
 	if msg.Button == tea.MouseLeft {
 		idx := m.mouseRow(msg.Y)
 		if idx >= 0 {
-			m.dragIdx = idx
-			m.dragX = msg.X
+			m.pressIdx = idx
 		}
 	}
 
@@ -112,28 +109,22 @@ func (m labelsModel) handleMouseClick(msg tea.MouseClickMsg) labelsModel {
 }
 
 func (m labelsModel) handleMouseRelease(msg tea.MouseReleaseMsg) (labelsModel, tea.Cmd) {
-	if msg.Button != tea.MouseLeft || m.dragIdx < 0 {
+	if msg.Button != tea.MouseLeft || m.pressIdx < 0 {
 		return m, nil
 	}
 
-	pressIdx := m.dragIdx
+	pressIdx := m.pressIdx
 	releaseIdx := m.mouseRow(msg.Y)
+
+	m.pressIdx = -1
 
 	if pressIdx == releaseIdx && pressIdx >= 0 {
 		pair := m.pairs[pressIdx]
 
 		if m.ctrlHeld && isURL(pair.value) {
-			m.dragIdx = -1
-
 			return m, openURLCmd(pair.value)
 		}
 	}
-
-	if pressIdx >= 0 && abs(msg.X-m.dragX) > 0 {
-		return m, copyToClipboardCmd(m.pairs[pressIdx].value)
-	}
-
-	m.dragIdx = -1
 
 	return m, nil
 }
@@ -197,25 +188,10 @@ func isURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
-func abs(x int) int {
-	if x < 0 {
-		return -x
-	}
-
-	return x
-}
-
 func openURLCmd(url string) tea.Cmd {
 	return func() tea.Msg {
 		_ = exec.CommandContext(context.Background(), "xdg-open", url).Start()
 
-		return nil
-	}
-}
-
-func copyToClipboardCmd(_ string) tea.Cmd {
-	return func() tea.Msg {
-		// copy to clipboard
 		return nil
 	}
 }

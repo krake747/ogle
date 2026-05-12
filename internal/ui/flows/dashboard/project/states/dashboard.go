@@ -2,12 +2,15 @@ package states
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -104,6 +107,9 @@ type Dashboard struct {
 	connectState    inspector.ConnectState
 	unavailable     inspector.UnavailableState
 	showLabels      bool
+	drag            dragSelection
+	lastPressX      int
+	lastPressY      int
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
@@ -126,6 +132,9 @@ func NewDashboard(ctx context.Context, project *domain.Project, th *theme.Theme)
 		connectState:    inspector.ConnectStateConnecting,
 		unavailable:     inspector.UnavailableState{SecondsUntilRetry: 0},
 		showLabels:      false,
+		drag:            dragSelection{active: false, startX: 0, startY: 0, endY: 0, component: selectionNone},
+		lastPressX:      0,
+		lastPressY:      0,
 	}
 }
 
@@ -165,6 +174,19 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 
 		d.handleKeyPress(msg)
 
+	case tea.MouseClickMsg:
+		d.handleMouseClick(msg)
+
+	case tea.MouseMotionMsg:
+		if d.handleMouseMotion(msg) {
+			return d, nil
+		}
+
+	case tea.MouseReleaseMsg:
+		if cmd, handled := d.handleMouseRelease(msg); handled {
+			return d, cmd
+		}
+
 	case msgs.ServiceSelected:
 		d.selectedService = msg.Service
 		d.inspector = d.inspector.SetService(msg.Service)
@@ -183,8 +205,6 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 
 	case msgs.DaemonConnected:
 		d.handleDaemonConnected()
-
-		return d, nil
 
 	case msgs.DaemonUnavailable:
 		return d, d.handleDaemonUnavailable()
@@ -213,17 +233,23 @@ func (d *Dashboard) View() string {
 		return ""
 	}
 
-	zoomHelp := "fullscreen"
-	if d.layout.IsLogFullscreen() {
-		zoomHelp = "split"
+	full := d.renderFull()
+	if d.drag.active {
+		full = d.applySelectionHighlight(full)
 	}
 
-	d.keys.Zoom = key.NewBinding(key.WithKeys("z"), key.WithHelp("z", zoomHelp))
+	return full
+}
 
+func (d *Dashboard) renderFull() string {
+	return d.layout.View(d.serviceList.View(), d.inspector.View(), d.focus == focusLeft) +
+		"\n" + d.footerView()
+}
+
+func (d *Dashboard) footerView() string {
 	km := combinedKeyMap{dashboard: d.keys, list: d.serviceList.KeyMap()}
 
-	return d.layout.View(d.serviceList.View(), d.inspector.View(), d.focus == focusLeft) +
-		"\n" + d.help.View(km)
+	return d.help.View(km)
 }
 
 // startCountdown returns a one-shot one-second timer that fires retryTickMsg.
@@ -284,8 +310,10 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 func (d *Dashboard) handleZoom() {
 	d.layout = d.layout.ToggleMode()
 	if d.layout.IsLogFullscreen() {
+		d.keys.Zoom = key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "split"))
 		d.focus = focusRight
 	} else {
+		d.keys.Zoom = key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "fullscreen"))
 		d.focus = focusLeft
 	}
 
@@ -315,4 +343,149 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) {
 			return
 		}
 	}
+}
+
+func (d *Dashboard) handleMouseClick(msg tea.MouseClickMsg) {
+	if msg.Button != tea.MouseLeft {
+		return
+	}
+
+	d.lastPressX = msg.X
+	d.lastPressY = msg.Y
+	d.drag = dragSelection{active: false, startX: 0, startY: 0, endY: 0, component: selectionNone}
+}
+
+// handleMouseMotion returns true when Update must short-circuit: while a drag
+// is active the inspector and service list must not receive the motion event.
+func (d *Dashboard) handleMouseMotion(msg tea.MouseMotionMsg) bool {
+	if msg.Button != tea.MouseLeft {
+		return false
+	}
+
+	dx := msg.X - d.lastPressX
+	dy := msg.Y - d.lastPressY
+
+	if d.drag.active {
+		b := d.boundsForComponent(d.drag.component)
+		d.drag.endY = clamp(msg.Y, b.y, b.y+b.h-1)
+
+		return true
+	}
+
+	if abs(dx) <= 1 && abs(dy) <= 1 {
+		return false
+	}
+
+	comp := d.hitTestComponent(d.lastPressX, d.lastPressY)
+	if comp == selectionNone {
+		return false
+	}
+
+	d.drag = dragSelection{
+		active:    true,
+		startX:    d.lastPressX,
+		startY:    d.lastPressY,
+		endY:      msg.Y,
+		component: comp,
+	}
+
+	return true
+}
+
+// handleMouseRelease returns (cmd, true) when Update must short-circuit: a
+// completed drag must not propagate to the inspector or service list.
+func (d *Dashboard) handleMouseRelease(msg tea.MouseReleaseMsg) (tea.Cmd, bool) {
+	if msg.Button == tea.MouseLeft && d.drag.active {
+		text := d.extractSelection()
+		d.drag = dragSelection{active: false, startX: 0, startY: 0, endY: 0, component: selectionNone}
+
+		if text != "" {
+			return tea.SetClipboard(text), true
+		}
+
+		return nil, true
+	}
+
+	d.drag = dragSelection{active: false, startX: 0, startY: 0, endY: 0, component: selectionNone}
+
+	return nil, false
+}
+
+func (d *Dashboard) hitTestComponent(x, y int) selectionComponent {
+	lb := d.layout.ServiceListBounds()
+	if x >= lb.x && x < lb.x+lb.w && y >= lb.y && y < lb.y+lb.h {
+		return selectionServiceList
+	}
+
+	rb := d.layout.LogViewBounds()
+	if x >= rb.x && x < rb.x+rb.w && y >= rb.y && y < rb.y+rb.h {
+		return selectionInspector
+	}
+
+	paneH := d.layout.h - separatorRows - helpBarHeight
+	if y == paneH {
+		return selectionFooter
+	}
+
+	return selectionNone
+}
+
+func (d *Dashboard) boundsForComponent(c selectionComponent) rect {
+	switch c {
+	case selectionServiceList:
+		return d.layout.ServiceListBounds()
+	case selectionInspector:
+		return d.layout.LogViewBounds()
+	case selectionFooter:
+		paneH := d.layout.h - separatorRows - helpBarHeight
+
+		return rect{x: 0, y: paneH, w: d.layout.w, h: 1}
+	case selectionNone:
+		return rect{}
+	}
+
+	return rect{}
+}
+
+// extractSelection uses each component's own View() output to avoid x-range
+// slicing across split-pane terminal rows (Decision 14).
+func (d *Dashboard) extractSelection() string {
+	b := d.boundsForComponent(d.drag.component)
+	minRow, maxRow := d.drag.rows()
+	localMin := minRow - b.y
+	localMax := maxRow - b.y
+
+	var source string
+
+	switch d.drag.component {
+	case selectionServiceList:
+		source = d.serviceList.View()
+	case selectionInspector:
+		source = d.inspector.View()
+	case selectionFooter:
+		source = d.footerView()
+	case selectionNone:
+		return ""
+	}
+
+	lines := strings.Split(source, "\n")
+
+	return extractText(lines, localMin, localMax, rect{x: 0, y: 0, w: b.w, h: b.h})
+}
+
+func (d *Dashboard) applySelectionHighlight(rendered string) string {
+	lines := strings.Split(rendered, "\n")
+	minRow, maxRow := d.drag.rows()
+	b := d.boundsForComponent(d.drag.component)
+	highlight := lipgloss.NewStyle().Reverse(true)
+
+	for row := minRow; row <= maxRow; row++ {
+		if row < b.y || row >= b.y+b.h || row >= len(lines) {
+			continue
+		}
+
+		lines[row] = highlight.Render(ansi.Strip(lines[row]))
+	}
+
+	return strings.Join(lines, "\n")
 }
