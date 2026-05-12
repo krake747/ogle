@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -15,6 +16,8 @@ import (
 func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(ctx, "docker", "compose", "-f", file, "-p", projectName, "stop", serviceName)
+
+		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
 			return msgs.ServiceActionCompleted{
 				ServiceName: serviceName,
@@ -36,6 +39,8 @@ func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 func Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "-d", serviceName)
+
+		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
 			return msgs.ServiceActionCompleted{
 				ServiceName: serviceName,
@@ -58,6 +63,8 @@ func Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "restart", serviceName,
 		)
+
+		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
 			return msgs.ServiceActionCompleted{
 				ServiceName: serviceName,
@@ -81,6 +88,8 @@ func Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "--build", "-d", serviceName,
 		)
+
+		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
 			return msgs.ServiceActionCompleted{
 				ServiceName: serviceName,
