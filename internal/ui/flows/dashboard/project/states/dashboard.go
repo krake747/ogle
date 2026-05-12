@@ -29,6 +29,7 @@ type dashboardKeyMap struct {
 	Quit          key.Binding
 	Zoom          key.Binding
 	ToggleLabels  key.Binding
+	Settings      key.Binding
 	ActionStop    key.Binding
 	ActionStart   key.Binding
 	ActionRestart key.Binding
@@ -52,7 +53,7 @@ type combinedKeyMap struct {
 }
 
 // shortHelpBaseCount is the number of fixed bindings in combinedKeyMap.ShortHelp.
-const shortHelpBaseCount = 7
+const shortHelpBaseCount = 8
 
 func (c combinedKeyMap) ShortHelp() []key.Binding {
 	bindings := make([]key.Binding, 0, shortHelpBaseCount+len(c.actionBindings))
@@ -63,6 +64,7 @@ func (c combinedKeyMap) ShortHelp() []key.Binding {
 		c.list.ClearFilter,
 		c.dashboard.Zoom,
 		c.dashboard.ToggleLabels,
+		c.dashboard.Settings,
 		c.dashboard.Quit,
 	)
 
@@ -90,6 +92,10 @@ var defaultDashboardKeys = dashboardKeyMap{
 	ToggleLabels: key.NewBinding(
 		key.WithKeys("l"),
 		key.WithHelp("l", "labels"),
+	),
+	Settings: key.NewBinding(
+		key.WithKeys(","),
+		key.WithHelp(",", "settings"),
 	),
 	ActionStop: key.NewBinding(
 		key.WithKeys("s"),
@@ -124,6 +130,10 @@ const (
 type Dashboard struct {
 	ctx             context.Context
 	project         *domain.Project
+	theme           *theme.Theme
+	themeName       string
+	pollInterval    time.Duration
+	logBufferCap    int
 	keys            dashboardKeyMap
 	help            help.Model
 	serviceList     servicelist.Model
@@ -140,7 +150,14 @@ type Dashboard struct {
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
-func NewDashboard(ctx context.Context, project *domain.Project, th *theme.Theme) State {
+func NewDashboard(
+	ctx context.Context,
+	project *domain.Project,
+	th *theme.Theme,
+	themeName string,
+	poll time.Duration,
+	logBufCap int,
+) State {
 	var first domain.ServiceDef
 	if len(project.Services) > 0 {
 		first = project.Services[0]
@@ -149,6 +166,10 @@ func NewDashboard(ctx context.Context, project *domain.Project, th *theme.Theme)
 	return &Dashboard{
 		ctx:             ctx,
 		project:         project,
+		theme:           th,
+		themeName:       themeName,
+		pollInterval:    poll,
+		logBufferCap:    logBufCap,
 		keys:            defaultDashboardKeys,
 		help:            help.New(),
 		serviceList:     servicelist.New(project, th, 0, 0),
@@ -197,6 +218,10 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if key.Matches(msg, d.keys.Quit) && !d.serviceList.IsFiltering() {
 			return d, tea.Quit
+		}
+
+		if key.Matches(msg, d.keys.Settings) && !d.serviceList.IsFiltering() {
+			return NewSettings(d.ctx, d.project, d.themeName, d.pollInterval, d.logBufferCap, d.theme), nil
 		}
 
 		if cmd := d.handleKeyPress(msg); cmd != nil {

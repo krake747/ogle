@@ -1,3 +1,5 @@
 log:
   level: debug
 project-file: 
+poll-interval: 2s
+log-buffer-cap: 1000

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/lmittmann/tint"
@@ -71,7 +72,14 @@ var (
 			)
 
 			if cfg.ProjectFile != "" {
-				if err := validateProjectFile(cfg.ProjectFile, p); err != nil {
+				abs, err := filepath.Abs(cfg.ProjectFile)
+				if err != nil {
+					return fmt.Errorf("resolve project file path: %w", err)
+				}
+
+				cfg.ProjectFile = abs
+
+				if err = validateProjectFile(cfg.ProjectFile, p); err != nil {
 					return err
 				}
 			}
@@ -99,7 +107,7 @@ var (
 				logger.WarnContext(ctx, "theme load failed, using default", slog.Any("err", themeErr))
 			}
 
-			model := dashboard.New(ctx, cfg, logger, sc, p, th)
+			model := dashboard.New(ctx, cfg, configDir, logger, sc, p, th)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
@@ -149,11 +157,18 @@ func init() {
 	rootCmd.AddCommand(newVersionCommand())
 }
 
+const (
+	defaultPollInterval time.Duration = 2 * time.Second
+	defaultLogBufferCap               = 1000
+)
+
 func initialiseConfig(cmd *cobra.Command) error {
 	viper.SetEnvPrefix("OGLE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 	viper.SetDefault("theme", "default")
+	viper.SetDefault("poll-interval", defaultPollInterval)
+	viper.SetDefault("log-buffer-cap", defaultLogBufferCap)
 
 	if cfgFile != "" {
 		// Use config file from the flag.

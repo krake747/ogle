@@ -5,6 +5,7 @@ package project
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -20,8 +21,16 @@ type Model struct {
 }
 
 // New constructs a project Model initialised in the Dashboard state.
-func New(ctx context.Context, project *domain.Project, th *theme.Theme, w, h int) Model {
-	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th)}
+func New(
+	ctx context.Context,
+	project *domain.Project,
+	th *theme.Theme,
+	themeName string,
+	poll time.Duration,
+	logBufCap int,
+	w, h int,
+) Model {
+	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap)}
 	m.current.SetSize(w, h)
 
 	return m

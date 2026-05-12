@@ -1,6 +1,10 @@
 package msgs
 
-import "github.com/ma-tf/ogle/internal/domain"
+import (
+	"time"
+
+	"github.com/ma-tf/ogle/internal/domain"
+)
 
 // FileAvailabilityChanged is emitted by the watcher whenever compose file
 // presence in the watched directory changes. Files contains the absolute paths
@@ -53,4 +57,12 @@ type ServiceActionCompleted struct {
 	ServiceName string
 	Action      domain.ServiceAction
 	Err         error
+}
+
+// SettingsApplied is emitted by states.Settings when the user confirms changes.
+// dashboard.Model handles it to update the active configuration for the session.
+type SettingsApplied struct {
+	Theme        string
+	PollInterval time.Duration
+	LogBufferCap int
 }

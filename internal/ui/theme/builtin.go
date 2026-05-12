@@ -2,6 +2,11 @@ package theme
 
 import "charm.land/lipgloss/v2"
 
+// BuiltinNames returns the names of all built-in themes in display order.
+func BuiltinNames() []string {
+	return []string{"default", "catppuccino_mocha"}
+}
+
 // Default returns the default built-in theme using ANSI-256 palette colours.
 func Default() *Theme {
 	focused := lipgloss.Color("62")

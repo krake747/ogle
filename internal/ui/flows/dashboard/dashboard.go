@@ -29,17 +29,18 @@ type watcherReadyMsg struct{ w svcwatcher.Watcher }
 
 // Model is the root flow orchestrator.
 type Model struct {
-	ctx     context.Context
-	cfg     config.Config
-	dir     string
-	logger  *slog.Logger
-	scanner scanner.Scanner
-	parser  parser.Parser
-	theme   *theme.Theme
-	w       svcwatcher.Watcher
-	current tea.Model
-	width   int
-	height  int
+	ctx       context.Context
+	cfg       config.Config
+	configDir string
+	dir       string
+	logger    *slog.Logger
+	scanner   scanner.Scanner
+	parser    parser.Parser
+	theme     *theme.Theme
+	w         svcwatcher.Watcher
+	current   tea.Model
+	width     int
+	height    int
 }
 
 // New constructs the dashboard Model. Watcher creation is synchronous; a
@@ -48,6 +49,7 @@ type Model struct {
 func New(
 	ctx context.Context,
 	cfg config.Config,
+	configDir string,
 	logger *slog.Logger,
 	sc scanner.Scanner,
 	p parser.Parser,
@@ -71,17 +73,18 @@ func New(
 	}
 
 	return Model{
-		ctx:     ctx,
-		cfg:     cfg,
-		dir:     dir,
-		logger:  logger,
-		scanner: sc,
-		parser:  p,
-		theme:   th,
-		w:       w,
-		current: startup.New(cfg, dir, watcherErr, sc, p, th, width, height),
-		width:   width,
-		height:  height,
+		ctx:       ctx,
+		cfg:       cfg,
+		configDir: configDir,
+		dir:       dir,
+		logger:    logger,
+		scanner:   sc,
+		parser:    p,
+		theme:     th,
+		w:         w,
+		current:   startup.New(cfg, dir, watcherErr, sc, p, th, width, height),
+		width:     width,
+		height:    height,
 	}
 }
 
@@ -119,9 +122,36 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = project.New(m.ctx, msg.Project, m.theme, m.width, m.height)
+		m.current = project.New(
+			m.ctx,
+			msg.Project,
+			m.theme,
+			m.cfg.Theme,
+			m.cfg.PollInterval,
+			m.cfg.LogBufferCap,
+			m.width,
+			m.height,
+		)
 
 		return m, m.current.Init()
+
+	case msgs.SettingsApplied:
+		// m.cfg and m.theme are updated so that the next ProjectLoaded event
+		// (triggered by a compose-file change) constructs the project model
+		// with the new settings. The live UI update is already handled by
+		// Settings.Update returning a new Dashboard state directly.
+		th, err := theme.Load(msg.Theme, m.configDir)
+		if err != nil {
+			m.logger.Warn("settings: theme load failed, keeping previous", slog.Any("err", err))
+		} else {
+			m.theme = th
+		}
+
+		m.cfg.Theme = msg.Theme
+		m.cfg.PollInterval = msg.PollInterval
+		m.cfg.LogBufferCap = msg.LogBufferCap
+
+		return m, nil
 
 	case msgs.RetryWatcher:
 		return m, retryWatcherCmd(m.dir, m.scanner, m.logger)
