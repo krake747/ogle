@@ -26,6 +26,7 @@ type Theme struct {
 	BorderBlurred    lipgloss.Style
 	ServiceListTitle lipgloss.Style
 	HoverBackground  color.Color
+	URLHover         lipgloss.Style
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -35,6 +36,7 @@ type userThemeFile struct {
 	BorderBlurredColor    string `yaml:"borderBlurredColor"`
 	ServiceListTitleColor string `yaml:"serviceListTitleColor"`
 	HoverBackgroundColor  string `yaml:"hoverBackgroundColor"`
+	URLHoverColor         string `yaml:"urlHoverColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -100,6 +102,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.HoverBackgroundColor != "" {
 		result.HoverBackground = lipgloss.Color(f.HoverBackgroundColor)
+	}
+
+	if f.URLHoverColor != "" {
+		result.URLHover = result.URLHover.Foreground(lipgloss.Color(f.URLHoverColor))
 	}
 
 	return &result

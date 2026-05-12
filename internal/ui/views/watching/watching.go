@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 )
@@ -161,27 +162,22 @@ func (m Model) View() string {
 	}
 
 	// Assemble the bottom block (everything except the title).
-	var bottomLines []string
-
-	bottomLines = append(bottomLines, wrapLine(bodyText, w)...)
+	body := lipgloss.NewStyle().Width(w).Render(bodyText)
 
 	switch m.state {
 	case stateIdle:
 		// nothing extra in idle
 	case stateNotice:
-		bottomLines = append(bottomLines, "")
-		bottomLines = append(bottomLines, wrapLine("notice: "+m.notice, w)...)
+		body += "\n\n" + lipgloss.NewStyle().Width(w).Render("notice: "+m.notice)
 	case stateError:
-		bottomLines = append(bottomLines, "")
-		bottomLines = append(bottomLines, wrapLine(fmt.Sprintf("Error: %v", m.watcherErr), w)...)
+		body += "\n\n" + lipgloss.NewStyle().Width(w).Render(fmt.Sprintf("Error: %v", m.watcherErr))
 	}
 
 	// Rendered after the state block so it appears in all states, consistent
 	// with fileselect. parsing.go clears the flag before entering notice/error
 	// states, so this is a no-op in practice when state != stateIdle.
 	if m.parsing {
-		bottomLines = append(bottomLines, "")
-		bottomLines = append(bottomLines, "Parsing...")
+		body += "\n\nParsing..."
 	}
 
 	// Footer text.
@@ -194,10 +190,11 @@ func (m Model) View() string {
 		footer = "r retry   ctrl+c quit"
 	}
 
+	bodyLines := strings.Count(body, "\n") + 1
 	availableRows := h - 1 // last row reserved for footer
 	titleRows := 1
 	blankRow := 1 // separator between bottom block and footer
-	bottomStart := availableRows - len(bottomLines) - blankRow
+	bottomStart := availableRows - bodyLines - blankRow
 
 	var sb strings.Builder
 
@@ -211,56 +208,8 @@ func (m Model) View() string {
 		sb.WriteByte('\n')
 	}
 
-	for _, l := range bottomLines {
-		if l == "" {
-			sb.WriteByte('\n')
-		} else {
-			sb.WriteString(l + "\n")
-		}
-	}
-
-	// Blank separator row before footer.
-	sb.WriteByte('\n')
-
 	// Footer on last row (no trailing newline — bubbletea handles cursor).
-	sb.WriteString(footer)
+	sb.WriteString(body + "\n\n" + footer)
 
 	return sb.String()
-}
-
-// wrapLine wraps s into lines of at most width runes. Operates on runes to
-// handle multi-byte characters (e.g. em dash) correctly.
-func wrapLine(s string, width int) []string {
-	runes := []rune(s)
-	if width <= 0 || len(runes) <= width {
-		return []string{s}
-	}
-
-	var out []string
-
-	for len(runes) > width {
-		// Scan backwards from width for a space break point.
-		cut := width
-		for i := width - 1; i > 0; i-- {
-			if runes[i] == ' ' {
-				cut = i
-
-				break
-			}
-		}
-
-		out = append(out, string(runes[:cut]))
-		runes = runes[cut:]
-
-		// Trim leading spaces from the remainder.
-		for len(runes) > 0 && runes[0] == ' ' {
-			runes = runes[1:]
-		}
-	}
-
-	if len(runes) > 0 {
-		out = append(out, string(runes))
-	}
-
-	return out
 }

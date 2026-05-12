@@ -2,8 +2,9 @@ package inspector
 
 import (
 	"fmt"
-	"strings"
 	"time"
+
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 )
@@ -15,11 +16,10 @@ const headerLines = 2
 const dash = "—"
 
 const (
-	halfWidth     = 2  // divisor: a column occupies half the available width
-	row1ImagePad  = 3  // chars reserved for the gap between name and image in row 1
 	shortIDLen    = 12 // Docker conventional short-hash length
 	secsPerMinute = 60
 	secsPerHour   = 3600
+	halfWidth     = 2
 )
 
 // renderHeader returns the compact detail header for the given service.
@@ -27,15 +27,16 @@ const (
 // (container ID, state, health, age) show dash when runtime is nil.
 func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width int) string {
 	// Row 1: name | image
-	name := truncate(svc.Name, width/halfWidth)
-
 	image := svc.Image
 	if image == "" {
 		image = dash
 	}
 
-	image = truncate(image, width-len(name)-row1ImagePad)
-	row1 := padColumns(name, image, width)
+	leftW := width / halfWidth
+	rightW := width - leftW
+	left := lipgloss.NewStyle().Width(leftW).MaxWidth(leftW).Inline(true).Render(svc.Name)
+	right := lipgloss.NewStyle().Width(rightW).MaxWidth(rightW).Inline(true).Align(lipgloss.Right).Render(image)
+	row1 := left + right
 
 	// Row 2: container hash | state | health | age
 	var containerID, state, health, age string
@@ -52,19 +53,11 @@ func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width in
 		age = formatAge(rt.StateAge)
 	}
 
-	row2 := truncate(
+	row2 := lipgloss.NewStyle().MaxWidth(width).Inline(true).Render(
 		fmt.Sprintf("%s  %s  %s  %s", containerID, state, health, age),
-		width,
 	)
 
 	return row1 + "\n" + row2
-}
-
-// padColumns places left and right strings separated by spaces to fill width.
-func padColumns(left, right string, width int) string {
-	gap := max(width-len(left)-len(right), 1)
-
-	return left + strings.Repeat(" ", gap) + right
 }
 
 // shortID returns the first 12 characters of a container ID, or the full
@@ -75,20 +68,6 @@ func shortID(id string) string {
 	}
 
 	return id[:shortIDLen]
-}
-
-// truncate clips s to at most limit runes, appending "…" if clipped.
-func truncate(s string, limit int) string {
-	runes := []rune(s)
-	if len(runes) <= limit {
-		return s
-	}
-
-	if limit <= 1 {
-		return "…"
-	}
-
-	return string(runes[:limit-1]) + "…"
 }
 
 // formatAge formats a [time.Duration] as a short human-readable string.

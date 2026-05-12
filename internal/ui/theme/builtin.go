@@ -12,6 +12,7 @@ func Default() *Theme {
 		BorderBlurred:    lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(blurred),
 		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(blurred),
 		HoverBackground:  lipgloss.Color("237"),
+		URLHover:         lipgloss.NewStyle().Underline(true),
 	}
 }
 
@@ -26,5 +27,6 @@ func CatppuccinoMocha() *Theme {
 		BorderBlurred:    lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(overlay0),
 		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(overlay0),
 		HoverBackground:  surface0,
+		URLHover:         lipgloss.NewStyle().Underline(true),
 	}
 }

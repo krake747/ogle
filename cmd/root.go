@@ -90,7 +90,7 @@ var (
 						slog.Any("err", err),
 					)
 				} else {
-					configDir = home + "/.ogle"
+					configDir = filepath.Join(home, ".ogle")
 				}
 			}
 

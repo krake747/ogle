@@ -8,14 +8,15 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
 	oglePrefix   = "ogle."
 	labelsHeight = 8 // fixed visible height for the label section
-	keyValSep    = 2 // spaces between key and value columns
 )
 
 // labelsModel is the ogle.* label section sub-component. It is a value type.
@@ -122,6 +123,8 @@ func (m labelsModel) handleMouseRelease(msg tea.MouseReleaseMsg) (labelsModel, t
 		pair := m.pairs[pressIdx]
 
 		if m.ctrlHeld && isURL(pair.value) {
+			m.dragIdx = -1
+
 			return m, openURLCmd(pair.value)
 		}
 	}
@@ -136,12 +139,15 @@ func (m labelsModel) handleMouseRelease(msg tea.MouseReleaseMsg) (labelsModel, t
 }
 
 // view renders the label section at the given dimensions.
-func (m labelsModel) view(width, height int) string {
+func (m labelsModel) view(width, height int, th *theme.Theme) string {
 	if len(m.pairs) == 0 {
 		return fmt.Sprintf("%-*s", width, "(no ogle.* labels)")
 	}
 
 	visible := min(height, labelsHeight)
+
+	keyW := width / halfWidth
+	valW := width - keyW - halfWidth
 
 	var sb strings.Builder
 
@@ -152,17 +158,16 @@ func (m labelsModel) view(width, height int) string {
 		}
 
 		pair := m.pairs[idx]
-		key := truncate(pair.key, width/halfWidth)
-		val := pair.value
+		keyBlock := lipgloss.NewStyle().Width(keyW).MaxWidth(keyW).Inline(true).Render(pair.key)
 
-		if m.hover == i && m.ctrlHeld && isURL(val) {
-			val = underline(val)
+		var valBlock string
+		if m.hover == i && m.ctrlHeld && isURL(pair.value) {
+			valBlock = th.URLHover.MaxWidth(valW).Inline(true).Render(pair.value)
+		} else {
+			valBlock = lipgloss.NewStyle().MaxWidth(valW).Inline(true).Render(pair.value)
 		}
 
-		val = truncate(val, width-len(key)-keyValSep)
-		line := fmt.Sprintf("%-*s  %s", width/halfWidth, key, val)
-		line = truncate(line, width)
-		sb.WriteString(line)
+		sb.WriteString(keyBlock + "  " + valBlock)
 
 		if i < visible-1 {
 			sb.WriteByte('\n')
@@ -172,10 +177,9 @@ func (m labelsModel) view(width, height int) string {
 	return sb.String()
 }
 
-// mouseRow maps an absolute Y coordinate to a visible label index.
+// mouseRow maps a section-relative Y coordinate to a visible label index.
 // Returns -1 when the coordinate is outside the label section.
 func (m labelsModel) mouseRow(absY int) int {
-	// Row mapping is approximate; the Dashboard must offset Y by the header height.
 	if absY < 0 || absY >= labelsHeight {
 		return -1
 	}
@@ -190,10 +194,6 @@ func (m labelsModel) mouseRow(absY int) int {
 
 func isURL(s string) bool {
 	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
-}
-
-func underline(s string) string {
-	return "\x1b[4m" + s + "\x1b[0m"
 }
 
 func abs(x int) int {
@@ -214,7 +214,7 @@ func openURLCmd(url string) tea.Cmd {
 
 func copyToClipboardCmd(_ string) tea.Cmd {
 	return func() tea.Msg {
-		// copy to clipboard
+		// copy to clipboard with bubbletea's built-in clipboard support
 		return nil
 	}
 }

@@ -119,7 +119,7 @@ func NewDashboard(ctx context.Context, project *domain.Project, th *theme.Theme)
 		keys:            defaultDashboardKeys,
 		help:            help.New(),
 		serviceList:     servicelist.New(project, th, 0, 0),
-		inspector:       inspector.New(first),
+		inspector:       inspector.New(first, th),
 		layout:          newPaneLayout(th),
 		focus:           focusLeft,
 		selectedService: first,
@@ -152,7 +152,7 @@ func (d *Dashboard) SetSize(w, h int) {
 	d.serviceList = d.serviceList.SetBounds(b.x, b.y, b.w, b.h)
 
 	lb := d.layout.LogViewBounds()
-	d.inspector = d.inspector.SetBounds(lb.w, lb.h)
+	d.inspector = d.inspector.SetBounds(lb.w, lb.h, lb.y)
 }
 
 // Update handles all Dashboard messages.
@@ -183,6 +183,8 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 
 	case msgs.DaemonConnected:
 		d.handleDaemonConnected()
+
+		return d, nil
 
 	case msgs.DaemonUnavailable:
 		return d, d.handleDaemonUnavailable()
@@ -290,7 +292,7 @@ func (d *Dashboard) handleZoom() {
 	b := d.layout.ServiceListBounds()
 	d.serviceList = d.serviceList.SetBounds(b.x, b.y, b.w, b.h)
 	lb := d.layout.LogViewBounds()
-	d.inspector = d.inspector.SetBounds(lb.w, lb.h)
+	d.inspector = d.inspector.SetBounds(lb.w, lb.h, lb.y)
 }
 
 func (d *Dashboard) handleToggleLabels() {

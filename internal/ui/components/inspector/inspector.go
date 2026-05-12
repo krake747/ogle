@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // ConnectState represents the Docker daemon connectivity state as seen by the
@@ -40,23 +41,27 @@ type Model struct {
 	runtime      *domain.ServiceRuntimeData
 	connectState ConnectState
 	unavailable  UnavailableState
+	theme        *theme.Theme
 	showLabels   bool
 	labels       labelsModel
 	width        int
 	height       int
+	y            int
 }
 
 // New returns a Model for the given service with ConnectStateConnecting.
-func New(service domain.ServiceDef) Model {
+func New(service domain.ServiceDef, th *theme.Theme) Model {
 	return Model{
 		service:      service,
 		runtime:      nil,
 		connectState: ConnectStateConnecting,
 		labels:       newLabelsModel(service),
+		theme:        th,
 		unavailable:  UnavailableState{SecondsUntilRetry: 0},
 		showLabels:   false,
 		width:        0,
 		height:       0,
+		y:            0,
 	}
 }
 
@@ -99,10 +104,11 @@ func (m Model) SetShowLabels(show bool) Model {
 	return m
 }
 
-// SetBounds propagates terminal dimensions to the inspector.
-func (m Model) SetBounds(w, h int) Model {
+// SetBounds propagates terminal dimensions and vertical origin to the inspector.
+func (m Model) SetBounds(w, h, y int) Model {
 	m.width = w
 	m.height = h
+	m.y = y
 
 	return m
 }
@@ -115,12 +121,36 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if m.showLabels {
 		var cmd tea.Cmd
 
-		m.labels, cmd = m.labels.update(msg)
+		m.labels, cmd = m.labels.update(m.adjustMouseY(msg))
 
 		return m, cmd
 	}
 
 	return m, nil
+}
+
+// adjustMouseY rewrites the Y field of mouse messages to be relative to the
+// label section top (inspector origin + header rows), so that mouseRow receives
+// a section-local coordinate.
+func (m Model) adjustMouseY(msg tea.Msg) tea.Msg {
+	offset := m.y + headerLines
+
+	switch ev := msg.(type) {
+	case tea.MouseMotionMsg:
+		ev.Y -= offset
+
+		return ev
+	case tea.MouseClickMsg:
+		ev.Y -= offset
+
+		return ev
+	case tea.MouseReleaseMsg:
+		ev.Y -= offset
+
+		return ev
+	}
+
+	return msg
 }
 
 // View renders the Service Inspector: detail header above the Log Stream area.
@@ -133,7 +163,7 @@ func (m Model) View() string {
 
 	var body string
 	if m.showLabels {
-		body = m.labels.view(m.width, m.height-headerLines)
+		body = m.labels.view(m.width, m.height-headerLines, m.theme)
 	} else {
 		body = m.renderLogArea()
 	}
