@@ -182,7 +182,6 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	case msgs.DaemonConnected:
 		d.handleDaemonConnected()
 
-		return d, nil
 	case msgs.DaemonUnavailable:
 		return d, d.handleDaemonUnavailable()
 
@@ -266,13 +265,14 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 
 	d.unavailable.SecondsUntilRetry--
 
-	d.inspector = d.inspector.SetUnavailable(d.unavailable)
 	if d.unavailable.SecondsUntilRetry <= 0 {
 		d.connectState = inspector.ConnectStateConnecting
 		d.inspector = d.inspector.SetConnectState(inspector.ConnectStateConnecting)
 
 		return svcdocker.Connect(context.Background())
 	}
+
+	d.inspector = d.inspector.SetUnavailable(d.unavailable)
 
 	return startCountdown()
 }
