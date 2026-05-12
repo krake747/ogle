@@ -37,3 +37,12 @@ type RetryWatcher struct{}
 type ServiceSelected struct {
 	Service domain.ServiceDef
 }
+
+// DaemonConnected is emitted by the docker service when the Docker daemon ping
+// succeeds. It signals the Dashboard to start State Polling and Log Stream.
+type DaemonConnected struct{}
+
+// DaemonUnavailable is emitted by the docker service when the Docker daemon
+// cannot be reached. The Dashboard shows a retry countdown and freezes Service
+// States at their last-known values.
+type DaemonUnavailable struct{ Err error }

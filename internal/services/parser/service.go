@@ -35,9 +35,10 @@ type Parser interface {
 type composeFile struct {
 	Name     string `yaml:"name"`
 	Services map[string]struct {
-		Image         string `yaml:"image"`
-		ContainerName string `yaml:"containerName"`
-		Build         any    `yaml:"build"`
+		Image         string            `yaml:"image"`
+		ContainerName string            `yaml:"container_name"` //nolint:tagliatelle // Docker Compose uses snake_case
+		Build         any               `yaml:"build"`
+		Labels        map[string]string `yaml:"labels"`
 	} `yaml:"services"`
 }
 
@@ -80,6 +81,7 @@ func (s Service) Parse(path string) (*domain.Project, error) {
 			Name:          serviceName,
 			Image:         svc.Image,
 			ContainerName: svc.ContainerName,
+			Labels:        svc.Labels,
 		})
 	}
 

@@ -218,3 +218,5 @@ dashboardLoaded
 | `ProjectLoaded{Project}`         | startup flow        | root orchestrator                                |
 | `WatcherError{Err}`              | root orchestrator   | startup flow → watching view (error state)       |
 | `RetryWatcher{}`                 | watching view       | root orchestrator (triggers watcher re-creation) |
+| `DaemonConnected{}`              | docker service      | Dashboard (transitions to ConnectStateConnected) |
+| `DaemonUnavailable{Err}`         | docker service      | Dashboard (starts retry countdown)               |

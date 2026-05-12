@@ -264,6 +264,7 @@ linters:
         - ^net/http.Server$
         - ^net/http.Transport$
         - ^net/url.URL$
+        - ^net.Dialer$
         - ^os/exec.Cmd$
         - ^reflect.StructField$
         # public libs

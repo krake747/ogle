@@ -20,16 +20,27 @@ import (
 const headerRows = 1
 
 // serviceItem is a single entry in the list component.
-type serviceItem struct{ def domain.ServiceDef }
+type serviceItem struct {
+	def     domain.ServiceDef
+	runtime *domain.ServiceRuntimeData
+}
 
-func (s serviceItem) Title() string       { return s.def.Name }
-func (s serviceItem) Description() string { return "" }
+func (s serviceItem) Title() string { return s.def.Name }
+
+func (s serviceItem) Description() string {
+	if s.runtime == nil {
+		return "—"
+	}
+
+	return string(s.runtime.State)
+}
+
 func (s serviceItem) FilterValue() string { return s.def.Name }
 
-func toItems(services []domain.ServiceDef) []list.Item {
+func toItems(services []domain.ServiceDef, runtimes map[string]*domain.ServiceRuntimeData) []list.Item {
 	items := make([]list.Item, len(services))
 	for i, svc := range services {
-		items[i] = serviceItem{def: svc}
+		items[i] = serviceItem{def: svc, runtime: runtimes[svc.Name]}
 	}
 
 	return items
@@ -43,6 +54,7 @@ type Model struct {
 	layout       hoverlist.Layout
 	theme        *theme.Theme
 	lastSelected string
+	runtimes     map[string]*domain.ServiceRuntimeData
 }
 
 // New returns a Model pre-loaded with the given project's services.
@@ -52,7 +64,7 @@ func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	base.SetSpacing(0)
 	hd := hoverlist.NewDelegate(base, th)
 
-	l := list.New(toItems(project.Services), hd, w, h)
+	l := list.New(toItems(project.Services, nil), hd, w, h)
 	l.Title = filepath.Base(project.File)
 	l.SetShowTitle(true)
 	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0).PaddingLeft(0)
@@ -84,9 +96,27 @@ func (m Model) SetBounds(x, y, w, h int) Model {
 
 // SetProject replaces the service items and updates the title. Called on Live Reload.
 func (m Model) SetProject(project *domain.Project) Model {
-	m.list.SetItems(toItems(project.Services))
+	m.list.SetItems(toItems(project.Services, m.runtimes))
 	m.list.Title = filepath.Base(project.File)
 	m.lastSelected = ""
+
+	return m
+}
+
+// SetRuntimes updates the service state data shown in each item's description.
+// Called after each State Poll cycle. A nil map resets all descriptions to "—".
+func (m Model) SetRuntimes(runtimes map[string]*domain.ServiceRuntimeData) Model {
+	m.runtimes = runtimes
+
+	items := m.list.Items()
+	for i, item := range items {
+		if si, ok := item.(serviceItem); ok {
+			si.runtime = runtimes[si.def.Name]
+			items[i] = si
+		}
+	}
+
+	m.list.SetItems(items)
 
 	return m
 }
