@@ -16,6 +16,8 @@ type Service struct {
 }
 
 // Scanner finds Compose Files on disk.
+//
+//mockery:generate: true
 type Scanner interface {
 	KnownFilenames() []string
 	ScanAll(dir string) []string

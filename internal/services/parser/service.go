@@ -24,6 +24,8 @@ var (
 var _ Parser = Service{}
 
 // Parser validates and parses Compose Files into Projects.
+//
+//mockery:generate: true
 type Parser interface {
 	Validate(path string) error
 	Parse(path string) (*domain.Project, error)

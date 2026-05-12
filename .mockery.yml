@@ -1,0 +1,26 @@
+all: false
+dir: "{{.InterfaceDir}}/mocks"
+filename: "mock_{{.InterfaceName}}.go"
+force-file-write: true
+formatter: goimports
+formatter-options:
+  goimports:
+    all-errors: false
+    comments: true
+    format-only: true
+    fragment: false
+    local-prefix: "github.com/ma-tf/ogle"
+    tab-indent: true
+    tab-width: 8
+generate: false
+include-auto-generated: false
+log-level: info
+structname: "{{.Mock}}{{.InterfaceName}}"
+pkgname: mocks
+recursive: false
+require-template-schema-exists: true
+template: testify
+template-schema: "{{.Template}}.schema.json"
+packages:
+  github.com/ma-tf/ogle/internal/services/parser:
+  github.com/ma-tf/ogle/internal/services/scanner:
