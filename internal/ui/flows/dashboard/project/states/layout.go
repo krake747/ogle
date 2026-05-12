@@ -111,7 +111,6 @@ func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 		rightInner := lipgloss.NewStyle().
 			Width(contentW).
 			Height(innerH).
-			Align(lipgloss.Center, lipgloss.Center).
 			Render(logViewStr)
 
 		return rightBorderStyle.
@@ -135,7 +134,6 @@ func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 	rightInner := lipgloss.NewStyle().
 		Width(rightContentW).
 		Height(innerH).
-		Align(lipgloss.Center, lipgloss.Center).
 		Render(logViewStr)
 
 	leftPane := leftBorderStyle.
