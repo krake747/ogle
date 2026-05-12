@@ -10,6 +10,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup/states"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Model is the startup flow orchestrator.
@@ -19,6 +20,7 @@ type Model struct {
 	height  int
 	scanner scanner.Scanner
 	parser  parser.Parser
+	theme   *theme.Theme
 	current tea.Model
 }
 
@@ -29,6 +31,7 @@ func New(
 	watcherErr error,
 	sc scanner.Scanner,
 	p parser.Parser,
+	th *theme.Theme,
 	width,
 	height int,
 ) Model {
@@ -36,11 +39,11 @@ func New(
 
 	switch {
 	case watcherErr != nil:
-		current = states.NewWatchingWithError(dir, watcherErr, sc, p, width, height)
+		current = states.NewWatchingWithError(dir, watcherErr, sc, p, th, width, height)
 	case cfg.ProjectFile != "":
-		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p, width, height), p)
+		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p, th, width, height), p)
 	default:
-		current = states.NewScanning(dir, sc, p, width, height)
+		current = states.NewScanning(dir, sc, p, th, width, height)
 	}
 
 	return Model{
@@ -49,6 +52,7 @@ func New(
 		height:  height,
 		scanner: sc,
 		parser:  p,
+		theme:   th,
 		current: current,
 	}
 }
@@ -66,7 +70,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if we, ok := msg.(msgs.WatcherError); ok {
-		m.current = states.NewWatchingWithError(m.dir, we.Err, m.scanner, m.parser, m.width, m.height)
+		m.current = states.NewWatchingWithError(
+			m.dir,
+			we.Err,
+			m.scanner,
+			m.parser,
+			m.theme,
+			m.width,
+			m.height,
+		)
 
 		return m, nil
 	}

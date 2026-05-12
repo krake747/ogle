@@ -1,6 +1,10 @@
 package states
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+
+	"github.com/ma-tf/ogle/internal/ui/theme"
+)
 
 const (
 	servicePaneRatio    = 30
@@ -22,12 +26,13 @@ const (
 type rect struct{ x, y, w, h int }
 
 type paneLayout struct {
-	mode layoutMode
-	w, h int
+	mode  layoutMode
+	theme *theme.Theme
+	w, h  int
 }
 
-func newPaneLayout() paneLayout {
-	return paneLayout{}
+func newPaneLayout(th *theme.Theme) paneLayout {
+	return paneLayout{mode: modeSplit, theme: th, w: 0, h: 0}
 }
 
 func (p paneLayout) SetSize(w, h int) paneLayout {
@@ -92,15 +97,12 @@ func (p paneLayout) LogViewBounds() rect {
 // log-fullscreen mode only the right pane is rendered at full terminal width.
 // The help bar is not rendered here — that remains in Dashboard.View.
 func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) string {
-	highlight := lipgloss.Color("62")
-	dimmed := lipgloss.Color("240")
-
 	paneH := max(p.h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)
 
-	rightBorderColor := dimmed
+	rightBorderStyle := p.theme.BorderBlurred
 	if !leftFocused {
-		rightBorderColor = highlight
+		rightBorderStyle = p.theme.BorderFocused
 	}
 
 	if p.mode == modeLogFullscreen {
@@ -112,11 +114,9 @@ func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 			Align(lipgloss.Center, lipgloss.Center).
 			Render(logViewStr)
 
-		return lipgloss.NewStyle().
+		return rightBorderStyle.
 			Width(p.w).
 			Height(paneH).
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(rightBorderColor).
 			Render(rightInner)
 	}
 
@@ -125,15 +125,12 @@ func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 	leftContentW := max(leftW-borderWidth, 0)
 	rightContentW := max(rightW-borderWidth, 0)
 
-	leftBorderColor := dimmed
+	leftBorderStyle := p.theme.BorderBlurred
 	if leftFocused {
-		leftBorderColor = highlight
+		leftBorderStyle = p.theme.BorderFocused
 	}
 
-	leftInner := lipgloss.NewStyle().
-		Width(leftContentW).
-		Height(innerH).
-		Render(serviceListStr)
+	leftInner := lipgloss.NewStyle().Width(leftContentW).Height(innerH).Render(serviceListStr)
 
 	rightInner := lipgloss.NewStyle().
 		Width(rightContentW).
@@ -141,18 +138,14 @@ func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 		Align(lipgloss.Center, lipgloss.Center).
 		Render(logViewStr)
 
-	leftPane := lipgloss.NewStyle().
+	leftPane := leftBorderStyle.
 		Width(leftW).
 		Height(paneH).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(leftBorderColor).
 		Render(leftInner)
 
-	rightPane := lipgloss.NewStyle().
+	rightPane := rightBorderStyle.
 		Width(rightW).
 		Height(paneH).
-		Border(lipgloss.NormalBorder()).
-		BorderForeground(rightBorderColor).
 		Render(rightInner)
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPane, rightPane)

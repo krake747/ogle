@@ -8,6 +8,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Model is the project flow orchestrator.
@@ -16,8 +17,8 @@ type Model struct {
 }
 
 // New constructs a project Model initialised in the Dashboard state.
-func New(project *domain.Project, w, h int) Model {
-	m := Model{current: states.NewDashboard(project)}
+func New(project *domain.Project, th *theme.Theme, w, h int) Model {
+	m := Model{current: states.NewDashboard(project, th)}
 	m.current.SetSize(w, h)
 
 	return m

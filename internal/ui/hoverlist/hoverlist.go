@@ -7,7 +7,8 @@ import (
 	"io"
 
 	"charm.land/bubbles/v2/list"
-	"charm.land/lipgloss/v2"
+
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Delegate extends list.ItemDelegate with hover state management.
@@ -24,11 +25,12 @@ type delegate struct {
 	list.DefaultDelegate
 
 	hoverIndex int
+	theme      *theme.Theme
 }
 
 // NewDelegate returns a Delegate wrapping base with no item hovered.
-func NewDelegate(base list.DefaultDelegate) Delegate {
-	return &delegate{DefaultDelegate: base, hoverIndex: -1}
+func NewDelegate(base list.DefaultDelegate, th *theme.Theme) Delegate {
+	return &delegate{DefaultDelegate: base, hoverIndex: -1, theme: th}
 }
 
 func (d *delegate) SetHover(index int) {
@@ -40,7 +42,7 @@ func (d *delegate) SetHover(index int) {
 func (d *delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	if index == d.hoverIndex {
 		dd := d.DefaultDelegate
-		bg := lipgloss.Color("237")
+		bg := d.theme.HoverBackground
 		dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(bg)
 		dd.Styles.NormalDesc = dd.Styles.NormalDesc.Background(bg)
 		dd.Render(w, m, index, item)

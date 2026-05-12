@@ -6,6 +6,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
 
@@ -21,12 +22,13 @@ func NewWatching(
 	dir string,
 	sc scanner.Scanner,
 	p parser.Parser,
+	th *theme.Theme,
 	width int,
 	height int,
 ) tea.Model {
 	return Watching{
 		model:   watching.New(dir, width, height),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p, width: width, height: height},
+		handler: fileHandler{dir: dir, scanner: sc, parser: p, theme: th, width: width, height: height},
 	}
 }
 
@@ -36,11 +38,12 @@ func NewWatchingWithError(
 	err error,
 	sc scanner.Scanner,
 	p parser.Parser,
+	th *theme.Theme,
 	width, height int,
 ) tea.Model {
 	return Watching{
 		model:   watching.New(dir, width, height).SetError(err),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p, width: width, height: height},
+		handler: fileHandler{dir: dir, scanner: sc, parser: p, theme: th, width: width, height: height},
 	}
 }
 

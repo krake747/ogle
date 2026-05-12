@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -16,6 +17,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 var (
@@ -74,7 +76,30 @@ var (
 				}
 			}
 
-			model := dashboard.New(cfg, logger, sc, p)
+			configDir := ""
+			if cf := viper.ConfigFileUsed(); cf != "" {
+				configDir = filepath.Dir(cf)
+			}
+
+			if configDir == "" || configDir == "." {
+				home, err := os.UserHomeDir()
+				if err != nil {
+					logger.WarnContext(
+						ctx,
+						"could not determine home directory for theme loading",
+						slog.Any("err", err),
+					)
+				} else {
+					configDir = home + "/.ogle"
+				}
+			}
+
+			th, themeErr := theme.Load(cfg.Theme, configDir)
+			if themeErr != nil {
+				logger.WarnContext(ctx, "theme load failed, using default", slog.Any("err", themeErr))
+			}
+
+			model := dashboard.New(cfg, logger, sc, p, th)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
@@ -128,6 +153,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 	viper.SetEnvPrefix("OGLE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
+	viper.SetDefault("theme", "default")
 
 	if cfgFile != "" {
 		// Use config file from the flag.

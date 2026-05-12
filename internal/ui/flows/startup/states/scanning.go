@@ -5,6 +5,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Scanning is the initial state: a directory scan is in flight and no view is
@@ -19,12 +20,14 @@ func NewScanning(
 	dir string,
 	sc scanner.Scanner,
 	p parser.Parser,
+	th *theme.Theme,
 	width, height int,
 ) tea.Model {
 	fh := fileHandler{
 		dir:     dir,
 		scanner: sc,
 		parser:  p,
+		theme:   th,
 		width:   width,
 		height:  height,
 	}

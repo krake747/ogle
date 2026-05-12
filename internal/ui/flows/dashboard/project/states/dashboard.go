@@ -9,6 +9,7 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 type dashboardKeyMap struct {
@@ -79,13 +80,13 @@ type Dashboard struct {
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
-func NewDashboard(project *domain.Project) State {
+func NewDashboard(project *domain.Project, th *theme.Theme) State {
 	return &Dashboard{
 		project:     project,
 		keys:        defaultDashboardKeys,
 		help:        help.New(),
-		serviceList: servicelist.New(project, 0, 0),
-		layout:      newPaneLayout(),
+		serviceList: servicelist.New(project, th, 0, 0),
+		layout:      newPaneLayout(th),
 		focus:       focusLeft,
 	}
 }

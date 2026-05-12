@@ -8,11 +8,11 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // headerRows is the number of terminal rows occupied by the list header.
@@ -41,21 +41,21 @@ type Model struct {
 	list         list.Model
 	delegate     hoverlist.Delegate
 	layout       hoverlist.Layout
+	theme        *theme.Theme
 	lastSelected string
 }
 
 // New returns a Model pre-loaded with the given project's services.
-func New(project *domain.Project, w, h int) Model {
+func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	base := list.NewDefaultDelegate()
 	base.ShowDescription = false
 	base.SetSpacing(0)
-	hd := hoverlist.NewDelegate(base)
+	hd := hoverlist.NewDelegate(base, th)
 
 	l := list.New(toItems(project.Services), hd, w, h)
 	l.Title = filepath.Base(project.File)
 	l.SetShowTitle(true)
 	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0).PaddingLeft(0)
-	l.Styles.Title = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("240"))
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
 	l.SetShowStatusBar(false)
@@ -68,6 +68,7 @@ func New(project *domain.Project, w, h int) Model {
 		list:     l,
 		delegate: hd,
 		layout:   hoverlist.Layout{HeaderRows: headerRows, ItemHeight: 1, RowStride: 1, Width: w},
+		theme:    th,
 	}
 }
 
@@ -162,5 +163,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the service list.
 func (m Model) View() string {
+	m.list.Styles.Title = m.theme.ServiceListTitle
+
 	return m.list.View()
 }

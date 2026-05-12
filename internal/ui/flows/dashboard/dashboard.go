@@ -19,6 +19,7 @@ import (
 	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // watcherReadyMsg is delivered when a watcher retry succeeds, carrying the
@@ -32,6 +33,7 @@ type Model struct {
 	logger  *slog.Logger
 	scanner scanner.Scanner
 	parser  parser.Parser
+	theme   *theme.Theme
 	w       svcwatcher.Watcher
 	current tea.Model
 	width   int
@@ -41,7 +43,7 @@ type Model struct {
 // New constructs the dashboard Model. Watcher creation is synchronous; a
 // failure is surfaced to the startup flow as a WatcherError so the watching
 // view enters its error state with a retry keybinding.
-func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Parser) Model {
+func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Parser, th *theme.Theme) Model {
 	var dir string
 	if cfg.ProjectFile != "" {
 		dir = filepath.Dir(cfg.ProjectFile)
@@ -65,8 +67,9 @@ func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Pa
 		logger:  logger,
 		scanner: sc,
 		parser:  p,
+		theme:   th,
 		w:       w,
-		current: startup.New(cfg, dir, watcherErr, sc, p, width, height),
+		current: startup.New(cfg, dir, watcherErr, sc, p, th, width, height),
 		width:   width,
 		height:  height,
 	}
@@ -106,7 +109,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = project.New(msg.Project, m.width, m.height)
+		m.current = project.New(msg.Project, m.theme, m.width, m.height)
 
 		return m, m.current.Init()
 

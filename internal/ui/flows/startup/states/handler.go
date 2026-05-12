@@ -8,6 +8,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 	"github.com/ma-tf/ogle/internal/ui/views/fileselect"
 	"github.com/ma-tf/ogle/internal/ui/views/watching"
 )
@@ -19,6 +20,7 @@ type fileHandler struct {
 	dir     string
 	scanner scanner.Scanner
 	parser  parser.Parser
+	theme   *theme.Theme
 	width   int
 	height  int
 }
@@ -37,7 +39,7 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 			display: fh.visibleState(current),
 		}, parse
 	default:
-		return Selecting{model: fileselect.New(valid, fh.width, fh.height), handler: fh}, nil
+		return Selecting{model: fileselect.New(valid, fh.theme, fh.width, fh.height), handler: fh}, nil
 	}
 }
 

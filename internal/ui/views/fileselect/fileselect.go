@@ -9,6 +9,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // headerRows is the number of terminal rows occupied by the list header.
@@ -53,8 +54,8 @@ func toItems(files []string) []list.Item {
 
 // New returns a Model pre-loaded with the given file paths. files must be
 // non-empty; callers should not construct a fileselect model with 0 files.
-func New(files []string, width, height int) Model {
-	hd := hoverlist.NewDelegate(list.NewDefaultDelegate())
+func New(files []string, th *theme.Theme, width, height int) Model {
+	hd := hoverlist.NewDelegate(list.NewDefaultDelegate(), th)
 
 	l := list.New(toItems(files), hd, width, height)
 	l.Title = "ogle"

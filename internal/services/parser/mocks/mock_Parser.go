@@ -5,8 +5,9 @@
 package mocks
 
 import (
-	"github.com/ma-tf/ogle/internal/domain"
 	mock "github.com/stretchr/testify/mock"
+
+	"github.com/ma-tf/ogle/internal/domain"
 )
 
 // NewMockParser creates a new instance of MockParser. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
