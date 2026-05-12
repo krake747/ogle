@@ -6,7 +6,6 @@ package watching
 import (
 	"fmt"
 	"path/filepath"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -151,7 +150,6 @@ func (m Model) View() string {
 	w := m.width
 	h := m.height
 
-	// Build body text.
 	var bodyText string
 
 	switch m.mode {
@@ -161,7 +159,6 @@ func (m Model) View() string {
 		bodyText = fmt.Sprintf("Disconnected — waiting for %s...", m.targetFile)
 	}
 
-	// Assemble the bottom block (everything except the title).
 	body := lipgloss.NewStyle().Width(w).Render(bodyText)
 
 	switch m.state {
@@ -180,7 +177,6 @@ func (m Model) View() string {
 		body += "\n\nParsing..."
 	}
 
-	// Footer text.
 	var footer string
 
 	switch m.state {
@@ -190,26 +186,13 @@ func (m Model) View() string {
 		footer = "r retry   ctrl+c quit"
 	}
 
-	bodyLines := strings.Count(body, "\n") + 1
-	availableRows := h - 1 // last row reserved for footer
-	titleRows := 1
-	blankRow := 1 // separator between bottom block and footer
-	bottomStart := availableRows - bodyLines - blankRow
+	content := body + "\n\n" + footer
 
-	var sb strings.Builder
-
-	// Title at row 1, column 1.
-	sb.WriteString("ogle\n")
-
-	// Gap between title and bottom block.
-	gap := max(bottomStart-titleRows, 0)
-
-	for range gap {
-		sb.WriteByte('\n')
-	}
-
-	// Footer on last row (no trailing newline — bubbletea handles cursor).
-	sb.WriteString(body + "\n\n" + footer)
-
-	return sb.String()
+	// Lipgloss owns everything below the title: Height(h-1) with bottom
+	// alignment pins the body+footer block to the last rows of the screen.
+	return "ogle\n" + lipgloss.NewStyle().
+		Width(w).
+		Height(h-1).
+		Align(lipgloss.Left, lipgloss.Bottom).
+		Render(content)
 }

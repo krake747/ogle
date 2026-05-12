@@ -2,7 +2,6 @@ package inspector
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"sort"
 	"strings"
@@ -17,6 +16,7 @@ import (
 const (
 	oglePrefix   = "ogle."
 	labelsHeight = 8 // fixed visible height for the label section
+	keyValSep    = 2 // spaces between key and value columns
 )
 
 // labelsModel is the ogle.* label section sub-component. It is a value type.
@@ -141,13 +141,13 @@ func (m labelsModel) handleMouseRelease(msg tea.MouseReleaseMsg) (labelsModel, t
 // view renders the label section at the given dimensions.
 func (m labelsModel) view(width, height int, th *theme.Theme) string {
 	if len(m.pairs) == 0 {
-		return fmt.Sprintf("%-*s", width, "(no ogle.* labels)")
+		return lipgloss.NewStyle().Width(width).Render("(no ogle.* labels)")
 	}
 
 	visible := min(height, labelsHeight)
 
 	keyW := width / halfWidth
-	valW := width - keyW - halfWidth
+	valW := width - keyW - keyValSep
 
 	var sb strings.Builder
 
@@ -161,6 +161,7 @@ func (m labelsModel) view(width, height int, th *theme.Theme) string {
 		keyBlock := lipgloss.NewStyle().Width(keyW).MaxWidth(keyW).Inline(true).Render(pair.key)
 
 		var valBlock string
+
 		if m.hover == i && m.ctrlHeld && isURL(pair.value) {
 			valBlock = th.URLHover.MaxWidth(valW).Inline(true).Render(pair.value)
 		} else {
@@ -214,7 +215,7 @@ func openURLCmd(url string) tea.Cmd {
 
 func copyToClipboardCmd(_ string) tea.Cmd {
 	return func() tea.Msg {
-		// copy to clipboard with bubbletea's built-in clipboard support
+		// copy to clipboard
 		return nil
 	}
 }

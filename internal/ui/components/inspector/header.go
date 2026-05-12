@@ -16,17 +16,17 @@ const headerLines = 2
 const dash = "—"
 
 const (
+	halfWidth     = 2  // divisor: a column occupies half the available width
 	shortIDLen    = 12 // Docker conventional short-hash length
 	secsPerMinute = 60
 	secsPerHour   = 3600
-	halfWidth     = 2
 )
 
 // renderHeader returns the compact detail header for the given service.
 // Compose File fields (name, image) are always rendered. Docker fields
 // (container ID, state, health, age) show dash when runtime is nil.
 func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width int) string {
-	// Row 1: name | image
+	// Row 1: name (left) | image (right-aligned)
 	image := svc.Image
 	if image == "" {
 		image = dash
