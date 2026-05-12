@@ -13,6 +13,12 @@ func Default() *Theme {
 		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(blurred),
 		HoverBackground:  lipgloss.Color("237"),
 		URLHover:         lipgloss.NewStyle().Underline(true),
+		StateRunning:     lipgloss.Color("2"),
+		StateExited:      lipgloss.Color("1"),
+		StatePaused:      lipgloss.Color("3"),
+		StateTransient:   lipgloss.Color("214"),
+		StateMuted:       lipgloss.Color("240"),
+		ActionError:      lipgloss.Color("1"),
 	}
 }
 
@@ -28,5 +34,11 @@ func CatppuccinoMocha() *Theme {
 		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(overlay0),
 		HoverBackground:  surface0,
 		URLHover:         lipgloss.NewStyle().Underline(true),
+		StateRunning:     lipgloss.Color("#a6e3a1"),
+		StateExited:      lipgloss.Color("#f38ba8"),
+		StatePaused:      lipgloss.Color("#f9e2af"),
+		StateTransient:   lipgloss.Color("#fab387"),
+		StateMuted:       lipgloss.Color("#6c7086"),
+		ActionError:      lipgloss.Color("#f38ba8"),
 	}
 }

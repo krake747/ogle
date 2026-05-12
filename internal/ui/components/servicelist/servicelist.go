@@ -8,6 +8,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -21,11 +22,15 @@ const headerRows = 1
 
 // serviceItem is a single entry in the list component.
 type serviceItem struct {
-	def     domain.ServiceDef
-	runtime *domain.ServiceRuntimeData
+	def            domain.ServiceDef
+	runtime        *domain.ServiceRuntimeData
+	actionInFlight bool
+	actionLabel    string // e.g. "stopping…"
+	actionError    string // e.g. "stop failed"
+	displayTitle   string // precomputed ANSI-styled string; returned by Title()
 }
 
-func (s serviceItem) Title() string { return s.def.Name }
+func (s serviceItem) Title() string { return s.displayTitle }
 
 func (s serviceItem) Description() string {
 	if s.runtime == nil {
@@ -37,10 +42,75 @@ func (s serviceItem) Description() string {
 
 func (s serviceItem) FilterValue() string { return s.def.Name }
 
-func toItems(services []domain.ServiceDef, runtimes map[string]*domain.ServiceRuntimeData) []list.Item {
+// buildTitle computes the ANSI-styled display title for a service list item.
+// It picks the icon and colour from the state-icon table, appends action labels
+// or error suffixes as needed, and pre-renders the result.
+func buildTitle(
+	name string,
+	rt *domain.ServiceRuntimeData,
+	inFlight bool,
+	actionLabel, actionError string,
+	th *theme.Theme,
+) string {
+	icon := "●"
+	colour := th.StateMuted
+
+	switch {
+	case inFlight:
+		icon = "◌"
+		colour = th.StateTransient
+	case rt == nil:
+		// icon and colour already set to defaults above
+	default:
+		switch rt.State {
+		case domain.ServiceStateRunning:
+			icon = "●"
+			colour = th.StateRunning
+		case domain.ServiceStateExited, domain.ServiceStateDead:
+			icon = "●"
+			colour = th.StateExited
+		case domain.ServiceStateNotCreated:
+			icon = "○"
+		case domain.ServiceStatePaused:
+			icon = "●"
+			colour = th.StatePaused
+		case domain.ServiceStateRestarting:
+			icon = "●"
+			colour = th.StateTransient
+		case domain.ServiceStateUnknown:
+			icon = "●"
+		}
+	}
+
+	rendered := lipgloss.NewStyle().Foreground(colour).Render(icon) + " " + name
+
+	if inFlight && actionLabel != "" {
+		rendered += "  " + actionLabel
+	}
+
+	if !inFlight && actionError != "" {
+		rendered += "  " + lipgloss.NewStyle().Foreground(th.ActionError).Render(actionError)
+	}
+
+	return rendered
+}
+
+func toItems(
+	services []domain.ServiceDef,
+	runtimes map[string]*domain.ServiceRuntimeData,
+	th *theme.Theme,
+) []list.Item {
 	items := make([]list.Item, len(services))
 	for i, svc := range services {
-		items[i] = serviceItem{def: svc, runtime: runtimes[svc.Name]}
+		rt := runtimes[svc.Name]
+		items[i] = serviceItem{
+			def:            svc,
+			runtime:        rt,
+			actionInFlight: false,
+			actionLabel:    "",
+			actionError:    "",
+			displayTitle:   buildTitle(svc.Name, rt, false, "", "", th),
+		}
 	}
 
 	return items
@@ -64,7 +134,7 @@ func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	base.SetSpacing(0)
 	hd := hoverlist.NewDelegate(base, th)
 
-	l := list.New(toItems(project.Services, nil), hd, w, h)
+	l := list.New(toItems(project.Services, nil, th), hd, w, h)
 	l.Title = filepath.Base(project.File)
 	l.SetShowTitle(true)
 	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0).PaddingLeft(0)
@@ -96,7 +166,7 @@ func (m Model) SetBounds(x, y, w, h int) Model {
 
 // SetProject replaces the service items and updates the title. Called on Live Reload.
 func (m Model) SetProject(project *domain.Project) Model {
-	m.list.SetItems(toItems(project.Services, m.runtimes))
+	m.list.SetItems(toItems(project.Services, m.runtimes, m.theme))
 	m.list.Title = filepath.Base(project.File)
 	m.lastSelected = ""
 
@@ -105,6 +175,7 @@ func (m Model) SetProject(project *domain.Project) Model {
 
 // SetRuntimes updates the service state data shown in each item's description.
 // Called after each State Poll cycle. A nil map resets all descriptions to "—".
+// Preserves any in-flight action state on each item.
 func (m Model) SetRuntimes(runtimes map[string]*domain.ServiceRuntimeData) Model {
 	m.runtimes = runtimes
 
@@ -112,6 +183,14 @@ func (m Model) SetRuntimes(runtimes map[string]*domain.ServiceRuntimeData) Model
 	for i, item := range items {
 		if si, ok := item.(serviceItem); ok {
 			si.runtime = runtimes[si.def.Name]
+			si.displayTitle = buildTitle(
+				si.def.Name,
+				si.runtime,
+				si.actionInFlight,
+				si.actionLabel,
+				si.actionError,
+				m.theme,
+			)
 			items[i] = si
 		}
 	}
@@ -119,6 +198,100 @@ func (m Model) SetRuntimes(runtimes map[string]*domain.ServiceRuntimeData) Model
 	m.list.SetItems(items)
 
 	return m
+}
+
+// SetActionInFlight marks the named service as in-flight and rebuilds its displayTitle.
+func (m Model) SetActionInFlight(name, label string) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		if si, ok := item.(serviceItem); ok && si.def.Name == name {
+			si.actionInFlight = true
+			si.actionLabel = label
+			si.actionError = ""
+			si.displayTitle = buildTitle(si.def.Name, si.runtime, true, label, "", m.theme)
+			items[i] = si
+
+			break
+		}
+	}
+
+	m.list.SetItems(items)
+
+	return m
+}
+
+// SetActionSuccess clears action state and applies an optimistic ServiceState.
+// If runtime is nil a minimal ServiceRuntimeData is created with the optimistic state.
+func (m Model) SetActionSuccess(name string, optimisticState domain.ServiceState) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		if si, ok := item.(serviceItem); ok && si.def.Name == name {
+			si.actionInFlight = false
+			si.actionLabel = ""
+			si.actionError = ""
+
+			if si.runtime == nil {
+				si.runtime = &domain.ServiceRuntimeData{
+					ContainerID: "",
+					State:       optimisticState,
+					Health:      "",
+					StateAge:    0,
+				}
+			} else {
+				rt := *si.runtime
+				rt.State = optimisticState
+				si.runtime = &rt
+			}
+
+			si.displayTitle = buildTitle(si.def.Name, si.runtime, false, "", "", m.theme)
+			items[i] = si
+
+			break
+		}
+	}
+
+	m.list.SetItems(items)
+
+	return m
+}
+
+// SetActionError clears in-flight state and sets an error suffix on the named service.
+func (m Model) SetActionError(name, errMsg string) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		if si, ok := item.(serviceItem); ok && si.def.Name == name {
+			si.actionInFlight = false
+			si.actionLabel = ""
+			si.actionError = errMsg
+			si.displayTitle = buildTitle(si.def.Name, si.runtime, false, "", errMsg, m.theme)
+			items[i] = si
+
+			break
+		}
+	}
+
+	m.list.SetItems(items)
+
+	return m
+}
+
+// SelectedEffectiveState returns state info for the currently selected item.
+// hasState is false when runtime is nil and no optimistic state has been applied.
+func (m Model) SelectedEffectiveState() (domain.ServiceState, bool, bool) {
+	si, ok := m.list.SelectedItem().(serviceItem)
+	if !ok {
+		return "", false, false
+	}
+
+	if si.actionInFlight {
+		return "", false, true
+	}
+
+	if si.runtime == nil {
+		return "", false, false
+	}
+
+	return si.runtime.State, true, false
 }
 
 // KeyMap returns the component's key map so Dashboard can merge it into the

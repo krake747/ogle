@@ -27,6 +27,12 @@ type Theme struct {
 	ServiceListTitle lipgloss.Style
 	HoverBackground  color.Color
 	URLHover         lipgloss.Style
+	StateRunning     color.Color // running
+	StateExited      color.Color // exited / dead
+	StatePaused      color.Color // paused
+	StateTransient   color.Color // restarting, action in-flight
+	StateMuted       color.Color // not created, unknown, nil runtime
+	ActionError      color.Color // error suffix text
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -37,6 +43,12 @@ type userThemeFile struct {
 	ServiceListTitleColor string `yaml:"serviceListTitleColor"`
 	HoverBackgroundColor  string `yaml:"hoverBackgroundColor"`
 	URLHoverColor         string `yaml:"urlHoverColor"`
+	StateRunningColor     string `yaml:"stateRunningColor"`
+	StateExitedColor      string `yaml:"stateExitedColor"`
+	StatePausedColor      string `yaml:"statePausedColor"`
+	StateTransientColor   string `yaml:"stateTransientColor"`
+	StateMutedColor       string `yaml:"stateMutedColor"`
+	ActionErrorColor      string `yaml:"actionErrorColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -106,6 +118,30 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.URLHoverColor != "" {
 		result.URLHover = result.URLHover.Foreground(lipgloss.Color(f.URLHoverColor))
+	}
+
+	if f.StateRunningColor != "" {
+		result.StateRunning = lipgloss.Color(f.StateRunningColor)
+	}
+
+	if f.StateExitedColor != "" {
+		result.StateExited = lipgloss.Color(f.StateExitedColor)
+	}
+
+	if f.StatePausedColor != "" {
+		result.StatePaused = lipgloss.Color(f.StatePausedColor)
+	}
+
+	if f.StateTransientColor != "" {
+		result.StateTransient = lipgloss.Color(f.StateTransientColor)
+	}
+
+	if f.StateMutedColor != "" {
+		result.StateMuted = lipgloss.Color(f.StateMutedColor)
+	}
+
+	if f.ActionErrorColor != "" {
+		result.ActionError = lipgloss.Color(f.ActionErrorColor)
 	}
 
 	return &result

@@ -46,3 +46,11 @@ type DaemonConnected struct{}
 // cannot be reached. The Dashboard shows a retry countdown and freezes Service
 // States at their last-known values.
 type DaemonUnavailable struct{ Err error }
+
+// ServiceActionCompleted is emitted by a docker action cmd when the
+// docker compose subprocess exits, whether successfully or not.
+type ServiceActionCompleted struct {
+	ServiceName string
+	Action      domain.ServiceAction
+	Err         error
+}

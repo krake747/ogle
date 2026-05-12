@@ -52,3 +52,14 @@ type ServiceDef struct {
 	ContainerName string
 	Labels        map[string]string
 }
+
+// ServiceAction is a user-initiated operation applied to a Service.
+type ServiceAction string
+
+// ServiceAction constants enumerate the supported Service Actions.
+const (
+	ServiceActionStop    ServiceAction = "stop"
+	ServiceActionStart   ServiceAction = "start"
+	ServiceActionRestart ServiceAction = "restart"
+	ServiceActionRebuild ServiceAction = "rebuild"
+)

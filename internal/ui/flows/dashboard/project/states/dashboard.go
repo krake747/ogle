@@ -26,9 +26,13 @@ const (
 )
 
 type dashboardKeyMap struct {
-	Quit         key.Binding
-	Zoom         key.Binding
-	ToggleLabels key.Binding
+	Quit          key.Binding
+	Zoom          key.Binding
+	ToggleLabels  key.Binding
+	ActionStop    key.Binding
+	ActionStart   key.Binding
+	ActionRestart key.Binding
+	ActionRebuild key.Binding
 }
 
 func (k dashboardKeyMap) ShortHelp() []key.Binding {
@@ -42,12 +46,17 @@ func (k dashboardKeyMap) FullHelp() [][]key.Binding {
 // combinedKeyMap merges the dashboard-level bindings with the service list
 // bindings for the help bar.
 type combinedKeyMap struct {
-	dashboard dashboardKeyMap
-	list      list.KeyMap
+	dashboard      dashboardKeyMap
+	list           list.KeyMap
+	actionBindings []key.Binding
 }
 
+// shortHelpBaseCount is the number of fixed bindings in combinedKeyMap.ShortHelp.
+const shortHelpBaseCount = 7
+
 func (c combinedKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{
+	bindings := make([]key.Binding, 0, shortHelpBaseCount+len(c.actionBindings))
+	bindings = append(bindings,
 		c.list.CursorUp,
 		c.list.CursorDown,
 		c.list.Filter,
@@ -55,7 +64,9 @@ func (c combinedKeyMap) ShortHelp() []key.Binding {
 		c.dashboard.Zoom,
 		c.dashboard.ToggleLabels,
 		c.dashboard.Quit,
-	}
+	)
+
+	return append(bindings, c.actionBindings...)
 }
 
 func (c combinedKeyMap) FullHelp() [][]key.Binding {
@@ -79,6 +90,22 @@ var defaultDashboardKeys = dashboardKeyMap{
 	ToggleLabels: key.NewBinding(
 		key.WithKeys("l"),
 		key.WithHelp("l", "labels"),
+	),
+	ActionStop: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "stop"),
+	),
+	ActionStart: key.NewBinding(
+		key.WithKeys("s"),
+		key.WithHelp("s", "start"),
+	),
+	ActionRestart: key.NewBinding(
+		key.WithKeys("r"),
+		key.WithHelp("r", "restart"),
+	),
+	ActionRebuild: key.NewBinding(
+		key.WithKeys("b"),
+		key.WithHelp("b", "rebuild"),
 	),
 }
 
@@ -172,7 +199,9 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 			return d, tea.Quit
 		}
 
-		d.handleKeyPress(msg)
+		if cmd := d.handleKeyPress(msg); cmd != nil {
+			return d, cmd
+		}
 
 	case tea.MouseClickMsg:
 		d.handleMouseClick(msg)
@@ -208,6 +237,20 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 
 	case msgs.DaemonUnavailable:
 		return d, d.handleDaemonUnavailable()
+
+	case msgs.ServiceActionCompleted:
+		optimistic := domain.ServiceStateRunning
+		if msg.Action == domain.ServiceActionStop {
+			optimistic = domain.ServiceStateExited
+		}
+
+		if msg.Err != nil {
+			d.serviceList = d.serviceList.SetActionError(msg.ServiceName, string(msg.Action)+" failed")
+		} else {
+			d.serviceList = d.serviceList.SetActionSuccess(msg.ServiceName, optimistic)
+		}
+
+		return d, nil
 
 	case gracePeriodExpiredMsg:
 		return d, d.handleGracePeriodExpired()
@@ -247,9 +290,37 @@ func (d *Dashboard) renderFull() string {
 }
 
 func (d *Dashboard) footerView() string {
-	km := combinedKeyMap{dashboard: d.keys, list: d.serviceList.KeyMap()}
+	km := combinedKeyMap{
+		dashboard:      d.keys,
+		list:           d.serviceList.KeyMap(),
+		actionBindings: d.actionBindings(),
+	}
 
 	return d.help.View(km)
+}
+
+// actionBindings returns the context-sensitive action key bindings for the
+// help bar. Returns nil when Docker is unavailable or an action is in-flight.
+func (d *Dashboard) actionBindings() []key.Binding {
+	if d.connectState != inspector.ConnectStateConnected {
+		return nil
+	}
+
+	state, hasState, inFlight := d.serviceList.SelectedEffectiveState()
+	if inFlight {
+		return nil
+	}
+
+	var bindings []key.Binding
+
+	switch {
+	case hasState && state == domain.ServiceStateRunning:
+		bindings = append(bindings, d.keys.ActionStop, d.keys.ActionRestart)
+	default:
+		bindings = append(bindings, d.keys.ActionStart)
+	}
+
+	return append(bindings, d.keys.ActionRebuild)
 }
 
 // startCountdown returns a one-shot one-second timer that fires retryTickMsg.
@@ -328,9 +399,9 @@ func (d *Dashboard) handleToggleLabels() {
 	d.inspector = d.inspector.SetShowLabels(d.showLabels)
 }
 
-func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) {
+func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	if d.serviceList.IsFiltering() {
-		return
+		return nil
 	}
 
 	for _, kb := range []keyBinding{
@@ -340,9 +411,51 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) {
 		if key.Matches(msg, kb.binding) {
 			kb.handle()
 
-			return
+			return nil
 		}
 	}
+
+	if d.connectState != inspector.ConnectStateConnected {
+		return nil
+	}
+
+	state, hasState, inFlight := d.serviceList.SelectedEffectiveState()
+	if inFlight {
+		return nil
+	}
+
+	name := d.selectedService.Name
+	if name == "" {
+		return nil
+	}
+
+	file := d.project.File
+	proj := d.project.Name
+
+	switch {
+	case key.Matches(msg, d.keys.ActionStop) && hasState && state == domain.ServiceStateRunning:
+		d.serviceList = d.serviceList.SetActionInFlight(name, "stopping…")
+
+		return svcdocker.Stop(d.ctx, file, proj, name)
+
+	case key.Matches(msg, d.keys.ActionStart) &&
+		(!hasState || state == domain.ServiceStateExited || state == domain.ServiceStateNotCreated):
+		d.serviceList = d.serviceList.SetActionInFlight(name, "starting…")
+
+		return svcdocker.Start(d.ctx, file, proj, name)
+
+	case key.Matches(msg, d.keys.ActionRestart) && hasState && state == domain.ServiceStateRunning:
+		d.serviceList = d.serviceList.SetActionInFlight(name, "restarting…")
+
+		return svcdocker.Restart(d.ctx, file, proj, name)
+
+	case key.Matches(msg, d.keys.ActionRebuild):
+		d.serviceList = d.serviceList.SetActionInFlight(name, "rebuilding…")
+
+		return svcdocker.Rebuild(d.ctx, file, proj, name)
+	}
+
+	return nil
 }
 
 func (d *Dashboard) handleMouseClick(msg tea.MouseClickMsg) {
