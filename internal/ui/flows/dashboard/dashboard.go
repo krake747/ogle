@@ -4,6 +4,7 @@
 package dashboard
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -28,6 +29,7 @@ type watcherReadyMsg struct{ w svcwatcher.Watcher }
 
 // Model is the root flow orchestrator.
 type Model struct {
+	ctx     context.Context
 	cfg     config.Config
 	dir     string
 	logger  *slog.Logger
@@ -43,7 +45,14 @@ type Model struct {
 // New constructs the dashboard Model. Watcher creation is synchronous; a
 // failure is surfaced to the startup flow as a WatcherError so the watching
 // view enters its error state with a retry keybinding.
-func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Parser, th *theme.Theme) Model {
+func New(
+	ctx context.Context,
+	cfg config.Config,
+	logger *slog.Logger,
+	sc scanner.Scanner,
+	p parser.Parser,
+	th *theme.Theme,
+) Model {
 	var dir string
 	if cfg.ProjectFile != "" {
 		dir = filepath.Dir(cfg.ProjectFile)
@@ -62,6 +71,7 @@ func New(cfg config.Config, logger *slog.Logger, sc scanner.Scanner, p parser.Pa
 	}
 
 	return Model{
+		ctx:     ctx,
 		cfg:     cfg,
 		dir:     dir,
 		logger:  logger,
@@ -109,7 +119,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = project.New(msg.Project, m.theme, m.width, m.height)
+		m.current = project.New(m.ctx, msg.Project, m.theme, m.width, m.height)
 
 		return m, m.current.Init()
 

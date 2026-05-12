@@ -92,6 +92,7 @@ const (
 // Dashboard is the main project state. It renders a two-pane horizontal split:
 // service list on the left, Service Inspector on the right.
 type Dashboard struct {
+	ctx             context.Context
 	project         *domain.Project
 	keys            dashboardKeyMap
 	help            help.Model
@@ -106,13 +107,14 @@ type Dashboard struct {
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
-func NewDashboard(project *domain.Project, th *theme.Theme) State {
+func NewDashboard(ctx context.Context, project *domain.Project, th *theme.Theme) State {
 	var first domain.ServiceDef
 	if len(project.Services) > 0 {
 		first = project.Services[0]
 	}
 
 	return &Dashboard{
+		ctx:             ctx,
 		project:         project,
 		keys:            defaultDashboardKeys,
 		help:            help.New(),
@@ -136,7 +138,7 @@ func (d *Dashboard) Init() tea.Cmd {
 	})
 
 	return tea.Batch(
-		svcdocker.Connect(context.Background()),
+		svcdocker.Connect(d.ctx),
 		graceTick,
 	)
 }
@@ -269,7 +271,7 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 		d.connectState = inspector.ConnectStateConnecting
 		d.inspector = d.inspector.SetConnectState(inspector.ConnectStateConnecting)
 
-		return svcdocker.Connect(context.Background())
+		return svcdocker.Connect(d.ctx)
 	}
 
 	d.inspector = d.inspector.SetUnavailable(d.unavailable)

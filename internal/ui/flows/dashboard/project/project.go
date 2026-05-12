@@ -4,6 +4,8 @@
 package project
 
 import (
+	"context"
+
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
@@ -13,12 +15,13 @@ import (
 
 // Model is the project flow orchestrator.
 type Model struct {
+	ctx     context.Context
 	current states.State
 }
 
 // New constructs a project Model initialised in the Dashboard state.
-func New(project *domain.Project, th *theme.Theme, w, h int) Model {
-	m := Model{current: states.NewDashboard(project, th)}
+func New(ctx context.Context, project *domain.Project, th *theme.Theme, w, h int) Model {
+	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th)}
 	m.current.SetSize(w, h)
 
 	return m

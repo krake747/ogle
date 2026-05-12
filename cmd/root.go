@@ -99,7 +99,7 @@ var (
 				logger.WarnContext(ctx, "theme load failed, using default", slog.Any("err", themeErr))
 			}
 
-			model := dashboard.New(cfg, logger, sc, p, th)
+			model := dashboard.New(ctx, cfg, logger, sc, p, th)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
