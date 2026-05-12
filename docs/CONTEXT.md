@@ -20,7 +20,15 @@ _Avoid_: Container (reserve "container" for implementation-level discussion, e.g
 
 **Service State**:
 The current Docker container state for a Service: `running`, `exited`, `paused`, `restarting`, `dead`, or `not created` (declared in the Compose File but no container exists yet).
-_Avoid_: Status, health (health check result is separate from container state)
+_Avoid_: Status, health (health check result is separate from container state — see **Service Health**)
+
+**Service Health**:
+The Docker health check result for a Service: `healthy`, `unhealthy`, `starting`, or `no healthcheck`. Distinct from Service State — a Service can be `running` but `unhealthy`.
+_Avoid_: Health status, container health
+
+**State Age**:
+The time elapsed since a Service entered its current Service State. Displayed for all states — e.g. `"up 2h"` when running, `"exited 3m ago"` when not. Resets on every state transition.
+_Avoid_: Uptime (running-only connotation), downtime (non-running-only connotation)
 
 **Orphan**:
 A running container that has no corresponding Service in the current Project. Typically the result of removing a Service from the Compose File while its container is still running.
@@ -33,8 +41,12 @@ _Avoid_: Show orphans, orphan visibility
 ### User interaction
 
 **Dashboard**:
-The main screen displayed after a Project is loaded. Shows all Services, their states, and the Selected Service's Log Stream.
+The main screen displayed after a Project is loaded. Shows all Services, their states, and the Selected Service's Log Stream in the Service Inspector.
 _Avoid_: Monitor view, main view, service view
+
+**Service Inspector**:
+The right pane of the Dashboard. A stacked layout: a compact detail header (service name, image, ports, container hash, Service State, Service Health, State Age) above the Log Stream area. The detail header renders Compose File fields immediately; Docker fields show `—` until the daemon is connected.
+_Avoid_: Logs pane, detail pane, right pane
 
 **Selected Service**:
 The Service whose Log Stream is currently displayed in the Dashboard.
@@ -55,6 +67,10 @@ _Avoid_: Polling (unqualified), refresh, state sync
 **Service Filter**:
 The interactive mode that narrows the Service list to entries whose name matches a user-supplied substring. Activated with `/` on the Dashboard.
 _Avoid_: Log filter (distinct feature), search
+
+**Label Toggle**:
+The user action that globally shows or hides the `ogle.*` label section in the Service Inspector. Hidden by default. The section is fixed-size, scrollable, and focusable as a sub-focus within the Service Inspector.
+_Avoid_: Metadata toggle, label visibility
 
 **Log Filter**:
 The interactive mode that narrows the Log Stream to lines matching a user-supplied substring. Planned feature; not yet implemented.
@@ -102,17 +118,24 @@ _Avoid_: Invalid file, broken compose, YAML error
 The state ogle enters when the monitored Compose File disappears at runtime. ogle waits for the same file to reappear before resuming the Dashboard.
 _Avoid_: Offline, paused, suspended
 
+**Docker Unavailable**:
+The condition where the Docker daemon cannot be reached at runtime — distinct from **Disconnected**, which refers to the Compose File disappearing. When Docker Unavailable, the Service Inspector shows a placeholder with a live retry countdown; Service States freeze at last-known values; Service Actions are disabled. ogle retries automatically.
+_Avoid_: Disconnected (reserved for the Compose File disappearing), daemon unreachable
+
 ## Relationships
 
 - A **Project** declares one or more **Services**.
 - **File Discovery** finds the **Compose File** and parses it into a **Project**. If no valid Compose File is found, ogle enters the **Watching** state.
 - When 2+ valid Compose Files are found, the **Project Selector** lets the user choose which to load.
-- The **Dashboard** displays all Services and the **Selected Service**'s **Log Stream**.
-- **State Polling** periodically updates each Service's **Service State**.
-- A user triggers a **Service Action** on a Service from the Dashboard; actions run asynchronously and do not block the UI.
+- The **Dashboard** displays all Services and the **Selected Service**'s **Log Stream** inside the **Service Inspector**.
+- The **Service Inspector** shows the Selected Service's detail header and Log Stream. Compose File fields are always visible; Docker fields (`Service State`, `Service Health`, `State Age`, container hash) require a live Docker connection.
+- **State Polling** periodically updates each Service's **Service State**, **Service Health**, and **State Age**.
+- A user triggers a **Service Action** on a Service from the Dashboard; actions run asynchronously and do not block the UI. Service Actions are disabled when **Docker Unavailable**.
 - When the Compose File changes on disk, **Live Reload** updates the Project without leaving the Dashboard.
 - When the Compose File disappears at runtime, the Dashboard enters the **Disconnected** state and waits for that specific file to reappear.
+- When the Docker daemon becomes unreachable, the Dashboard enters **Docker Unavailable**: the **Service Inspector** shows a retry countdown and Service States freeze at last-known values. ogle retries automatically.
 - An **Orphan** appears alongside Services in the Dashboard but is not part of the Project. The **Orphan Toggle** controls whether Orphans are shown.
+- The **Label Toggle** controls whether the `ogle.*` label section is shown in the **Service Inspector**.
 
 ## Example dialogue
 
@@ -128,7 +151,17 @@ _Avoid_: Offline, paused, suspended
 > **Dev:** "There's a container running that isn't in the compose file anymore — what is it?"
 > **Domain expert:** "An **Orphan**. It shows up in the Dashboard alongside the Services but it's not part of the **Project**."
 
+> **Dev:** "The Docker daemon crashed. What does the user see?"
+> **Domain expert:** "The **Service Inspector** shows a placeholder: 'Docker unavailable — retrying in Xs…'. The service list freezes at the last-known **Service States**. **Service Actions** are gone from the help bar. Once Docker recovers, everything resumes automatically."
+
+> **Dev:** "Is the service 'healthy'?"
+> **Domain expert:** "That depends which concept you mean. **Service Health** is the Docker health check result — `healthy` or `unhealthy`. **Service State** is whether the container is `running`, `exited`, etc. A service can be `running` but `unhealthy`."
+
+> **Dev:** "How long has this service been up?"
+> **Domain expert:** "Check the **State Age** — it shows how long the service has been in its current state. If it's running, you see 'up 2h'. If it's exited, you see 'exited 3m ago'."
+
 ## Flagged ambiguities
 
 - **"Zero configuration"** was initially proposed in the aim statement. Resolved: ogle supports optional configuration via config files and environment variables, so the accurate claim is *"no setup required"* — it works out of the box but can be configured.
 - **"Container" vs "Service"** — ogle uses **Service** as the user-facing term that spans both the Compose File declaration and its runtime container. "Container" is reserved for implementation-level precision (e.g., when targeting a specific container ID for log streaming or Docker API calls).
+- **"Disconnected" vs "Docker Unavailable"** — "Disconnected" is reserved exclusively for the Compose File disappearing. "Docker Unavailable" is the term for the Docker daemon being unreachable. They are distinct states with different recovery paths and different UI treatments.
