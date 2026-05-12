@@ -215,7 +215,6 @@ func openURLCmd(url string) tea.Cmd {
 func copyToClipboardCmd(_ string) tea.Cmd {
 	return func() tea.Msg {
 		// copy to clipboard
-
 		return nil
 	}
 }
