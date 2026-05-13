@@ -9,8 +9,8 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 )
 
-// headerLines is the number of rendered lines the detail header occupies.
-const headerLines = 2
+// HeaderLines is the number of rendered lines the detail header occupies.
+const HeaderLines = 2
 
 // dash is the placeholder rendered for Docker fields when runtime data is absent.
 const dash = "—"

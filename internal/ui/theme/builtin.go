@@ -24,6 +24,7 @@ func Default() *Theme {
 		StateTransient:   lipgloss.Color("214"),
 		StateMuted:       lipgloss.Color("240"),
 		ActionError:      lipgloss.Color("1"),
+		LogStderr:        lipgloss.Color("166"),
 	}
 }
 
@@ -45,5 +46,6 @@ func CatppuccinoMocha() *Theme {
 		StateTransient:   lipgloss.Color("#fab387"),
 		StateMuted:       lipgloss.Color("#6c7086"),
 		ActionError:      lipgloss.Color("#f38ba8"),
+		LogStderr:        lipgloss.Color("#f38ba8"),
 	}
 }

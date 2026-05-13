@@ -15,6 +15,7 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
+	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/components/inspector"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
@@ -23,6 +24,8 @@ import (
 const (
 	gracePeriodDuration  = 5 * time.Second
 	retryIntervalSeconds = 60
+	logStreamRetryDelay  = 5 * time.Second
+	halfPaneDivisor      = 2
 )
 
 type dashboardKeyMap struct {
@@ -34,6 +37,8 @@ type dashboardKeyMap struct {
 	ActionStart   key.Binding
 	ActionRestart key.Binding
 	ActionRebuild key.Binding
+	ScrollUp      key.Binding
+	ScrollDown    key.Binding
 }
 
 func (k dashboardKeyMap) ShortHelp() []key.Binding {
@@ -113,6 +118,14 @@ var defaultDashboardKeys = dashboardKeyMap{
 		key.WithKeys("b"),
 		key.WithHelp("b", "rebuild"),
 	),
+	ScrollUp: key.NewBinding(
+		key.WithKeys("pgup"),
+		key.WithHelp("pgup", "scroll up"),
+	),
+	ScrollDown: key.NewBinding(
+		key.WithKeys("pgdn"),
+		key.WithHelp("pgdn", "scroll down"),
+	),
 }
 
 type keyBinding struct {
@@ -130,10 +143,6 @@ const (
 type Dashboard struct {
 	ctx             context.Context
 	project         *domain.Project
-	theme           *theme.Theme
-	themeName       string
-	pollInterval    time.Duration
-	logBufferCap    int
 	keys            dashboardKeyMap
 	help            help.Model
 	serviceList     servicelist.Model
@@ -147,6 +156,15 @@ type Dashboard struct {
 	drag            dragSelection
 	lastPressX      int
 	lastPressY      int
+	theme           *theme.Theme
+	themeName       string
+	pollInterval    time.Duration
+	logBufferCap    int
+	logStreamer     *logs.LogStreamer
+	logBuffer       logBuffer
+	logScrollRows   int
+	logPaused       bool
+	logState        inspector.LogAreaState
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
@@ -166,10 +184,6 @@ func NewDashboard(
 	return &Dashboard{
 		ctx:             ctx,
 		project:         project,
-		theme:           th,
-		themeName:       themeName,
-		pollInterval:    poll,
-		logBufferCap:    logBufCap,
 		keys:            defaultDashboardKeys,
 		help:            help.New(),
 		serviceList:     servicelist.New(project, th, 0, 0),
@@ -183,6 +197,15 @@ func NewDashboard(
 		drag:            dragSelection{active: false, startX: 0, startY: 0, endY: 0, component: selectionNone},
 		lastPressX:      0,
 		lastPressY:      0,
+		theme:           th,
+		themeName:       themeName,
+		pollInterval:    poll,
+		logBufferCap:    logBufCap,
+		logStreamer:     logs.New(),
+		logBuffer:       newLogBuffer(logBufCap),
+		logScrollRows:   0,
+		logPaused:       false,
+		logState:        inspector.LogAreaConnecting,
 	}
 }
 
@@ -216,72 +239,51 @@ func (d *Dashboard) SetSize(w, h int) {
 func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if key.Matches(msg, d.keys.Quit) && !d.serviceList.IsFiltering() {
-			return d, tea.Quit
+		if s, cmd, handled := d.handleKeyPressMsg(msg); handled {
+			return s, cmd
 		}
-
-		if key.Matches(msg, d.keys.Settings) && !d.serviceList.IsFiltering() {
-			return NewSettings(d.ctx, d.project, d.themeName, d.pollInterval, d.logBufferCap, d.theme), nil
-		}
-
-		if cmd := d.handleKeyPress(msg); cmd != nil {
-			return d, cmd
-		}
-
 	case tea.MouseClickMsg:
 		d.handleMouseClick(msg)
-
 	case tea.MouseMotionMsg:
 		if d.handleMouseMotion(msg) {
 			return d, nil
 		}
-
 	case tea.MouseReleaseMsg:
 		if cmd, handled := d.handleMouseRelease(msg); handled {
 			return d, cmd
 		}
-
+	case tea.MouseWheelMsg:
+		if d.handleMouseWheel(msg) {
+			return d, nil
+		}
 	case msgs.ServiceSelected:
-		d.selectedService = msg.Service
-		d.inspector = d.inspector.SetService(msg.Service)
-
-		return d, nil
-
+		return d, d.handleServiceSelected(msg)
 	case msgs.ProjectLoaded:
-		d.project = msg.Project
-		d.serviceList = d.serviceList.SetProject(msg.Project)
-
-		// Reset selected service to first in the reloaded project.
-		if len(msg.Project.Services) > 0 {
-			d.selectedService = msg.Project.Services[0]
-			d.inspector = d.inspector.SetService(d.selectedService)
-		}
-
+		return d, d.handleProjectLoaded(msg)
 	case msgs.DaemonConnected:
-		d.handleDaemonConnected()
-
+		return d, d.handleDaemonConnectedMsg()
 	case msgs.DaemonUnavailable:
+		d.logStreamer.Close()
+
 		return d, d.handleDaemonUnavailable()
-
 	case msgs.ServiceActionCompleted:
-		optimistic := domain.ServiceStateRunning
-		if msg.Action == domain.ServiceActionStop {
-			optimistic = domain.ServiceStateExited
-		}
-
-		if msg.Err != nil {
-			d.serviceList = d.serviceList.SetActionError(msg.ServiceName, string(msg.Action)+" failed")
-		} else {
-			d.serviceList = d.serviceList.SetActionSuccess(msg.ServiceName, optimistic)
-		}
+		d.handleServiceActionCompleted(msg)
 
 		return d, nil
-
 	case gracePeriodExpiredMsg:
 		return d, d.handleGracePeriodExpired()
-
 	case retryTickMsg:
 		return d, d.handleRetryTick()
+	case msgs.LogLine:
+		return d, d.handleLogLine(msg)
+	case msgs.LogStreamError:
+		d.handleLogStreamError()
+
+		return d, nil
+	case msgs.LogStreamContainerNotFound:
+		return d, d.handleLogStreamContainerNotFound()
+	case logStreamRetryMsg:
+		return d, d.handleLogStreamRetry()
 	}
 
 	var inspectorCmd tea.Cmd
@@ -293,6 +295,153 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	d.serviceList, listCmd = d.serviceList.Update(msg)
 
 	return d, tea.Batch(inspectorCmd, listCmd)
+}
+
+func (d *Dashboard) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool) {
+	if !d.serviceList.IsFiltering() {
+		if key.Matches(msg, d.keys.Quit) {
+			return d, tea.Quit, true
+		}
+
+		if key.Matches(msg, d.keys.Settings) {
+			return NewSettings(d.ctx, d.project, d.themeName, d.pollInterval, d.logBufferCap, d.theme), nil, true
+		}
+	}
+
+	if cmd := d.handleKeyPress(msg); cmd != nil {
+		return d, cmd, true
+	}
+
+	return nil, nil, false
+}
+
+func (d *Dashboard) handleMouseWheel(msg tea.MouseWheelMsg) bool {
+	lb := d.layout.LogViewBounds()
+	if msg.Y < lb.y || msg.Y >= lb.y+lb.h {
+		return false
+	}
+
+	switch msg.Button {
+	case tea.MouseWheelUp:
+		d.logScrollRows++
+		d.logPaused = true
+	case tea.MouseWheelDown:
+		if d.logScrollRows > 0 {
+			d.logScrollRows--
+		}
+
+		if d.logScrollRows == 0 {
+			d.logPaused = false
+		}
+	}
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return true
+}
+
+func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) tea.Cmd {
+	d.selectedService = msg.Service
+	d.inspector = d.inspector.SetService(msg.Service)
+	d.logStreamer.Close()
+	d.logBuffer.Clear()
+	d.logScrollRows = 0
+	d.logPaused = false
+
+	var cmd tea.Cmd
+
+	if d.connectState == inspector.ConnectStateConnected {
+		cmd = d.startLogStream(msg.Service)
+	} else {
+		d.logState = inspector.LogAreaConnecting
+	}
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return cmd
+}
+
+func (d *Dashboard) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
+	d.project = msg.Project
+	d.serviceList = d.serviceList.SetProject(msg.Project)
+	d.logStreamer.Close()
+	d.logBuffer.Clear()
+	d.logScrollRows = 0
+	d.logPaused = false
+
+	if len(msg.Project.Services) > 0 {
+		d.selectedService = msg.Project.Services[0]
+		d.inspector = d.inspector.SetService(d.selectedService)
+	}
+
+	var cmd tea.Cmd
+
+	if d.connectState == inspector.ConnectStateConnected && len(msg.Project.Services) > 0 {
+		cmd = d.startLogStream(d.selectedService)
+	} else {
+		d.logState = inspector.LogAreaConnecting
+	}
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return cmd
+}
+
+func (d *Dashboard) handleDaemonConnectedMsg() tea.Cmd {
+	d.handleDaemonConnected()
+
+	cmd := d.startLogStream(d.selectedService)
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return cmd
+}
+
+func (d *Dashboard) handleServiceActionCompleted(msg msgs.ServiceActionCompleted) {
+	optimistic := domain.ServiceStateRunning
+	if msg.Action == domain.ServiceActionStop {
+		optimistic = domain.ServiceStateExited
+	}
+
+	if msg.Err != nil {
+		d.serviceList = d.serviceList.SetActionError(msg.ServiceName, string(msg.Action)+" failed")
+	} else {
+		d.serviceList = d.serviceList.SetActionSuccess(msg.ServiceName, optimistic)
+	}
+}
+
+func (d *Dashboard) handleLogLine(msg msgs.LogLine) tea.Cmd {
+	d.logBuffer.Append(logLine{text: msg.Text, isStderr: msg.IsStderr})
+
+	if !d.logPaused {
+		d.logScrollRows = 0
+	}
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return d.logStreamer.Next()
+}
+
+func (d *Dashboard) handleLogStreamError() {
+	d.logStreamer.Close()
+	d.logState = inspector.LogAreaUnavailable
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+}
+
+func (d *Dashboard) handleLogStreamContainerNotFound() tea.Cmd {
+	d.logState = inspector.LogAreaNotFound
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return tea.Tick(logStreamRetryDelay, func(_ time.Time) tea.Msg {
+		return logStreamRetryMsg{}
+	})
+}
+
+func (d *Dashboard) handleLogStreamRetry() tea.Cmd {
+	cmd := d.startLogStream(d.selectedService)
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+
+	return cmd
 }
 
 // View renders the two-pane dashboard layout with a help bar on the last row.
@@ -403,6 +552,140 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 	return startCountdown()
 }
 
+// startLogStream closes any existing stream, starts a new one for svc, and
+// returns a Next() cmd. Sets logState to LogAreaStreaming.
+// If svc has no name (empty project) it is a no-op.
+func (d *Dashboard) startLogStream(svc domain.ServiceDef) tea.Cmd {
+	if svc.Name == "" {
+		return nil
+	}
+
+	name := logs.ContainerName(d.project.Name, svc.Name, svc.ContainerName)
+	d.logStreamer.Start(d.ctx, name)
+	d.logState = inspector.LogAreaStreaming
+
+	return d.logStreamer.Next()
+}
+
+// computeDisplayLines builds the slice of pre-styled display rows that the
+// inspector should render for the current scroll position. logScrollRows is
+// clamped in-place.
+func (d *Dashboard) computeDisplayLines() []string {
+	lb := d.layout.LogViewBounds()
+	if lb.w <= 0 || lb.h <= 0 {
+		return nil
+	}
+
+	stderrStyle := lipgloss.NewStyle().Foreground(d.theme.LogStderr)
+
+	var displayRows []string
+
+	for _, line := range d.logBuffer.Lines() {
+		for part := range strings.SplitSeq(line.text, "\n") {
+			for _, row := range wrapLine(part, lb.w) {
+				if line.isStderr {
+					row = stderrStyle.Render(row)
+				}
+
+				displayRows = append(displayRows, row)
+			}
+		}
+	}
+
+	totalRows := len(displayRows)
+
+	pausedRows := 0
+	if d.logPaused {
+		pausedRows = 1
+	}
+
+	availRows := lb.h - inspector.HeaderLines - pausedRows
+	if availRows <= 0 {
+		return nil
+	}
+
+	maxScroll := max(totalRows-availRows, 0)
+
+	d.logScrollRows = clamp(d.logScrollRows, 0, maxScroll)
+
+	end := max(totalRows-d.logScrollRows, 0)
+
+	start := max(end-availRows, 0)
+
+	return displayRows[start:end]
+}
+
+// wrapLine breaks text into display rows of at most width visible characters.
+// ANSI CSI escape sequences are passed through without contributing to width.
+//
+//nolint:gocognit // three-state ANSI CSI parser; extracting transitions would obscure the state machine
+func wrapLine(text string, width int) []string {
+	if width <= 0 {
+		return []string{text}
+	}
+
+	const (
+		stNormal = iota
+		stEsc
+		stCSI
+	)
+
+	var (
+		lines   []string
+		current strings.Builder
+	)
+
+	currentWidth := 0
+	state := stNormal
+
+	for _, r := range text {
+		switch state {
+		case stNormal:
+			if r == '\x1b' {
+				state = stEsc
+
+				current.WriteRune(r)
+
+				continue
+			}
+
+			rw := ansi.StringWidth(string(r))
+			if currentWidth+rw > width && currentWidth > 0 {
+				lines = append(lines, current.String())
+				current.Reset()
+
+				currentWidth = 0
+			}
+
+			current.WriteRune(r)
+
+			currentWidth += rw
+
+		case stEsc:
+			current.WriteRune(r)
+
+			if r == '[' {
+				state = stCSI
+			} else {
+				state = stNormal
+			}
+
+		case stCSI:
+			current.WriteRune(r)
+
+			if r >= 0x40 && r <= 0x7e {
+				state = stNormal
+			}
+		}
+	}
+
+	if current.Len() > 0 || len(lines) == 0 {
+		lines = append(lines, current.String())
+	}
+
+	return lines
+}
+
 func (d *Dashboard) handleZoom() {
 	d.layout = d.layout.ToggleMode()
 	if d.layout.IsLogFullscreen() {
@@ -424,6 +707,33 @@ func (d *Dashboard) handleToggleLabels() {
 	d.inspector = d.inspector.SetShowLabels(d.showLabels)
 }
 
+func (d *Dashboard) handleScrollUp() {
+	lb := d.layout.LogViewBounds()
+
+	halfPane := max(lb.h/halfPaneDivisor, 1)
+
+	d.logScrollRows += halfPane
+	d.logPaused = true
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+}
+
+func (d *Dashboard) handleScrollDown() {
+	lb := d.layout.LogViewBounds()
+
+	halfPane := max(lb.h/halfPaneDivisor, 1)
+
+	d.logScrollRows -= halfPane
+	if d.logScrollRows < 0 {
+		d.logScrollRows = 0
+	}
+
+	if d.logScrollRows == 0 {
+		d.logPaused = false
+	}
+
+	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logPaused, d.logState)
+}
+
 func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	if d.serviceList.IsFiltering() {
 		return nil
@@ -432,6 +742,8 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	for _, kb := range []keyBinding{
 		{d.keys.Zoom, d.handleZoom},
 		{d.keys.ToggleLabels, d.handleToggleLabels},
+		{d.keys.ScrollUp, d.handleScrollUp},
+		{d.keys.ScrollDown, d.handleScrollDown},
 	} {
 		if key.Matches(msg, kb.binding) {
 			kb.handle()

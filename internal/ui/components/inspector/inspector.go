@@ -5,8 +5,10 @@ package inspector
 
 import (
 	"fmt"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/ui/theme"
@@ -34,6 +36,25 @@ type UnavailableState struct {
 	SecondsUntilRetry int
 }
 
+// LogAreaState describes what the log area should render.
+type LogAreaState int
+
+const (
+	// LogAreaConnecting is shown while the daemon ping is in-flight or the
+	// grace period is active.
+	LogAreaConnecting LogAreaState = iota
+
+	// LogAreaStreaming means a stream is attached and lines are available.
+	LogAreaStreaming
+
+	// LogAreaUnavailable is shown when the daemon is unreachable; the buffer
+	// is frozen.
+	LogAreaUnavailable
+
+	// LogAreaNotFound is shown when the container does not exist yet.
+	LogAreaNotFound
+)
+
 // Model is the Service Inspector component. It is a value type; all mutating
 // methods return a new Model.
 type Model struct {
@@ -44,6 +65,9 @@ type Model struct {
 	theme        *theme.Theme
 	showLabels   bool
 	labels       labelsModel
+	logLines     []string
+	logPaused    bool
+	logState     LogAreaState
 	width        int
 	height       int
 	y            int
@@ -59,6 +83,9 @@ func New(service domain.ServiceDef, th *theme.Theme) Model {
 		theme:        th,
 		unavailable:  UnavailableState{SecondsUntilRetry: 0},
 		showLabels:   false,
+		logLines:     nil,
+		logPaused:    false,
+		logState:     LogAreaConnecting,
 		width:        0,
 		height:       0,
 		y:            0,
@@ -113,6 +140,17 @@ func (m Model) SetBounds(w, h, y int) Model {
 	return m
 }
 
+// SetLogView updates the log area content. lines contains the pre-computed,
+// pre-styled display rows. paused indicates whether auto-tail is suspended.
+// state controls which placeholder (if any) is shown instead of lines.
+func (m Model) SetLogView(lines []string, paused bool, state LogAreaState) Model {
+	m.logLines = lines
+	m.logPaused = paused
+	m.logState = state
+
+	return m
+}
+
 // Init satisfies tea.Model (not used directly; the Dashboard owns Init).
 func (m Model) Init() tea.Cmd { return nil }
 
@@ -133,7 +171,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // label section top (inspector origin + header rows), so that mouseRow receives
 // a section-local coordinate.
 func (m Model) adjustMouseY(msg tea.Msg) tea.Msg {
-	offset := m.y + headerLines
+	offset := m.y + HeaderLines
 
 	switch ev := msg.(type) {
 	case tea.MouseMotionMsg:
@@ -163,7 +201,7 @@ func (m Model) View() string {
 
 	var body string
 	if m.showLabels {
-		body = m.labels.view(m.width, m.height-headerLines, m.theme)
+		body = m.labels.view(m.width, m.height-HeaderLines, m.theme)
 	} else {
 		body = m.renderLogArea()
 	}
@@ -171,16 +209,29 @@ func (m Model) View() string {
 	return header + "\n" + body
 }
 
-// renderLogArea returns the Log Stream placeholder appropriate for the current
-// connectivity state.
+// renderLogArea returns the Log Stream content appropriate for the current state.
 func (m Model) renderLogArea() string {
-	switch m.connectState {
-	case ConnectStateConnecting:
+	switch m.logState {
+	case LogAreaConnecting:
 		return "Connecting to Docker…"
-	case ConnectStateConnected:
-		return ""
-	case ConnectStateUnavailable:
+	case LogAreaUnavailable:
 		return fmt.Sprintf("Docker unavailable — retrying in %ds…", m.unavailable.SecondsUntilRetry)
+	case LogAreaNotFound:
+		return "No container — service not started"
+	case LogAreaStreaming:
+		content := strings.Join(m.logLines, "\n")
+		if m.logPaused {
+			pausedStyle := lipgloss.NewStyle().Faint(true)
+			indicator := pausedStyle.Render("── paused · PgDn to resume ──")
+
+			if content != "" {
+				content += "\n"
+			}
+
+			content += indicator
+		}
+
+		return content
 	default:
 		return ""
 	}

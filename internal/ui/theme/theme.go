@@ -33,6 +33,7 @@ type Theme struct {
 	StateTransient   color.Color // restarting, action in-flight
 	StateMuted       color.Color // not created, unknown, nil runtime
 	ActionError      color.Color // error suffix text
+	LogStderr        color.Color // stderr log lines
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.

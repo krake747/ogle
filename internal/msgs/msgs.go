@@ -59,6 +59,18 @@ type ServiceActionCompleted struct {
 	Err         error
 }
 
+// LogLine carries one demultiplexed log frame from the Docker logs API.
+type LogLine struct {
+	Text     string
+	IsStderr bool
+}
+
+// LogStreamError is emitted when the LogStreamer goroutine hits a read error.
+type LogStreamError struct{ Err error }
+
+// LogStreamContainerNotFound is emitted when the logs endpoint returns 404.
+type LogStreamContainerNotFound struct{}
+
 // SettingsApplied is emitted by states.Settings when the user confirms changes.
 // dashboard.Model handles it to update the active configuration for the session.
 type SettingsApplied struct {
