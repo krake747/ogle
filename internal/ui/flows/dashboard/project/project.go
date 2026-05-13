@@ -18,6 +18,7 @@ import (
 type Model struct {
 	ctx     context.Context
 	current states.State
+	w, h    int
 }
 
 // New constructs a project Model initialised in the Dashboard state.
@@ -30,7 +31,7 @@ func New(
 	logBufCap int,
 	w, h int,
 ) Model {
-	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap)}
+	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap), w: w, h: h}
 	m.current.SetSize(w, h)
 
 	return m
@@ -43,14 +44,13 @@ func (m Model) Init() tea.Cmd {
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// WindowSizeMsg is intercepted here to keep state dimensions current via
-	// SetSize. The message is still forwarded to Update so states can return
-	// commands or trigger transitions in response to resize.
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
-		m.current.SetSize(sz.Width, sz.Height)
+		m.w = sz.Width
+		m.h = sz.Height
 	}
 
 	next, cmd := m.current.Update(msg)
+	next.SetSize(m.w, m.h)
 	m.current = next
 
 	return m, cmd
