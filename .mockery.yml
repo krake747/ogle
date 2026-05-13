@@ -22,5 +22,8 @@ require-template-schema-exists: true
 template: testify
 template-schema: "{{.Template}}.schema.json"
 packages:
+  github.com/ma-tf/ogle/internal/services/docker/logs:
+    interfaces:
+      Streamer:
   github.com/ma-tf/ogle/internal/services/parser:
   github.com/ma-tf/ogle/internal/services/scanner:

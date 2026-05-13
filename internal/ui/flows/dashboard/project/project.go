@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -31,7 +32,12 @@ func New(
 	logBufCap int,
 	w, h int,
 ) Model {
-	m := Model{ctx: ctx, current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap), w: w, h: h}
+	m := Model{
+		ctx:     ctx,
+		current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New()),
+		w:       w,
+		h:       h,
+	}
 	m.current.SetSize(w, h)
 
 	return m

@@ -17,7 +17,7 @@ import (
 // LogPane manages a streaming log view: the streamer, buffer, scroll offset,
 // and pause state.
 type LogPane struct {
-	streamer   *logs.LogStreamer
+	streamer   logs.Streamer
 	buffer     logBuffer
 	scrollRows int
 	paused     bool
@@ -25,10 +25,10 @@ type LogPane struct {
 }
 
 // NewLogPane returns a LogPane ready for use in tests. The streamer is
-// initialised and the buffer pre-allocated to bufCap entries.
-func NewLogPane(bufCap int) *LogPane {
+// injected by the caller; the buffer is pre-allocated to bufCap entries.
+func NewLogPane(streamer logs.Streamer, bufCap int) *LogPane {
 	return &LogPane{
-		streamer:   logs.New(),
+		streamer:   streamer,
 		buffer:     newLogBuffer(bufCap),
 		scrollRows: 0,
 		paused:     false,

@@ -14,6 +14,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
+	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -164,12 +165,20 @@ func (s *Settings) Update(msg tea.Msg) (State, tea.Cmd) {
 			}
 		}
 
-		next := NewDashboard(s.ctx, s.project, s.liveTheme, s.themeNames[s.themeIdx], s.pollInterval, s.logBufferCap)
+		next := NewDashboard(
+			s.ctx,
+			s.project,
+			s.liveTheme,
+			s.themeNames[s.themeIdx],
+			s.pollInterval,
+			s.logBufferCap,
+			logs.New(),
+		)
 
 		return next, settingsAppliedCmd
 
 	case key.Matches(keyMsg, s.keys.Cancel):
-		return NewDashboard(s.ctx, s.project, s.origTheme, s.origThemeName, s.origPoll, s.origCap), nil
+		return NewDashboard(s.ctx, s.project, s.origTheme, s.origThemeName, s.origPoll, s.origCap, logs.New()), nil
 
 	case key.Matches(keyMsg, s.keys.Next):
 		s.focusField = (s.focusField + 1) % fieldCount

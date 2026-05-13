@@ -5,6 +5,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 
+	logs_mocks "github.com/ma-tf/ogle/internal/services/docker/logs/mocks"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 )
 
@@ -13,7 +14,7 @@ func noStyle() lipgloss.Style { return lipgloss.NewStyle() }
 func TestLogPane_ComputeDisplayLines_EmptyBuffer(t *testing.T) {
 	t.Parallel()
 
-	lp := states.NewLogPane(100)
+	lp := states.NewLogPane(logs_mocks.NewMockStreamer(t), 100)
 	lines := lp.ComputeDisplayLines(80, 24, noStyle())
 
 	if len(lines) != 0 {
@@ -24,7 +25,7 @@ func TestLogPane_ComputeDisplayLines_EmptyBuffer(t *testing.T) {
 func TestLogPane_ComputeDisplayLines_WindowIsCorrect(t *testing.T) {
 	t.Parallel()
 
-	lp := states.NewLogPane(200)
+	lp := states.NewLogPane(logs_mocks.NewMockStreamer(t), 200)
 
 	// Fill with 20 single-character lines that won't wrap at width=80.
 	for i := range 20 {
@@ -52,7 +53,7 @@ func TestLogPane_ComputeDisplayLines_WindowIsCorrect(t *testing.T) {
 func TestLogPane_ComputeDisplayLines_ScrollRowsClamped(t *testing.T) {
 	t.Parallel()
 
-	lp := states.NewLogPane(200)
+	lp := states.NewLogPane(logs_mocks.NewMockStreamer(t), 200)
 
 	for i := range 5 {
 		lp.AppendLine(string(rune('A'+i)), false)
@@ -75,7 +76,7 @@ func TestLogPane_ComputeDisplayLines_ScrollRowsClamped(t *testing.T) {
 func TestLogPane_ComputeDisplayLines_PausedReducesAvailRows(t *testing.T) {
 	t.Parallel()
 
-	lp := states.NewLogPane(200)
+	lp := states.NewLogPane(logs_mocks.NewMockStreamer(t), 200)
 	lp.SetPaused(true)
 
 	for i := range 20 {
@@ -94,7 +95,7 @@ func TestLogPane_ComputeDisplayLines_PausedReducesAvailRows(t *testing.T) {
 func TestLogPane_ComputeDisplayLines_ScrollOffsetWindow(t *testing.T) {
 	t.Parallel()
 
-	lp := states.NewLogPane(200)
+	lp := states.NewLogPane(logs_mocks.NewMockStreamer(t), 200)
 
 	// 10 single-char lines
 	for i := range 10 {

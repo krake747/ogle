@@ -59,6 +59,7 @@ func NewDashboard(
 	themeName string,
 	poll time.Duration,
 	logBufCap int,
+	streamer logs.Streamer,
 ) State {
 	var first domain.ServiceDef
 	if len(project.Services) > 0 {
@@ -80,7 +81,7 @@ func NewDashboard(
 			unavailable: inspector.UnavailableState{SecondsUntilRetry: 0},
 		},
 		logView: LogPane{
-			streamer:   logs.New(),
+			streamer:   streamer,
 			buffer:     newLogBuffer(logBufCap),
 			scrollRows: 0,
 			paused:     false,
