@@ -23,26 +23,32 @@ const (
 	modeLogFullscreen
 )
 
-type rect struct{ x, y, w, h int }
+// Rect is an axis-aligned bounding rectangle in terminal cell coordinates.
+type Rect struct{ X, Y, W, H int }
 
-type paneLayout struct {
+// PaneLayout holds the current terminal dimensions and split mode for the
+// dashboard's two-pane layout.
+type PaneLayout struct {
 	mode  layoutMode
 	theme *theme.Theme
 	w, h  int
 }
 
-func newPaneLayout(th *theme.Theme) paneLayout {
-	return paneLayout{mode: modeSplit, theme: th, w: 0, h: 0}
+// NewPaneLayout returns a PaneLayout in split mode with no size set.
+func NewPaneLayout(th *theme.Theme) PaneLayout {
+	return PaneLayout{mode: modeSplit, theme: th, w: 0, h: 0}
 }
 
-func (p paneLayout) SetSize(w, h int) paneLayout {
+// SetSize returns a copy of the layout with new terminal dimensions.
+func (p PaneLayout) SetSize(w, h int) PaneLayout {
 	p.w = w
 	p.h = h
 
 	return p
 }
 
-func (p paneLayout) ToggleMode() paneLayout {
+// ToggleMode switches between split and log-fullscreen modes.
+func (p PaneLayout) ToggleMode() PaneLayout {
 	if p.mode == modeSplit {
 		p.mode = modeLogFullscreen
 	} else {
@@ -52,16 +58,17 @@ func (p paneLayout) ToggleMode() paneLayout {
 	return p
 }
 
-func (p paneLayout) IsLogFullscreen() bool {
+// IsLogFullscreen reports whether the layout is in log-fullscreen mode.
+func (p PaneLayout) IsLogFullscreen() bool {
 	return p.mode == modeLogFullscreen
 }
 
 // ServiceListBounds returns the content area of the left pane in split mode,
-// accounting for the border (x=1, y=1). Returns rect{} in log-fullscreen mode
+// accounting for the border (X=1, Y=1). Returns Rect{} in log-fullscreen mode
 // since the service list is not visible.
-func (p paneLayout) ServiceListBounds() rect {
+func (p PaneLayout) ServiceListBounds() Rect {
 	if p.mode == modeLogFullscreen {
-		return rect{}
+		return Rect{}
 	}
 
 	leftW := min(p.w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
@@ -69,34 +76,34 @@ func (p paneLayout) ServiceListBounds() rect {
 	paneH := max(p.h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)
 
-	return rect{x: 1, y: 1, w: leftContentW, h: innerH}
+	return Rect{X: 1, Y: 1, W: leftContentW, H: innerH}
 }
 
 // LogViewBounds returns the content area of the right pane. In split mode the
-// x offset accounts for the left pane's outer width plus the right border. In
+// X offset accounts for the left pane's outer width plus the right border. In
 // log-fullscreen mode the pane spans the full terminal width.
-func (p paneLayout) LogViewBounds() rect {
+func (p PaneLayout) LogViewBounds() Rect {
 	paneH := max(p.h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)
 
 	if p.mode == modeLogFullscreen {
 		contentW := max(p.w-borderWidth, 0)
 
-		return rect{x: 1, y: 1, w: contentW, h: innerH}
+		return Rect{X: 1, Y: 1, W: contentW, H: innerH}
 	}
 
 	leftW := min(p.w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
 	rightW := p.w - leftW
 	rightContentW := max(rightW-borderWidth, 0)
 
-	return rect{x: leftW + 1, y: 1, w: rightContentW, h: innerH}
+	return Rect{X: leftW + 1, Y: 1, W: rightContentW, H: innerH}
 }
 
 // View renders both panes with NormalBorder, applying the highlight colour to
 // the focused pane and dimmed to the other, then joins them horizontally. In
 // log-fullscreen mode only the right pane is rendered at full terminal width.
 // The help bar is not rendered here — that remains in Dashboard.View.
-func (p paneLayout) View(serviceListStr, logViewStr string, leftFocused bool) string {
+func (p PaneLayout) View(serviceListStr, logViewStr string, leftFocused bool) string {
 	paneH := max(p.h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)
 
