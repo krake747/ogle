@@ -51,6 +51,7 @@ type ServiceDef struct {
 	Image         string
 	ContainerName string
 	Labels        map[string]string
+	Ports         []string
 }
 
 // ServiceAction is a user-initiated operation applied to a Service.

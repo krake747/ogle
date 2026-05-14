@@ -2,6 +2,7 @@ package inspector
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -10,42 +11,35 @@ import (
 )
 
 // HeaderLines is the number of rendered lines the detail header occupies.
-const HeaderLines = 2
+const HeaderLines = 6
 
 // dash is the placeholder rendered for Docker fields when runtime data is absent.
 const dash = "—"
 
 const (
-	halfWidth     = 2  // divisor: a column occupies half the available width
 	shortIDLen    = 12 // Docker conventional short-hash length
 	secsPerMinute = 60
 	secsPerHour   = 3600
+	halfWidth     = 2 // divisor: a column occupies half the available width
 )
 
-// renderHeader returns the compact detail header for the given service.
-// Compose File fields (name, image) are always rendered. Docker fields
-// (container ID, state, health, age) show dash when runtime is nil.
+// renderHeader returns the detail header for the given service as a vertical
+// list of label+value pairs. Compose File fields (name, image, ports) are
+// always rendered. Docker fields (id, state, health) show dash when runtime
+// is nil.
 func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width int) string {
-	// Row 1: name (left) | image (right-aligned)
+	// Label column width is fixed at 6 characters (length of "health")
+	labelWidth := 6
+
+	// Prepare field values
+	name := svc.Name
+
 	image := svc.Image
 	if image == "" {
 		image = dash
 	}
 
-	leftW := width / halfWidth
-	rightW := width - leftW
-	left := lipgloss.NewStyle().Width(leftW).MaxWidth(leftW).Inline(true).Render(svc.Name)
-	right := lipgloss.NewStyle().
-		Width(rightW).
-		MaxWidth(rightW).
-		Inline(true).
-		Align(lipgloss.Right).
-		Render(image)
-	row1 := left + right
-
-	// Row 2: container hash | state | health | age
 	var containerID, state, health, age string
-
 	if rt == nil {
 		containerID = dash
 		state = dash
@@ -58,11 +52,48 @@ func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width in
 		age = formatAge(rt.StateAge)
 	}
 
-	row2 := lipgloss.NewStyle().MaxWidth(width).Inline(true).Render(
-		fmt.Sprintf("%s  %s  %s  %s", containerID, state, health, age),
-	)
+	// Format state with age: "running · 2h"
+	stateWithAge := state + " · " + age
 
-	return row1 + "\n" + row2
+	// Format ports: space-separated normalized ports, or dash if none
+	portsStr := dash
+	if len(svc.Ports) > 0 {
+		portsStr = strings.Join(svc.Ports, " ")
+	}
+
+	// Build the 6 rows
+	rows := []struct {
+		label string
+		value string
+	}{
+		{"name", name},
+		{"id", containerID},
+		{"state", stateWithAge},
+		{"health", health},
+		{"image", image},
+		{"ports", portsStr},
+	}
+
+	// Format each row with label and value
+	lines := make([]string, 0, len(rows))
+
+	for _, row := range rows {
+		// Right-pad label to labelWidth
+		paddedLabel := row.label
+		if len(paddedLabel) < labelWidth {
+			paddedLabel += strings.Repeat(" ", labelWidth-len(paddedLabel))
+		}
+
+		// Style the row to respect width constraint
+		formattedRow := lipgloss.NewStyle().
+			MaxWidth(width).
+			Inline(true).
+			Render(paddedLabel + "  " + row.value)
+
+		lines = append(lines, formattedRow)
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // shortID returns the first 12 characters of a container ID, or the full

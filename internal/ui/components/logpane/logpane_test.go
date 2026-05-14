@@ -32,8 +32,8 @@ func TestLogPane_ComputeDisplayLines_WindowIsCorrect(t *testing.T) {
 		lp.AppendLine(string(rune('A'+i%26)), false)
 	}
 
-	// height=10 → availRows = 10 - inspector.HeaderLines = 10-2 = 8
-	lines := lp.ComputeDisplayLines(80, 10, noStyle())
+	// height=14 → availRows = 14 - inspector.HeaderLines = 14-6 = 8
+	lines := lp.ComputeDisplayLines(80, 14, noStyle())
 
 	want := 8
 	if len(lines) != want {
@@ -59,10 +59,10 @@ func TestLogPane_ComputeDisplayLines_ScrollRowsClamped(t *testing.T) {
 		lp.AppendLine(string(rune('A'+i)), false)
 	}
 
-	// height=10 → availRows=8; only 5 rows total → maxScroll=0
+	// height=14 → availRows=8; only 5 rows total → maxScroll=0
 	lp.SetScrollRows(999)
 
-	lines := lp.ComputeDisplayLines(80, 10, noStyle())
+	lines := lp.ComputeDisplayLines(80, 14, noStyle())
 
 	if lp.ScrollRows() != 0 {
 		t.Errorf("expected scrollRows clamped to 0, got %d", lp.ScrollRows())
@@ -83,8 +83,8 @@ func TestLogPane_ComputeDisplayLines_PausedReducesAvailRows(t *testing.T) {
 		lp.AppendLine(string(rune('A'+i%26)), false)
 	}
 
-	// height=10, paused → availRows = 10 - inspector.HeaderLines - 1 = 7
-	lines := lp.ComputeDisplayLines(80, 10, noStyle())
+	// height=14, paused → availRows = 14 - inspector.HeaderLines - 1 = 7
+	lines := lp.ComputeDisplayLines(80, 14, noStyle())
 
 	want := 7
 	if len(lines) != want {
@@ -102,21 +102,21 @@ func TestLogPane_ComputeDisplayLines_ScrollOffsetWindow(t *testing.T) {
 		lp.AppendLine(string(rune('A'+i)), false)
 	}
 
-	// height=6 → availRows = 6 - 2 = 4
-	// scrollRows=2 → end = max(10-2,0)=8; start = max(8-4,0)=4 → lines[4..8] = E,F,G,H
+	// height=12 → availRows = 12 - 6 = 6
+	// scrollRows=2 → end = max(10-2,0)=8; start = max(8-6,0)=2 → lines[2..8] = C,D,E,F,G,H
 	lp.SetScrollRows(2)
 
-	lines := lp.ComputeDisplayLines(80, 6, noStyle())
+	lines := lp.ComputeDisplayLines(80, 12, noStyle())
 
-	if len(lines) != 4 {
-		t.Fatalf("expected 4 lines, got %d", len(lines))
+	if len(lines) != 6 {
+		t.Fatalf("expected 6 lines, got %d", len(lines))
 	}
 
-	if lines[0] != "E" {
-		t.Errorf("expected 'E' at index 0, got %q", lines[0])
+	if lines[0] != "C" {
+		t.Errorf("expected 'C' at index 0, got %q", lines[0])
 	}
 
-	if lines[3] != "H" {
-		t.Errorf("expected 'H' at index 3, got %q", lines[3])
+	if lines[5] != "H" {
+		t.Errorf("expected 'H' at index 5, got %q", lines[5])
 	}
 }
