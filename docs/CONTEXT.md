@@ -44,12 +44,16 @@ _Avoid_: Show orphans, orphan visibility
 The main screen displayed after a Project is loaded. Shows all Services, their states, and the Selected Service's Log Stream in the Service Inspector.
 _Avoid_: Monitor view, main view, service view
 
+**Service Layer**:
+A persistent compositor layer that is the unit of observation for a single Service (or Orphan). Owns a Service Inspector, Log Stream, Log Buffer, and scroll state. Created eagerly when a Project loads; destroyed when a Service is removed via Live Reload. All Service Layers are peers — none is foreground or background.
+_Avoid_: log pane, inspector pane
+
 **Service Inspector**:
-The right pane of the Dashboard. A stacked layout: a compact detail header (service name, image, ports, container hash, Service State, Service Health, State Age) above the Log Stream area. The detail header renders Compose File fields immediately; Docker fields show `—` until the daemon is connected.
+The view component within a Service Layer: a compact detail header (service name, image, ports, container hash, Service State, Service Health, State Age) above the Log Stream area. The detail header renders Compose File fields immediately; Docker fields show `—` until the daemon is connected.
 _Avoid_: Logs pane, detail pane, right pane
 
 **Selected Service**:
-The Service whose Log Stream is currently displayed in the Dashboard.
+The Service whose Service Layer is currently on top of the compositor stack.
 _Avoid_: Active service, focused service
 
 **Log Stream**:
@@ -81,7 +85,7 @@ A user-initiated operation applied to a Service: stop, start, restart, or rebuil
 _Avoid_: Command (overloaded in the Bubble Tea runtime context), operation
 
 **Settings**:
-An in-session overlay that lets the user adjust configuration values (e.g., poll interval, log buffer cap) without leaving the TUI or editing the Config File. Changes take effect for the current session; persistence to the Config File is a separate action.
+An in-session overlay that lets the user adjust configuration values (e.g., poll interval, log buffer cap) without leaving the TUI or editing the Config File. Rendered as a full-terminal compositor layer over the Dashboard, which remains live underneath. Changes take effect for the current session; persistence to the Config File is a separate action.
 _Avoid_: Config, preferences — also distinct from instant keybinding toggles (e.g., Orphan Toggle) which take effect immediately with no overlay
 
 ### Startup
@@ -127,7 +131,7 @@ _Avoid_: Disconnected (reserved for the Compose File disappearing), daemon unrea
 - A **Project** declares one or more **Services**.
 - **File Discovery** finds the **Compose File** and parses it into a **Project**. If no valid Compose File is found, ogle enters the **Watching** state.
 - When 2+ valid Compose Files are found, the **Project Selector** lets the user choose which to load.
-- The **Dashboard** displays all Services and the **Selected Service**'s **Log Stream** inside the **Service Inspector**.
+- The **Dashboard** displays all Services and the **Selected Service**'s **Log Stream** inside the **Service Inspector**. Each Service is backed by a **Service Layer** in the compositor.
 - The **Service Inspector** shows the Selected Service's detail header and Log Stream. Compose File fields are always visible; Docker fields (`Service State`, `Service Health`, `State Age`, container hash) require a live Docker connection.
 - **State Polling** periodically updates each Service's **Service State**, **Service Health**, and **State Age**.
 - A user triggers a **Service Action** on a Service from the Dashboard; actions run asynchronously and do not block the UI. Service Actions are disabled when **Docker Unavailable**.

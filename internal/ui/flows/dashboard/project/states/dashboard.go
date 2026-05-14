@@ -15,14 +15,15 @@ import (
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/components/inspector"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelayer"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
-	gracePeriodDuration = 5 * time.Second
-	logStreamRetryDelay = 5 * time.Second
-	halfPaneDivisor     = 2
+	gracePeriodDuration      = 5 * time.Second
+	settingsLayerZ           = 100
+	initCommandsCapacityBase = 2
 )
 
 const (
@@ -31,29 +32,32 @@ const (
 )
 
 // Dashboard is the main project state. It renders a two-pane horizontal split:
-// service list on the left, Service Inspector on the right.
+// service list on the left, the top Service Layer on the right.
 type Dashboard struct {
-	ctx             context.Context
-	project         *domain.Project
-	keys            dashboardKeyMap
-	help            help.Model
-	serviceList     servicelist.Model
-	inspector       inspector.Model
-	layout          PaneLayout
-	focus           int
-	selectedService domain.ServiceDef
-	showLabels      bool
-	theme           *theme.Theme
-	themeName       string
-	zm              *zone.Manager
-	pollInterval    time.Duration
-	logBufferCap    int
-	connection      ConnectionMachine
-	logView         LogPane
-	drag            DragCoordinator
+	ctx          context.Context
+	project      *domain.Project
+	keys         dashboardKeyMap
+	help         help.Model
+	serviceList  servicelist.Model
+	layout       PaneLayout
+	focus        int
+	layers       map[string]*servicelayer.Model
+	topLayer     string
+	nextZ        int
+	showLabels   bool
+	theme        *theme.Theme
+	themeName    string
+	settings     *Settings
+	zm           *zone.Manager
+	pollInterval time.Duration
+	logBufferCap int
+	connection   ConnectionMachine
+	drag         DragCoordinator
 }
 
 // NewDashboard returns a Dashboard state initialised with the given project.
+// The streamer parameter is retained for API compatibility; each Service Layer
+// creates its own streamer via logs.New().
 func NewDashboard(
 	ctx context.Context,
 	project *domain.Project,
@@ -61,34 +65,20 @@ func NewDashboard(
 	themeName string,
 	poll time.Duration,
 	logBufCap int,
-	streamer logs.Streamer,
+	_ logs.Streamer,
 	zm *zone.Manager,
 ) State {
-	var first domain.ServiceDef
-	if len(project.Services) > 0 {
-		first = project.Services[0]
-	}
-
-	return &Dashboard{
-		ctx:             ctx,
-		project:         project,
-		keys:            defaultDashboardKeys,
-		help:            help.New(),
-		serviceList:     servicelist.New(project, th, zm, 0, 0),
-		inspector:       inspector.New(first, th),
-		layout:          NewPaneLayout(th, zm),
-		focus:           focusLeft,
-		selectedService: first,
+	d := &Dashboard{
+		ctx:         ctx,
+		project:     project,
+		keys:        defaultDashboardKeys,
+		help:        help.New(),
+		serviceList: servicelist.New(project, th, zm, 0, 0),
+		layout:      NewPaneLayout(th, zm),
+		focus:       focusLeft,
 		connection: ConnectionMachine{
 			state:       inspector.ConnectStateConnecting,
 			unavailable: inspector.UnavailableState{SecondsUntilRetry: 0},
-		},
-		logView: LogPane{
-			streamer:   streamer,
-			buffer:     newLogBuffer(logBufCap),
-			scrollRows: 0,
-			paused:     false,
-			state:      inspector.LogAreaConnecting,
 		},
 		drag:         newDragCoordinator(zm),
 		showLabels:   false,
@@ -97,21 +87,32 @@ func NewDashboard(
 		zm:           zm,
 		pollInterval: poll,
 		logBufferCap: logBufCap,
+		nextZ:        1,
+		layers:       nil,
+		topLayer:     "",
+		settings:     nil,
 	}
+
+	d.layers, d.topLayer = d.initLayers()
+
+	return d
 }
 
-// Init implements State. Fires Docker Connect and the grace-period timer in
-// parallel. Watcher subscription is owned by the root orchestrator and must
-// not be touched here.
+// Init implements State. Fires Docker Connect, the grace-period timer, and all
+// Service Layer Init commands in parallel.
 func (d *Dashboard) Init() tea.Cmd {
 	graceTick := tea.Tick(gracePeriodDuration, func(_ time.Time) tea.Msg {
 		return gracePeriodExpiredMsg{}
 	})
 
-	return tea.Batch(
-		svcdocker.Connect(d.ctx),
-		graceTick,
-	)
+	cmds := make([]tea.Cmd, 0, initCommandsCapacityBase+len(d.layers))
+	cmds = append(cmds, svcdocker.Connect(d.ctx), graceTick)
+
+	for _, layer := range d.layers {
+		cmds = append(cmds, layer.Init())
+	}
+
+	return tea.Batch(cmds...)
 }
 
 // SetSize implements State.
@@ -123,7 +124,14 @@ func (d *Dashboard) SetSize(w, h int) {
 	d.serviceList = d.serviceList.SetBounds(b.X, b.Y, b.W, b.H)
 
 	lb := d.layout.LogViewBounds()
-	d.inspector = d.inspector.SetBounds(lb.W, lb.H, lb.Y)
+
+	for _, layer := range d.layers {
+		layer.SetSize(lb.W, lb.H)
+	}
+
+	if d.settings != nil {
+		d.settings.SetSize(w, h)
+	}
 }
 
 // Update handles all Dashboard messages.
@@ -138,37 +146,22 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 			d.drag.HandleClick(msg)
 		}
 	case tea.MouseMotionMsg:
-		if d.drag.HandleMotion(msg, d.layout) {
-			return d, nil
-		}
+		// DragCoordinator.HandleMotion disabled — pending compositor adaptation
 	case tea.MouseReleaseMsg:
-		text, handled := d.drag.HandleRelease(
-			msg,
-			d.layout,
-			d.serviceList.View(),
-			d.inspector.View(),
-			d.footerView(),
-		)
-		if handled {
-			if text != "" {
-				return d, tea.SetClipboard(text)
-			}
-
-			return d, nil
-		}
+		// DragCoordinator.HandleRelease disabled — pending compositor adaptation
 	case tea.MouseWheelMsg:
 		if d.handleMouseWheel(msg) {
 			return d, nil
 		}
 	case msgs.ServiceSelected:
-		return d, d.handleServiceSelected(msg)
+		d.handleServiceSelected(msg)
+
+		return d, nil
 	case msgs.ProjectLoaded:
 		return d, d.handleProjectLoaded(msg)
 	case msgs.DaemonConnected:
 		return d, d.handleDaemonConnectedMsg()
 	case msgs.DaemonUnavailable:
-		d.logView.Close()
-
 		return d, d.handleDaemonUnavailable()
 	case msgs.ServiceActionCompleted:
 		d.handleServiceActionCompleted(msg)
@@ -181,42 +174,66 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 	case msgs.LogLine:
 		return d, d.handleLogLine(msg)
 	case msgs.LogStreamError:
-		d.handleLogStreamError()
+		d.handleLogStreamError(msg)
 
 		return d, nil
 	case msgs.LogStreamContainerNotFound:
-		return d, d.handleLogStreamContainerNotFound()
-	case logStreamRetryMsg:
-		return d, d.handleLogStreamRetry()
+		return d, d.handleLogStreamContainerNotFound(msg)
+	case msgs.SettingsApplied:
+		return d, d.handleSettingsApplied(msg)
+	case msgs.OrphanDiscovered:
+		return d, d.handleOrphanDiscovered(msg)
+	case msgs.OrphanGone:
+		d.handleOrphanGone(msg)
+
+		return d, nil
 	}
 
-	var inspectorCmd tea.Cmd
+	// Route unrecognised messages through all layers (handles internal
+	// logStreamRetryMsg) and through the service list.
+	return d, d.routeUnhandled(msg)
+}
 
-	d.inspector, inspectorCmd = d.inspector.Update(msg)
+// routeUnhandled routes unrecognised messages through all layers and the service list.
+func (d *Dashboard) routeUnhandled(msg tea.Msg) tea.Cmd {
+	var cmds []tea.Cmd
+
+	for _, layer := range d.layers {
+		_, layerCmd := layer.Update(msg)
+		if layerCmd != nil {
+			cmds = append(cmds, layerCmd)
+		}
+	}
 
 	var listCmd tea.Cmd
 
 	d.serviceList, listCmd = d.serviceList.Update(msg)
 
-	return d, tea.Batch(inspectorCmd, listCmd)
+	if listCmd != nil {
+		cmds = append(cmds, listCmd)
+	}
+
+	return tea.Batch(cmds...)
 }
 
 func (d *Dashboard) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool) {
+	if d.settings != nil {
+		next, cmd := d.settings.Update(msg)
+		d.settings = next
+
+		return d, cmd, true
+	}
+
 	if !d.serviceList.IsFiltering() {
 		if key.Matches(msg, d.keys.Quit) {
 			return d, tea.Quit, true
 		}
 
 		if key.Matches(msg, d.keys.Settings) {
-			return NewSettings(
-				d.ctx,
-				d.project,
-				d.themeName,
-				d.pollInterval,
-				d.logBufferCap,
-				d.theme,
-				d.zm,
-			), nil, true
+			d.settings = NewSettings(d.themeName, d.pollInterval, d.logBufferCap, d.theme, d.zm)
+			d.settings.SetSize(d.layout.w, d.layout.h)
+
+			return d, nil, true
 		}
 	}
 
@@ -233,125 +250,147 @@ func (d *Dashboard) handleMouseWheel(msg tea.MouseWheelMsg) bool {
 		return false
 	}
 
-	switch msg.Button {
-	case tea.MouseWheelUp:
-		d.logView.scrollRows++
-		d.logView.paused = true
-	case tea.MouseWheelDown:
-		if d.logView.scrollRows > 0 {
-			d.logView.scrollRows--
-		}
-
-		if d.logView.scrollRows == 0 {
-			d.logView.paused = false
-		}
+	layer, ok := d.layers[d.topLayer]
+	if !ok {
+		return false
 	}
 
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	switch msg.Button {
+	case tea.MouseWheelUp:
+		layer.WheelUp()
+	case tea.MouseWheelDown:
+		layer.WheelDown()
+	}
 
 	return true
 }
 
-func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) tea.Cmd {
-	d.selectedService = msg.Service
-	d.inspector = d.inspector.SetService(msg.Service)
-	d.logView.Close()
-	d.logView.Clear()
-
-	var cmd tea.Cmd
-
-	if d.connection.ConnectState() == inspector.ConnectStateConnected {
-		cmd = d.startLogStream(msg.Service)
-	} else {
-		d.logView.state = inspector.LogAreaConnecting
+func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) {
+	if prev, ok := d.layers[d.topLayer]; ok {
+		prev.SetFocused(false)
 	}
 
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	d.topLayer = msg.Service.Name
+	d.nextZ++
 
-	return cmd
+	if layer, ok := d.layers[d.topLayer]; ok {
+		layer.SetZ(d.nextZ)
+		layer.SetFocused(true)
+		layer.SetShowLabels(d.showLabels)
+	}
 }
 
 func (d *Dashboard) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
 	d.project = msg.Project
 	d.serviceList = d.serviceList.SetProject(msg.Project)
-	d.logView.Close()
-	d.logView.Clear()
 
-	if len(msg.Project.Services) > 0 {
-		d.selectedService = msg.Project.Services[0]
-		d.inspector = d.inspector.SetService(d.selectedService)
+	// Build set of service names in the updated project.
+	newNames := make(map[string]struct{}, len(msg.Project.Services))
+	for _, svc := range msg.Project.Services {
+		newNames[svc.Name] = struct{}{}
 	}
 
-	var cmd tea.Cmd
-
-	if d.connection.ConnectState() == inspector.ConnectStateConnected &&
-		len(msg.Project.Services) > 0 {
-		cmd = d.startLogStream(d.selectedService)
-	} else {
-		d.logView.state = inspector.LogAreaConnecting
+	// Close and remove layers for services no longer present.
+	for name, layer := range d.layers {
+		if _, ok := newNames[name]; !ok {
+			layer.Close()
+			delete(d.layers, name)
+		}
 	}
 
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	// If the top layer was removed, pick a new one from the updated list.
+	if _, ok := d.layers[d.topLayer]; !ok {
+		d.topLayer = ""
+		if len(msg.Project.Services) > 0 {
+			d.topLayer = msg.Project.Services[0].Name
+		}
 
-	return cmd
+		// Focus immediately if the new top layer is an existing layer; if it is
+		// a newly-created service it will be focused in the creation loop below.
+		if layer, layerExists := d.layers[d.topLayer]; layerExists {
+			d.nextZ++
+			layer.SetZ(d.nextZ)
+			layer.SetFocused(true)
+		}
+	}
+
+	connected := d.connection.ConnectState() == inspector.ConnectStateConnected
+
+	var cmds []tea.Cmd
+
+	// Create layers for services that were not in the previous project.
+	for _, svc := range msg.Project.Services {
+		if _, exists := d.layers[svc.Name]; exists {
+			continue
+		}
+
+		layer := servicelayer.New(d.ctx, d.project.Name, svc, d.theme, logs.New(), d.logBufferCap)
+
+		if svc.Name == d.topLayer {
+			d.nextZ++
+			layer.SetZ(d.nextZ)
+			layer.SetFocused(true)
+		}
+
+		d.layers[svc.Name] = layer
+
+		if connected {
+			_, layerCmd := layer.Update(msgs.DaemonConnected{})
+			if layerCmd != nil {
+				cmds = append(cmds, layerCmd)
+			}
+		}
+	}
+
+	return tea.Batch(cmds...)
 }
 
 func (d *Dashboard) handleDaemonConnectedMsg() tea.Cmd {
 	d.connection.HandleConnected()
-	d.inspector = d.inspector.SetConnectState(d.connection.ConnectState())
 
-	cmd := d.startLogStream(d.selectedService)
+	var cmds []tea.Cmd
 
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	for _, layer := range d.layers {
+		_, layerCmd := layer.Update(msgs.DaemonConnected{})
+		if layerCmd != nil {
+			cmds = append(cmds, layerCmd)
+		}
+	}
 
-	return cmd
+	return tea.Batch(cmds...)
 }
 
 func (d *Dashboard) handleDaemonUnavailable() tea.Cmd {
-	cmd := d.connection.HandleUnavailable()
-	if cmd == nil {
+	countdownCmd := d.connection.HandleUnavailable()
+	if countdownCmd == nil {
 		return nil
 	}
 
-	d.inspector = d.inspector.SetUnavailable(d.connection.Unavailable())
+	cmds := []tea.Cmd{countdownCmd}
 
-	if d.logView.State() == inspector.LogAreaNotFound {
-		d.logView.state = inspector.LogAreaUnavailable
-		d.inspector = d.inspector.SetLogView(
-			d.computeDisplayLines(),
-			d.logView.Paused(),
-			d.logView.State(),
-		)
+	for _, layer := range d.layers {
+		_, layerCmd := layer.Update(msgs.DaemonUnavailable{Err: nil})
+		layer.SetUnavailable(d.connection.Unavailable())
+
+		if layerCmd != nil {
+			cmds = append(cmds, layerCmd)
+		}
 	}
 
-	return cmd
+	return tea.Batch(cmds...)
 }
 
 func (d *Dashboard) handleGracePeriodExpired() tea.Cmd {
-	cmd := d.connection.HandleGracePeriodExpired()
-	if cmd == nil {
+	countdownCmd := d.connection.HandleGracePeriodExpired()
+	if countdownCmd == nil {
 		return nil
 	}
 
-	d.inspector = d.inspector.SetUnavailable(d.connection.Unavailable())
+	for _, layer := range d.layers {
+		layer.SetUnavailable(d.connection.Unavailable())
+	}
 
-	return cmd
+	return countdownCmd
 }
 
 func (d *Dashboard) handleRetryTick() tea.Cmd {
@@ -361,9 +400,13 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 	}
 
 	if d.connection.ConnectState() == inspector.ConnectStateConnecting {
-		d.inspector = d.inspector.SetConnectState(inspector.ConnectStateConnecting)
+		for _, layer := range d.layers {
+			layer.SetConnectState(inspector.ConnectStateConnecting)
+		}
 	} else {
-		d.inspector = d.inspector.SetUnavailable(d.connection.Unavailable())
+		for _, layer := range d.layers {
+			layer.SetUnavailable(d.connection.Unavailable())
+		}
 	}
 
 	return cmd
@@ -383,69 +426,144 @@ func (d *Dashboard) handleServiceActionCompleted(msg msgs.ServiceActionCompleted
 }
 
 func (d *Dashboard) handleLogLine(msg msgs.LogLine) tea.Cmd {
-	cmd := d.logView.HandleLogLine(msg)
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	layer, ok := d.layers[msg.ServiceName]
+	if !ok {
+		return nil
+	}
+
+	_, cmd := layer.Update(msg)
 
 	return cmd
 }
 
-func (d *Dashboard) handleLogStreamError() {
-	d.logView.HandleStreamError()
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+func (d *Dashboard) handleLogStreamError(msg msgs.LogStreamError) {
+	layer, ok := d.layers[msg.ServiceName]
+	if !ok {
+		return
+	}
+
+	layer.Update(msg)
 }
 
-func (d *Dashboard) handleLogStreamContainerNotFound() tea.Cmd {
-	cmd := d.logView.HandleContainerNotFound()
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+func (d *Dashboard) handleLogStreamContainerNotFound(msg msgs.LogStreamContainerNotFound) tea.Cmd {
+	layer, ok := d.layers[msg.ServiceName]
+	if !ok {
+		return nil
+	}
+
+	_, cmd := layer.Update(msg)
 
 	return cmd
 }
 
-func (d *Dashboard) handleLogStreamRetry() tea.Cmd {
-	name := logs.ContainerName(
-		d.project.Name,
-		d.selectedService.Name,
-		d.selectedService.ContainerName,
-	)
-	cmd := d.logView.HandleRetry(d.ctx, name)
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+func (d *Dashboard) handleSettingsApplied(msg msgs.SettingsApplied) tea.Cmd {
+	th, _ := theme.Load(msg.Theme, "")
+	d.theme = th
+	d.themeName = msg.Theme
+	d.pollInterval = msg.PollInterval
+	d.logBufferCap = msg.LogBufferCap
 
-	return cmd
+	d.serviceList = servicelist.New(d.project, th, d.zm, 0, 0)
+	d.layout = NewPaneLayout(th, d.zm)
+
+	for _, layer := range d.layers {
+		layer.Close()
+	}
+
+	d.nextZ = 1
+	d.layers, d.topLayer = d.initLayers()
+
+	if d.connection.ConnectState() != inspector.ConnectStateConnected {
+		return nil
+	}
+
+	var cmds []tea.Cmd
+
+	for _, layer := range d.layers {
+		_, layerCmd := layer.Update(msgs.DaemonConnected{})
+		if layerCmd != nil {
+			cmds = append(cmds, layerCmd)
+		}
+	}
+
+	return tea.Batch(cmds...)
 }
 
-// View renders the two-pane dashboard layout with a help bar on the last row.
+// View renders the dashboard via the lipgloss Compositor with a help bar appended.
 func (d *Dashboard) View() string {
 	if d.layout.w == 0 || d.layout.h == 0 {
 		return ""
 	}
 
-	full := d.renderFull()
-	if d.drag.Active() {
-		full = d.drag.ApplyHighlight(full, d.layout)
-	}
-
-	return full
+	// DragCoordinator.ApplyHighlight is disabled — pending compositor adaptation.
+	return d.renderFull()
 }
 
 func (d *Dashboard) renderFull() string {
-	return d.layout.View(d.serviceList.View(), d.inspector.View(), d.focus == focusLeft) +
-		"\n" + d.footerView()
+	w := d.layout.w
+	h := d.layout.h
+	paneH := max(h-separatorRows-helpBarHeight, 0)
+	innerH := max(paneH-borderHeight, 0)
+
+	var lyrs []*lipgloss.Layer
+
+	if !d.layout.IsLogFullscreen() {
+		leftW := min(w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
+		leftContentW := max(leftW-borderWidth, 0)
+
+		leftBorderStyle := d.theme.BorderBlurred
+		if d.focus == focusLeft {
+			leftBorderStyle = d.theme.BorderFocused
+		}
+
+		svcContent := lipgloss.NewStyle().
+			Width(leftContentW).
+			Height(innerH).
+			Render(d.serviceList.View())
+		svcContent = d.zm.Mark("pane-left", svcContent)
+		leftPane := leftBorderStyle.Width(leftW).Height(paneH).Render(svcContent)
+
+		lyrs = append(lyrs, lipgloss.NewLayer(leftPane).X(0).Y(0).Z(1).ID("service-list"))
+	}
+
+	if layer, ok := d.layers[d.topLayer]; ok {
+		var rightX, rightW int
+
+		if d.layout.IsLogFullscreen() {
+			rightX = 0
+			rightW = w
+		} else {
+			leftW := min(w*servicePaneRatio/servicePaneRatioDen, servicePaneMaxW)
+			rightX = leftW
+			rightW = w - leftW
+		}
+
+		rightContentW := max(rightW-borderWidth, 0)
+
+		rightBorderStyle := d.theme.BorderBlurred
+		if d.focus == focusRight {
+			rightBorderStyle = d.theme.BorderFocused
+		}
+
+		inspContent := lipgloss.NewStyle().Width(rightContentW).Height(innerH).Render(layer.View())
+		inspContent = d.zm.Mark("pane-right", inspContent)
+		rightPane := rightBorderStyle.Width(rightW).Height(paneH).Render(inspContent)
+
+		lyrs = append(lyrs, lipgloss.NewLayer(rightPane).X(rightX).Y(0).Z(layer.Z()).ID(d.topLayer))
+	}
+
+	if d.settings != nil {
+		lyrs = append(
+			lyrs,
+			lipgloss.NewLayer(d.settings.View()).X(0).Y(0).Z(settingsLayerZ).ID("settings"),
+		)
+	}
+
+	if len(lyrs) == 0 {
+		return "\n" + d.footerView()
+	}
+
+	return lipgloss.NewCompositor(lyrs...).Render() + "\n" + d.footerView()
 }
 
 func (d *Dashboard) footerView() string {
@@ -482,28 +600,6 @@ func (d *Dashboard) actionBindings() []key.Binding {
 	return append(bindings, d.keys.ActionRebuild)
 }
 
-// startLogStream closes any existing stream, starts a new one for svc, and
-// returns a Next() cmd. Sets logView.state to LogAreaStreaming.
-// If svc has no name (empty project) it is a no-op.
-func (d *Dashboard) startLogStream(svc domain.ServiceDef) tea.Cmd {
-	if svc.Name == "" {
-		return nil
-	}
-
-	name := logs.ContainerName(d.project.Name, svc.Name, svc.ContainerName)
-
-	return d.logView.StartStream(d.ctx, name)
-}
-
-// computeDisplayLines delegates to logView.ComputeDisplayLines with the
-// current layout bounds and theme.
-func (d *Dashboard) computeDisplayLines() []string {
-	lb := d.layout.LogViewBounds()
-	stderrStyle := lipgloss.NewStyle().Foreground(d.theme.LogStderr)
-
-	return d.logView.ComputeDisplayLines(lb.W, lb.H, stderrStyle)
-}
-
 func (d *Dashboard) handleZoom() {
 	d.layout = d.layout.ToggleMode()
 	if d.layout.IsLogFullscreen() {
@@ -516,33 +612,20 @@ func (d *Dashboard) handleZoom() {
 
 	b := d.layout.ServiceListBounds()
 	d.serviceList = d.serviceList.SetBounds(b.X, b.Y, b.W, b.H)
+
 	lb := d.layout.LogViewBounds()
-	d.inspector = d.inspector.SetBounds(lb.W, lb.H, lb.Y)
+
+	for _, layer := range d.layers {
+		layer.SetSize(lb.W, lb.H)
+	}
 }
 
 func (d *Dashboard) handleToggleLabels() {
 	d.showLabels = !d.showLabels
-	d.inspector = d.inspector.SetShowLabels(d.showLabels)
-}
 
-func (d *Dashboard) handleScrollUp() {
-	lb := d.layout.LogViewBounds()
-	d.logView.ScrollUp(lb.H)
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
-}
-
-func (d *Dashboard) handleScrollDown() {
-	lb := d.layout.LogViewBounds()
-	d.logView.ScrollDown(lb.H)
-	d.inspector = d.inspector.SetLogView(
-		d.computeDisplayLines(),
-		d.logView.Paused(),
-		d.logView.State(),
-	)
+	if layer, ok := d.layers[d.topLayer]; ok {
+		layer.SetShowLabels(d.showLabels)
+	}
 }
 
 func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
@@ -550,11 +633,11 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 
+	// Zoom and ToggleLabels are handled here; scroll keys (pgup/pgdn) fall
+	// through to the servicelayer's focused key handler in the Update loop.
 	for _, kb := range []keyBinding{
 		{d.keys.Zoom, d.handleZoom},
 		{d.keys.ToggleLabels, d.handleToggleLabels},
-		{d.keys.ScrollUp, d.handleScrollUp},
-		{d.keys.ScrollDown, d.handleScrollDown},
 	} {
 		if key.Matches(msg, kb.binding) {
 			kb.handle()
@@ -572,7 +655,7 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 		return nil
 	}
 
-	name := d.selectedService.Name
+	name := d.topLayer
 	if name == "" {
 		return nil
 	}
@@ -604,4 +687,87 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	}
 
 	return nil
+}
+
+func (d *Dashboard) handleOrphanDiscovered(msg msgs.OrphanDiscovered) tea.Cmd {
+	if _, exists := d.layers[msg.Service.Name]; exists {
+		return nil
+	}
+
+	layer := servicelayer.New(
+		d.ctx,
+		d.project.Name,
+		msg.Service,
+		d.theme,
+		logs.New(),
+		d.logBufferCap,
+	)
+
+	if d.topLayer == "" {
+		d.topLayer = msg.Service.Name
+		d.nextZ++
+		layer.SetZ(d.nextZ)
+		layer.SetFocused(true)
+	}
+
+	lb := d.layout.LogViewBounds()
+	layer.SetSize(lb.W, lb.H)
+
+	d.layers[msg.Service.Name] = layer
+
+	if d.connection.ConnectState() != inspector.ConnectStateConnected {
+		return nil
+	}
+
+	_, cmd := layer.Update(msgs.DaemonConnected{})
+
+	return cmd
+}
+
+func (d *Dashboard) handleOrphanGone(msg msgs.OrphanGone) {
+	layer, ok := d.layers[msg.ServiceName]
+	if !ok {
+		return
+	}
+
+	layer.Close()
+	delete(d.layers, msg.ServiceName)
+
+	if d.topLayer != msg.ServiceName {
+		return
+	}
+
+	d.topLayer = ""
+
+	for name := range d.layers {
+		d.topLayer = name
+		d.nextZ++
+		d.layers[name].SetZ(d.nextZ)
+		d.layers[name].SetFocused(true)
+
+		break
+	}
+}
+
+// initLayers creates a Service Layer for every Service in the current project.
+// The first service is set as focused and assigned Z=nextZ. Returns the layers
+// map and the name of the top layer.
+func (d *Dashboard) initLayers() (map[string]*servicelayer.Model, string) {
+	layers := make(map[string]*servicelayer.Model, len(d.project.Services))
+	topLayer := ""
+
+	for i, svc := range d.project.Services {
+		layer := servicelayer.New(d.ctx, d.project.Name, svc, d.theme, logs.New(), d.logBufferCap)
+
+		if i == 0 {
+			topLayer = svc.Name
+
+			layer.SetZ(d.nextZ)
+			layer.SetFocused(true)
+		}
+
+		layers[svc.Name] = layer
+	}
+
+	return layers, topLayer
 }

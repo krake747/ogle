@@ -61,15 +61,21 @@ type ServiceActionCompleted struct {
 
 // LogLine carries one demultiplexed log frame from the Docker logs API.
 type LogLine struct {
-	Text     string
-	IsStderr bool
+	Text        string
+	IsStderr    bool
+	ServiceName string
 }
 
 // LogStreamError is emitted when the LogStreamer goroutine hits a read error.
-type LogStreamError struct{ Err error }
+type LogStreamError struct {
+	Err         error
+	ServiceName string
+}
 
 // LogStreamContainerNotFound is emitted when the logs endpoint returns 404.
-type LogStreamContainerNotFound struct{}
+type LogStreamContainerNotFound struct {
+	ServiceName string
+}
 
 // SettingsApplied is emitted by states.Settings when the user confirms changes.
 // dashboard.Model handles it to update the active configuration for the session.
@@ -77,4 +83,17 @@ type SettingsApplied struct {
 	Theme        string
 	PollInterval time.Duration
 	LogBufferCap int
+}
+
+// OrphanDiscovered is emitted when a running container is found that has no
+// corresponding Service in the current Project. Dashboard creates a Service
+// Layer for it so logs and state are visible.
+type OrphanDiscovered struct {
+	Service domain.ServiceDef
+}
+
+// OrphanGone is emitted when a previously discovered Orphan container stops
+// or disappears. Dashboard closes and removes its Service Layer.
+type OrphanGone struct {
+	ServiceName string
 }

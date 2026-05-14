@@ -65,72 +65,85 @@ func New() *LogStreamer {
 }
 
 // Start begins streaming logs for the named container. Close must be called
-// before calling Start again on a reused LogStreamer. It issues the HTTP
-// request synchronously; on 404 or non-200 it writes a single error message
-// to the channel and returns without spawning a goroutine. On 200 a reader
-// goroutine is started; it writes msgs.LogLine values until the stream ends
-// or Close is called.
+// before calling Start again on a reused LogStreamer. It returns immediately;
+// the HTTP connection and all I/O run in a single background goroutine. On
+// 404 or non-200 the goroutine writes a single error message to the channel
+// and exits. On 200 it writes msgs.LogLine values until the stream ends or
+// Close is called.
 func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 	ctx, cancel := context.WithCancel(appCtx)
 	s.cancel = cancel
 
-	transport := &http.Transport{
-		DialContext: func(dialCtx context.Context, _, _ string) (net.Conn, error) {
-			d := net.Dialer{}
+	s.wg.Go(func() {
+		transport := &http.Transport{
+			DialContext: func(dialCtx context.Context, _, _ string) (net.Conn, error) {
+				d := net.Dialer{}
 
-			return d.DialContext(dialCtx, "unix", socketPath)
-		},
-	}
-	client := &http.Client{Transport: transport}
+				return d.DialContext(dialCtx, "unix", socketPath)
+			},
+		}
+		client := &http.Client{Transport: transport}
 
-	req, err := http.NewRequestWithContext(
-		ctx,
-		http.MethodGet,
-		fmt.Sprintf(
-			"http://localhost/containers/%s/logs?follow=true&stdout=1&stderr=1&tail=%s",
-			url.PathEscape(containerName), tailLines,
-		),
-		nil,
-	)
-	if err != nil {
-		s.ch <- msgs.LogStreamError{Err: err}
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodGet,
+			fmt.Sprintf(
+				"http://localhost/containers/%s/logs?follow=true&stdout=1&stderr=1&tail=%s",
+				url.PathEscape(containerName), tailLines,
+			),
+			nil,
+		)
+		if err != nil {
+			select {
+			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: ""}:
+			case <-ctx.Done():
+			}
 
-		return
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		select {
-		case <-ctx.Done():
-		default:
-			s.ch <- msgs.LogStreamError{Err: err}
+			return
 		}
 
-		return
-	}
+		resp, err := client.Do(req)
+		if err != nil {
+			select {
+			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: ""}:
+			case <-ctx.Done():
+			}
 
-	if resp.StatusCode == http.StatusNotFound {
-		_ = resp.Body.Close()
+			return
+		}
 
-		client.CloseIdleConnections()
+		if resp.StatusCode == http.StatusNotFound {
+			_ = resp.Body.Close()
 
-		s.ch <- msgs.LogStreamContainerNotFound{}
+			client.CloseIdleConnections()
 
-		return
-	}
+			select {
+			case s.ch <- msgs.LogStreamContainerNotFound{ServiceName: ""}:
+			case <-ctx.Done():
+			}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, errorBodyLimit))
-		_ = resp.Body.Close()
+			return
+		}
 
-		client.CloseIdleConnections()
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, errorBodyLimit))
+			_ = resp.Body.Close()
 
-		s.ch <- msgs.LogStreamError{Err: fmt.Errorf("%w %d: %s", errUnexpectedStatus, resp.StatusCode, body)}
+			client.CloseIdleConnections()
 
-		return
-	}
+			select {
+			case s.ch <- msgs.LogStreamError{
+				Err:         fmt.Errorf("%w %d: %s", errUnexpectedStatus, resp.StatusCode, body),
+				ServiceName: "",
+			}:
+			case <-ctx.Done():
+			}
 
-	s.wg.Go(func() { s.readFrames(ctx, resp.Body, client) })
+			return
+		}
+
+		s.readFrames(ctx, resp.Body, client)
+	})
 }
 
 // readFrames reads the Docker multiplexed log stream until the context is
@@ -147,8 +160,7 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 			select {
 			case <-ctx.Done():
 				// normal shutdown — do not emit an error
-			default:
-				s.ch <- msgs.LogStreamError{Err: readErr}
+			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: ""}:
 			}
 
 			return
@@ -160,15 +172,14 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 		if _, readErr := io.ReadFull(body, payload); readErr != nil {
 			select {
 			case <-ctx.Done():
-			default:
-				s.ch <- msgs.LogStreamError{Err: readErr}
+			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: ""}:
 			}
 
 			return
 		}
 
 		select {
-		case s.ch <- msgs.LogLine{Text: string(payload), IsStderr: header[0] == stderrStream}:
+		case s.ch <- msgs.LogLine{Text: string(payload), IsStderr: header[0] == stderrStream, ServiceName: ""}:
 		case <-ctx.Done():
 			return
 		}

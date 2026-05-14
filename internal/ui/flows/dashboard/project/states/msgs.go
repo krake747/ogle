@@ -7,7 +7,3 @@ type gracePeriodExpiredMsg struct{}
 
 // retryTickMsg is fired every second during the Docker Unavailable countdown.
 type retryTickMsg struct{}
-
-// logStreamRetryMsg is fired after the 5-second retry delay when the container
-// was not found (LogStreamContainerNotFound).
-type logStreamRetryMsg struct{}

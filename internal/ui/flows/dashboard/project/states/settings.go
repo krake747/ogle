@@ -1,7 +1,6 @@
 package states
 
 import (
-	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,9 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
-	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -71,11 +68,11 @@ var defaultSettingsKeys = settingsKeyMap{
 	Cancel:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 }
 
-// Settings is the in-session settings overlay state.
+// Settings is the in-session settings overlay. It is managed as a compositor
+// layer inside Dashboard rather than as a top-level State; Dashboard stays live
+// underneath while the overlay is visible.
 type Settings struct {
-	ctx     context.Context
-	project *domain.Project
-	zm      *zone.Manager
+	zm *zone.Manager
 
 	origThemeName string
 	origTheme     *theme.Theme
@@ -96,17 +93,15 @@ type Settings struct {
 	w, h       int
 }
 
-// NewSettings constructs a Settings state from the current Dashboard values.
+// NewSettings constructs a Settings overlay from the current Dashboard values.
 // Themes are preloaded at construction so cycling never performs I/O during Update.
 func NewSettings(
-	ctx context.Context,
-	project *domain.Project,
 	themeName string,
 	poll time.Duration,
 	logBufCap int,
 	th *theme.Theme,
 	zm *zone.Manager,
-) State {
+) *Settings {
 	names := theme.BuiltinNames()
 	themes := make([]*theme.Theme, len(names))
 	idx := 0
@@ -121,8 +116,6 @@ func NewSettings(
 	}
 
 	return &Settings{
-		ctx:           ctx,
-		project:       project,
 		zm:            zm,
 		origThemeName: themeName,
 		origTheme:     th,
@@ -142,18 +135,16 @@ func NewSettings(
 	}
 }
 
-// Init implements State.
-func (s *Settings) Init() tea.Cmd { return nil }
-
-// SetSize implements State.
+// SetSize stores the terminal dimensions for View.
 func (s *Settings) SetSize(w, h int) {
 	s.w = w
 	s.h = h
 	s.help.SetWidth(w)
 }
 
-// Update handles keyboard navigation and field adjustments.
-func (s *Settings) Update(msg tea.Msg) (State, tea.Cmd) {
+// Update handles keyboard navigation and field adjustments. Returns nil when
+// the overlay should be closed (Confirm or Cancel).
+func (s *Settings) Update(msg tea.Msg) (*Settings, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return s, nil
@@ -169,30 +160,10 @@ func (s *Settings) Update(msg tea.Msg) (State, tea.Cmd) {
 			}
 		}
 
-		next := NewDashboard(
-			s.ctx,
-			s.project,
-			s.liveTheme,
-			s.themeNames[s.themeIdx],
-			s.pollInterval,
-			s.logBufferCap,
-			logs.New(),
-			s.zm,
-		)
-
-		return next, settingsAppliedCmd
+		return nil, settingsAppliedCmd
 
 	case key.Matches(keyMsg, s.keys.Cancel):
-		return NewDashboard(
-			s.ctx,
-			s.project,
-			s.origTheme,
-			s.origThemeName,
-			s.origPoll,
-			s.origCap,
-			logs.New(),
-			s.zm,
-		), nil
+		return nil, nil
 
 	case key.Matches(keyMsg, s.keys.Next):
 		s.focusField = (s.focusField + 1) % fieldCount
