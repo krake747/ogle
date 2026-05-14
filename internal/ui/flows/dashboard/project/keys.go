@@ -1,4 +1,4 @@
-package states
+package project
 
 import (
 	"charm.land/bubbles/v2/key"

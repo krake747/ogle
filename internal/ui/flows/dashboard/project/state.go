@@ -1,6 +1,4 @@
-// Package states implements the State pattern for the project flow.
-// Each concrete type represents one project state and owns its own transitions.
-package states
+package project
 
 import tea "charm.land/bubbletea/v2"
 

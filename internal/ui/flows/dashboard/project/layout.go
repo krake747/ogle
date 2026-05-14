@@ -1,4 +1,4 @@
-package states
+package project
 
 import (
 	"charm.land/lipgloss/v2"

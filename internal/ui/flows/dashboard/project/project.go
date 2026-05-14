@@ -12,14 +12,13 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Model is the project flow orchestrator.
 type Model struct {
 	ctx     context.Context
-	current states.State
+	current State
 	w, h    int
 }
 
@@ -36,7 +35,7 @@ func New(
 ) Model {
 	m := Model{
 		ctx:     ctx,
-		current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
+		current: NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
 		w:       w,
 		h:       h,
 	}

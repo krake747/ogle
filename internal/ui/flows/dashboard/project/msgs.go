@@ -1,4 +1,4 @@
-package states
+package project
 
 // gracePeriodExpiredMsg is fired once after the initial 5-second grace window.
 // If the daemon has not connected by then, the Dashboard transitions to the
