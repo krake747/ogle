@@ -31,11 +31,17 @@ func TestConnectionMachine_HandleUnavailable_GuardWhenNotConnected(t *testing.T)
 	}
 
 	if cm.ConnectState() != inspector.ConnectStateUnavailable {
-		t.Errorf("state=ConnectStateUnavailable: expected state unchanged, got %v", cm.ConnectState())
+		t.Errorf(
+			"state=ConnectStateUnavailable: expected state unchanged, got %v",
+			cm.ConnectState(),
+		)
 	}
 
 	if cm.Unavailable().SecondsUntilRetry != 30 {
-		t.Errorf("state=ConnectStateUnavailable: expected countdown unchanged at 30, got %d", cm.Unavailable().SecondsUntilRetry)
+		t.Errorf(
+			"state=ConnectStateUnavailable: expected countdown unchanged at 30, got %d",
+			cm.Unavailable().SecondsUntilRetry,
+		)
 	}
 }
 

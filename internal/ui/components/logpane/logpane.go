@@ -121,10 +121,13 @@ func (lp *LogPane) HandleLogLine(msg msgs.LogLine) tea.Cmd {
 	return lp.streamer.Next()
 }
 
-// HandleStreamError closes the streamer and marks the log area unavailable.
-func (lp *LogPane) HandleStreamError() {
+// HandleStreamError closes the streamer and schedules a retry, treating the
+// error as a transient condition. The pane transitions to LogAreaNotFound and
+// will attempt to reconnect after a delay.
+func (lp *LogPane) HandleStreamError() tea.Cmd {
 	lp.streamer.Close()
-	lp.state = inspector.LogAreaUnavailable
+
+	return lp.HandleContainerNotFound()
 }
 
 // HandleContainerNotFound marks the log area not-found and schedules a retry.

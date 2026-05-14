@@ -91,10 +91,10 @@ func (s *Model) Update(msg tea.Msg) (*Model, tea.Cmd) {
 			return s, nil
 		}
 
-		s.logPane.HandleStreamError()
+		cmd := s.logPane.HandleStreamError()
 		s.syncInspectorLogView()
 
-		return s, nil
+		return s, cmd
 
 	case msgs.LogStreamContainerNotFound:
 		if msg.ServiceName != s.service.Name {

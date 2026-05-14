@@ -6,6 +6,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	logs_mocks "github.com/ma-tf/ogle/internal/services/docker/logs/mocks"
+	"github.com/ma-tf/ogle/internal/ui/components/inspector"
 	"github.com/ma-tf/ogle/internal/ui/components/logpane"
 )
 
@@ -118,5 +119,23 @@ func TestLogPane_ComputeDisplayLines_ScrollOffsetWindow(t *testing.T) {
 
 	if lines[5] != "H" {
 		t.Errorf("expected 'H' at index 5, got %q", lines[5])
+	}
+}
+
+func TestLogPane_HandleStreamError_SchedulesRetry(t *testing.T) {
+	t.Parallel()
+
+	streamer := logs_mocks.NewMockStreamer(t)
+	streamer.EXPECT().Close().Return()
+
+	lp := logpane.NewLogPane(streamer, 100)
+	cmd := lp.HandleStreamError()
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd (retry timer), got nil")
+	}
+
+	if lp.State() != inspector.LogAreaNotFound {
+		t.Fatalf("expected LogAreaNotFound after stream error, got %v", lp.State())
 	}
 }
