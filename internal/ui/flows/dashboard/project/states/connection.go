@@ -36,9 +36,10 @@ func (cm *ConnectionMachine) HandleConnected() {
 }
 
 // HandleUnavailable transitions to Unavailable and starts the retry countdown.
-// No-op if the current state is not ConnectStateConnected.
+// Accepts ConnectStateConnected (daemon dropped) and ConnectStateConnecting
+// (retry attempt failed). No-op if already ConnectStateUnavailable.
 func (cm *ConnectionMachine) HandleUnavailable() tea.Cmd {
-	if cm.state != inspector.ConnectStateConnected {
+	if cm.state == inspector.ConnectStateUnavailable {
 		return nil
 	}
 

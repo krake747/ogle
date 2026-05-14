@@ -1,11 +1,9 @@
-package states_test
+package project_test
 
 import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project/states"
 )
 
 func newTestLayout() states.PaneLayout {

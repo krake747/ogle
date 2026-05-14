@@ -22,20 +22,20 @@ func TestConnectionMachine_HandleConnected(t *testing.T) {
 func TestConnectionMachine_HandleUnavailable_GuardWhenNotConnected(t *testing.T) {
 	t.Parallel()
 
-	for _, initial := range []inspector.ConnectState{
-		inspector.ConnectStateConnecting,
-		inspector.ConnectStateUnavailable,
-	} {
-		cm := states.NewConnectionMachine(initial, 0)
-		cmd := cm.HandleUnavailable()
+	// Only ConnectStateUnavailable should guard (already counting down)
+	cm := states.NewConnectionMachine(inspector.ConnectStateUnavailable, 30)
+	cmd := cm.HandleUnavailable()
 
-		if cmd != nil {
-			t.Errorf("state=%v: expected nil cmd (no-op), got non-nil", initial)
-		}
+	if cmd != nil {
+		t.Errorf("state=ConnectStateUnavailable: expected nil cmd (no-op), got non-nil")
+	}
 
-		if cm.ConnectState() != initial {
-			t.Errorf("state=%v: expected state unchanged, got %v", initial, cm.ConnectState())
-		}
+	if cm.ConnectState() != inspector.ConnectStateUnavailable {
+		t.Errorf("state=ConnectStateUnavailable: expected state unchanged, got %v", cm.ConnectState())
+	}
+
+	if cm.Unavailable().SecondsUntilRetry != 30 {
+		t.Errorf("state=ConnectStateUnavailable: expected countdown unchanged at 30, got %d", cm.Unavailable().SecondsUntilRetry)
 	}
 }
 
@@ -43,6 +43,31 @@ func TestConnectionMachine_HandleUnavailable_TransitionsWhenConnected(t *testing
 	t.Parallel()
 
 	cm := states.NewConnectionMachine(inspector.ConnectStateConnected, 0)
+	cmd := cm.HandleUnavailable()
+
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd (startCountdown), got nil")
+	}
+
+	if cm.ConnectState() != inspector.ConnectStateUnavailable {
+		t.Fatalf("expected ConnectStateUnavailable, got %v", cm.ConnectState())
+	}
+
+	if cm.Unavailable().SecondsUntilRetry != states.RetryIntervalSeconds {
+		t.Fatalf(
+			"expected SecondsUntilRetry=%d, got %d",
+			states.RetryIntervalSeconds,
+			cm.Unavailable().SecondsUntilRetry,
+		)
+	}
+}
+
+func TestConnectionMachine_HandleUnavailable_RestartCountdownWhenRetryFails(t *testing.T) {
+	t.Parallel()
+
+	// Regression test: when a retry attempt (ConnectStateConnecting) fails
+	// and Docker is still unavailable, the countdown should restart.
+	cm := states.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
 	cmd := cm.HandleUnavailable()
 
 	if cmd == nil {
