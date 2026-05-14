@@ -4,6 +4,7 @@
 package servicelist
 
 import (
+	"fmt"
 	"path/filepath"
 
 	"charm.land/bubbles/v2/list"
@@ -16,10 +17,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
-
-// headerRows is the number of terminal rows occupied by the list header.
-// servicelist shows a title bar only; status bar and help are disabled.
-const headerRows = 1
 
 // serviceItem is a single entry in the list component.
 type serviceItem struct {
@@ -122,7 +119,6 @@ func toItems(
 type Model struct {
 	list         list.Model
 	delegate     hoverlist.Delegate
-	layout       hoverlist.Layout
 	theme        *theme.Theme
 	zm           *zone.Manager
 	lastSelected string
@@ -151,17 +147,13 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 	return Model{
 		list:     l,
 		delegate: hd,
-		layout:   hoverlist.Layout{HeaderRows: headerRows, ItemHeight: 1, RowStride: 1, Width: w},
 		theme:    th,
 		zm:       zm,
 	}
 }
 
 // SetBounds propagates new terminal position and dimensions to the inner list.
-func (m Model) SetBounds(x, y, w, h int) Model {
-	m.layout.OriginX = x
-	m.layout.OriginY = y
-	m.layout.Width = w
+func (m Model) SetBounds(_, _, w, h int) Model {
 	m.list.SetSize(w, h)
 
 	return m
@@ -316,11 +308,14 @@ func (m Model) Init() tea.Cmd {
 // hitTest maps absolute terminal coordinates to a visible-item index.
 // Returns (index, true) when the cursor is over a valid item row; (0, false) otherwise.
 func (m Model) hitTest(mouseX, mouseY int) (int, bool) {
-	return m.layout.HitTest(
-		mouseX, mouseY,
-		m.list.Paginator.Page*m.list.Paginator.PerPage,
-		len(m.list.VisibleItems()),
-	)
+	for i := range m.list.VisibleItems() {
+		msg := tea.MouseClickMsg{X: mouseX, Y: mouseY, Button: tea.MouseNone, Mod: 0}
+		if m.zm.Get(fmt.Sprintf("item-%d", i)).InBounds(msg) {
+			return i, true
+		}
+	}
+
+	return 0, false
 }
 
 // Update delegates to the inner list and emits msgs.ServiceSelected when the

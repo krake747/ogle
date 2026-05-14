@@ -6,6 +6,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+	zone "github.com/lrstanley/bubblezone/v2"
 )
 
 // dragSelection tracks an in-progress mouse drag selection.
@@ -90,6 +91,7 @@ func clamp(v, lo, hi int) int {
 // Layout and component views are passed at call time; nothing external is
 // stored on the type.
 type DragCoordinator struct {
+	zm         *zone.Manager
 	drag       dragSelection
 	lastPressX int
 	lastPressY int
@@ -97,8 +99,9 @@ type DragCoordinator struct {
 
 // newDragCoordinator returns a DragCoordinator with all fields explicitly
 // initialised to their zero values. Used by NewDashboard to satisfy exhaustruct.
-func newDragCoordinator() DragCoordinator {
+func newDragCoordinator(zm *zone.Manager) DragCoordinator {
 	return DragCoordinator{
+		zm: zm,
 		drag: dragSelection{
 			active:    false,
 			startX:    0,
@@ -152,6 +155,12 @@ func (dc *DragCoordinator) SetActiveDrag(
 		endY:      endY,
 		component: component,
 	}
+}
+
+// SetZoneManager sets the zone manager used for hit-testing. Used by tests to
+// inject a fake zone manager without going through newDragCoordinator.
+func (dc *DragCoordinator) SetZoneManager(zm *zone.Manager) {
+	dc.zm = zm
 }
 
 // HandleClick records the press position and clears any active drag.
@@ -259,7 +268,11 @@ func (dc *DragCoordinator) Active() bool {
 	return dc.drag.active
 }
 
-func (dc *DragCoordinator) hitTestComponent(x, y int, layout PaneLayout) SelectionComponent {
+// hitTestComponentByCoords uses coordinate-based boundary checking (used by tests without zones).
+func (dc *DragCoordinator) hitTestComponentByCoords(
+	x, y int,
+	layout PaneLayout,
+) SelectionComponent {
 	lb := layout.ServiceListBounds()
 	if x >= lb.X && x < lb.X+lb.W && y >= lb.Y && y < lb.Y+lb.H {
 		return SelectionServiceList
@@ -267,6 +280,30 @@ func (dc *DragCoordinator) hitTestComponent(x, y int, layout PaneLayout) Selecti
 
 	rb := layout.LogViewBounds()
 	if x >= rb.X && x < rb.X+rb.W && y >= rb.Y && y < rb.Y+rb.H {
+		return SelectionInspector
+	}
+
+	paneH := layout.h - separatorRows - helpBarHeight
+	if y == paneH {
+		return SelectionFooter
+	}
+
+	return SelectionNone
+}
+
+func (dc *DragCoordinator) hitTestComponent(x, y int, layout PaneLayout) SelectionComponent {
+	// If zone manager is available, use zone-based hit-testing.
+	if dc.zm == nil {
+		return dc.hitTestComponentByCoords(x, y, layout)
+	}
+
+	if dc.zm.Get("pane-left").
+		InBounds(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseNone, Mod: 0}) {
+		return SelectionServiceList
+	}
+
+	if dc.zm.Get("pane-right").
+		InBounds(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseNone, Mod: 0}) {
 		return SelectionInspector
 	}
 

@@ -13,18 +13,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// headerRows is the number of terminal rows occupied by the list header.
-// fileselect shows a title bar and a status bar; both are always shown.
-// Each default style has Padding(0,0,1,2) — 1 text row + 1 bottom-padding row
-// each — so 2 + 2 = 4.
-const headerRows = 4
-
-// itemHeight is the number of rows one file item occupies (title + description).
-const itemHeight = 2
-
-// rowStride is itemHeight plus the default delegate spacing of 1.
-const rowStride = 3
-
 type fileItem struct{ path string }
 
 func (f fileItem) Title() string       { return filepath.Base(f.path) }
@@ -34,15 +22,15 @@ func (f fileItem) FilterValue() string { return filepath.Base(f.path) }
 // Model is the fileselect view. It is a value type; all mutating methods
 // return a new Model.
 type Model struct {
-	list     list.Model
-	delegate hoverlist.Delegate
-	layout   hoverlist.Layout
-	parseErr error
-	errFile  string // basename of the file that produced a parse error
-	parsing  bool
-	files    []string // kept for cursor-clamp and error-clear logic in SetFiles
-	zm       *zone.Manager
-	w, h     int
+	list       list.Model
+	delegate   hoverlist.Delegate
+	parseErr   error
+	errFile    string // basename of the file that produced a parse error
+	parsing    bool
+	files      []string // kept for cursor-clamp and error-clear logic in SetFiles
+	zm         *zone.Manager
+	w, h       int
+	pressedIdx int // index of the item pressed on MouseClick; -1 if none
 }
 
 func toItems(files []string) []list.Item {
@@ -67,18 +55,13 @@ func New(files []string, th *theme.Theme, zm *zone.Manager, width, height int) M
 
 	//nolint:exhaustruct // list.Model has many fields, but only a few are relevant to us
 	return Model{
-		list:     l,
-		delegate: hd,
-		layout: hoverlist.Layout{
-			HeaderRows: headerRows,
-			ItemHeight: itemHeight,
-			RowStride:  rowStride,
-			Width:      width,
-		},
-		files: files,
-		zm:    zm,
-		w:     width,
-		h:     height,
+		list:       l,
+		delegate:   hd,
+		files:      files,
+		zm:         zm,
+		w:          width,
+		h:          height,
+		pressedIdx: -1,
 	}
 }
 
@@ -131,10 +114,7 @@ func (m Model) SetParsing(v bool) Model {
 
 // SetBounds sets the terminal position and dimensions of this view. fileselect
 // is always fullscreen so x and y will typically be zero.
-func (m Model) SetBounds(x, y, w, h int) Model {
-	m.layout.OriginX = x
-	m.layout.OriginY = y
-	m.layout.Width = w
+func (m Model) SetBounds(_, _, w, h int) Model {
 	m.w = w
 	m.h = h
 	m.list.SetSize(w, h)
@@ -150,11 +130,39 @@ func (m Model) Init() tea.Cmd {
 // hitTest maps absolute terminal coordinates to a visible-item index.
 // Returns (index, true) when the cursor is over a valid item row; (0, false) otherwise.
 func (m Model) hitTest(mouseX, mouseY int) (int, bool) {
-	return m.layout.HitTest(
-		mouseX, mouseY,
-		m.list.Paginator.Page*m.list.Paginator.PerPage,
-		len(m.list.VisibleItems()),
-	)
+	for i := range m.list.VisibleItems() {
+		msg := tea.MouseClickMsg{X: mouseX, Y: mouseY, Button: tea.MouseNone, Mod: 0}
+		if m.zm.Get(fmt.Sprintf("item-%d", i)).InBounds(msg) {
+			return i, true
+		}
+	}
+
+	return 0, false
+}
+
+// handleMouseRelease processes mouse release events for file selection.
+// Returns (updated model, command) if a file was selected; otherwise returns
+// the original model and command with pressedIdx cleared.
+func (m Model) handleMouseRelease(msg tea.MouseReleaseMsg, cmd tea.Cmd) (Model, tea.Cmd) {
+	if msg.Button != tea.MouseLeft {
+		return m, cmd
+	}
+
+	idx, ok := m.hitTest(msg.X, msg.Y)
+	if ok && idx == m.pressedIdx && m.pressedIdx >= 0 {
+		if item, isFile := m.list.VisibleItems()[idx].(fileItem); isFile {
+			m.pressedIdx = -1
+
+			return m, tea.Batch(
+				cmd,
+				func() tea.Msg { return msgs.FileSelected{Path: item.path} },
+			)
+		}
+	}
+
+	m.pressedIdx = -1
+
+	return m, cmd
 }
 
 // Update handles keyboard navigation, mouse clicks, and selection.
@@ -167,7 +175,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if sz, ok := msg.(tea.WindowSizeMsg); ok {
 		m.w = sz.Width
 		m.h = sz.Height
-		m.layout.Width = sz.Width
 		m.list.SetSize(sz.Width, sz.Height)
 
 		return m, nil
@@ -184,17 +191,17 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		m.delegate.SetHover(idx)
 
-	case tea.MouseReleaseMsg:
+	case tea.MouseClickMsg:
 		if msg.Button == tea.MouseLeft {
 			if idx, ok := m.hitTest(msg.X, msg.Y); ok {
-				if item, isFile := m.list.VisibleItems()[idx].(fileItem); isFile {
-					return m, tea.Batch(
-						cmd,
-						func() tea.Msg { return msgs.FileSelected{Path: item.path} },
-					)
-				}
+				m.pressedIdx = idx
+			} else {
+				m.pressedIdx = -1
 			}
 		}
+
+	case tea.MouseReleaseMsg:
+		return m.handleMouseRelease(msg, cmd)
 
 	case tea.KeyPressMsg:
 		if item, ok := m.list.SelectedItem().(fileItem); ok {

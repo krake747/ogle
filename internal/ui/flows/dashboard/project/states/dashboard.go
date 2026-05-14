@@ -90,7 +90,7 @@ func NewDashboard(
 			paused:     false,
 			state:      inspector.LogAreaConnecting,
 		},
-		drag:         newDragCoordinator(),
+		drag:         newDragCoordinator(zm),
 		showLabels:   false,
 		theme:        th,
 		themeName:    themeName,
