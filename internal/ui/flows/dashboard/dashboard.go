@@ -19,7 +19,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard2"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -127,17 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = project.New(
-			m.ctx,
-			msg.Project,
-			m.theme,
-			m.cfg.Theme,
-			m.cfg.PollInterval,
-			m.cfg.LogBufferCap,
-			m.zm,
-			m.width,
-			m.height,
-		)
+		m.current = dashboard2.New()
 
 		return m, m.current.Init()
 
