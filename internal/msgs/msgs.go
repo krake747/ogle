@@ -51,6 +51,26 @@ type DaemonConnected struct{}
 // States at their last-known values.
 type DaemonUnavailable struct{ Err error }
 
+// DaemonMsg is a marker interface for messages routed to the daemonstatus
+// component in dashboard2. Types in the msgs package and the daemonstatus
+// package implement it via the unexported daemonMsg method.
+type DaemonMsg interface {
+	daemonMsg()
+}
+
+func (DaemonConnected) daemonMsg()   {}
+func (DaemonUnavailable) daemonMsg() {}
+
+// DaemonTick fires every 1 second during the Docker retry countdown loop.
+type DaemonTick struct{}
+
+func (DaemonTick) daemonMsg() {}
+
+// DaemonGraceExpired fires once after the initial connection grace period.
+type DaemonGraceExpired struct{}
+
+func (DaemonGraceExpired) daemonMsg() {}
+
 // ServiceActionCompleted is emitted by a docker action cmd when the
 // docker compose subprocess exits, whether successfully or not.
 type ServiceActionCompleted struct {

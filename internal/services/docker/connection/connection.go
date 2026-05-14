@@ -15,7 +15,7 @@ const (
 )
 
 // RetryInterval is the number of seconds to wait before retrying a connection.
-const RetryInterval = 60
+const RetryInterval = 10
 
 // Machine tracks Docker daemon connectivity state.
 // All methods are pure state transitions — no tea imports, no command returns.
