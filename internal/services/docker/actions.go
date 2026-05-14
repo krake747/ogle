@@ -15,7 +15,17 @@ import (
 // Stop returns a Cmd that runs `docker compose -f <file> -p <project> stop <service>`.
 func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(ctx, "docker", "compose", "-f", file, "-p", projectName, "stop", serviceName)
+		cmd := exec.CommandContext(
+			ctx,
+			"docker",
+			"compose",
+			"-f",
+			file,
+			"-p",
+			projectName,
+			"stop",
+			serviceName,
+		)
 
 		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
@@ -38,7 +48,18 @@ func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 // Handles both exited and not-created states.
 func Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "-d", serviceName)
+		cmd := exec.CommandContext(
+			ctx,
+			"docker",
+			"compose",
+			"-f",
+			file,
+			"-p",
+			projectName,
+			"up",
+			"-d",
+			serviceName,
+		)
 
 		cmd.Dir = filepath.Dir(file)
 		if err := cmd.Run(); err != nil {
@@ -86,7 +107,17 @@ func Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 func Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
-			ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "--build", "-d", serviceName,
+			ctx,
+			"docker",
+			"compose",
+			"-f",
+			file,
+			"-p",
+			projectName,
+			"up",
+			"--build",
+			"-d",
+			serviceName,
 		)
 
 		cmd.Dir = filepath.Dir(file)

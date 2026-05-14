@@ -142,7 +142,10 @@ func TestScanAll(t *testing.T) {
 			tc.setup(&tc, t.TempDir())
 
 			if tc.filename != "" {
-				require.NoError(t, os.WriteFile(filepath.Join(tc.dir, tc.filename), []byte{}, 0o600))
+				require.NoError(
+					t,
+					os.WriteFile(filepath.Join(tc.dir, tc.filename), []byte{}, 0o600),
+				)
 			} else if tc.expected != nil {
 				for _, path := range tc.expected {
 					require.NoError(t, os.WriteFile(path, []byte{}, 0o600))

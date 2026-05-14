@@ -140,7 +140,11 @@ func (dc *DragCoordinator) SetLastPress(x, y int) {
 
 // SetActiveDrag sets the drag state directly. Used by tests to set up an
 // in-progress drag without replaying mouse events.
-func (dc *DragCoordinator) SetActiveDrag(active bool, startX, startY, endY int, component SelectionComponent) {
+func (dc *DragCoordinator) SetActiveDrag(
+	active bool,
+	startX, startY, endY int,
+	component SelectionComponent,
+) {
 	dc.drag = dragSelection{
 		active:    active,
 		startX:    startX,
@@ -293,7 +297,10 @@ func (dc *DragCoordinator) boundsForComponent(c SelectionComponent, layout PaneL
 
 // extractSelection uses each component's own View() output to avoid x-range
 // slicing across split-pane terminal rows.
-func (dc *DragCoordinator) extractSelection(layout PaneLayout, listView, inspView, footerView string) string {
+func (dc *DragCoordinator) extractSelection(
+	layout PaneLayout,
+	listView, inspView, footerView string,
+) string {
 	b := dc.boundsForComponent(dc.drag.component, layout)
 	minRow, maxRow := dc.drag.rows()
 	localMin := minRow - b.Y

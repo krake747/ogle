@@ -12,6 +12,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/term"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -37,6 +38,7 @@ type Model struct {
 	scanner   scanner.Scanner
 	parser    parser.Parser
 	theme     *theme.Theme
+	zm        *zone.Manager
 	w         svcwatcher.Watcher
 	current   tea.Model
 	width     int
@@ -72,6 +74,8 @@ func New(
 		width, height = 0, 0
 	}
 
+	zm := zone.New()
+
 	return Model{
 		ctx:       ctx,
 		cfg:       cfg,
@@ -81,8 +85,9 @@ func New(
 		scanner:   sc,
 		parser:    p,
 		theme:     th,
+		zm:        zm,
 		w:         w,
-		current:   startup.New(cfg, dir, watcherErr, sc, p, th, width, height),
+		current:   startup.New(cfg, dir, watcherErr, sc, p, th, zm, width, height),
 		width:     width,
 		height:    height,
 	}
@@ -129,6 +134,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cfg.Theme,
 			m.cfg.PollInterval,
 			m.cfg.LogBufferCap,
+			m.zm,
 			m.width,
 			m.height,
 		)
@@ -174,6 +180,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View delegates rendering to the active state.
 func (m Model) View() tea.View {
 	v := m.current.View()
+	v.Content = m.zm.Scan(v.Content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 

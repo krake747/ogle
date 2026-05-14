@@ -104,7 +104,11 @@ var (
 
 			th, themeErr := theme.Load(cfg.Theme, configDir)
 			if themeErr != nil {
-				logger.WarnContext(ctx, "theme load failed, using default", slog.Any("err", themeErr))
+				logger.WarnContext(
+					ctx,
+					"theme load failed, using default",
+					slog.Any("err", themeErr),
+				)
 			}
 
 			model := dashboard.New(ctx, cfg, configDir, logger, sc, p, th)

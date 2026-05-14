@@ -9,7 +9,7 @@ import (
 )
 
 func newTestLayout() states.PaneLayout {
-	return states.NewPaneLayout(nil).SetSize(200, 50)
+	return states.NewPaneLayout(nil, nil).SetSize(200, 50)
 }
 
 func TestDragCoordinator_HandleClick_ClearsActiveDrag(t *testing.T) {

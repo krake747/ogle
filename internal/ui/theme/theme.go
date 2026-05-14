@@ -102,15 +102,21 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	result := *t
 
 	if f.BorderFocusedColor != "" {
-		result.BorderFocused = result.BorderFocused.BorderForeground(lipgloss.Color(f.BorderFocusedColor))
+		result.BorderFocused = result.BorderFocused.BorderForeground(
+			lipgloss.Color(f.BorderFocusedColor),
+		)
 	}
 
 	if f.BorderBlurredColor != "" {
-		result.BorderBlurred = result.BorderBlurred.BorderForeground(lipgloss.Color(f.BorderBlurredColor))
+		result.BorderBlurred = result.BorderBlurred.BorderForeground(
+			lipgloss.Color(f.BorderBlurredColor),
+		)
 	}
 
 	if f.ServiceListTitleColor != "" {
-		result.ServiceListTitle = result.ServiceListTitle.Foreground(lipgloss.Color(f.ServiceListTitleColor))
+		result.ServiceListTitle = result.ServiceListTitle.Foreground(
+			lipgloss.Color(f.ServiceListTitleColor),
+		)
 	}
 
 	if f.HoverBackgroundColor != "" {

@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -74,6 +75,7 @@ var defaultSettingsKeys = settingsKeyMap{
 type Settings struct {
 	ctx     context.Context
 	project *domain.Project
+	zm      *zone.Manager
 
 	origThemeName string
 	origTheme     *theme.Theme
@@ -103,6 +105,7 @@ func NewSettings(
 	poll time.Duration,
 	logBufCap int,
 	th *theme.Theme,
+	zm *zone.Manager,
 ) State {
 	names := theme.BuiltinNames()
 	themes := make([]*theme.Theme, len(names))
@@ -120,6 +123,7 @@ func NewSettings(
 	return &Settings{
 		ctx:           ctx,
 		project:       project,
+		zm:            zm,
 		origThemeName: themeName,
 		origTheme:     th,
 		origPoll:      poll,
@@ -173,12 +177,22 @@ func (s *Settings) Update(msg tea.Msg) (State, tea.Cmd) {
 			s.pollInterval,
 			s.logBufferCap,
 			logs.New(),
+			s.zm,
 		)
 
 		return next, settingsAppliedCmd
 
 	case key.Matches(keyMsg, s.keys.Cancel):
-		return NewDashboard(s.ctx, s.project, s.origTheme, s.origThemeName, s.origPoll, s.origCap, logs.New()), nil
+		return NewDashboard(
+			s.ctx,
+			s.project,
+			s.origTheme,
+			s.origThemeName,
+			s.origPoll,
+			s.origCap,
+			logs.New(),
+			s.zm,
+		), nil
 
 	case key.Matches(keyMsg, s.keys.Next):
 		s.focusField = (s.focusField + 1) % fieldCount
@@ -255,7 +269,13 @@ func (s *Settings) View() string {
 			labelW,
 			focusStyle,
 		),
-		s.renderRow(fieldLogBufferCap, "Log Buffer Cap", strconv.Itoa(s.logBufferCap), labelW, focusStyle),
+		s.renderRow(
+			fieldLogBufferCap,
+			"Log Buffer Cap",
+			strconv.Itoa(s.logBufferCap),
+			labelW,
+			focusStyle,
+		),
 		"",
 		s.help.View(s.keys),
 	}
@@ -269,9 +289,18 @@ func (s *Settings) View() string {
 		Render(form)
 }
 
-func (s *Settings) renderRow(field int, label, value string, labelW int, focusStyle lipgloss.Style) string {
+func (s *Settings) renderRow(
+	field int,
+	label, value string,
+	labelW int,
+	focusStyle lipgloss.Style,
+) string {
 	paddedLabel := lipgloss.NewStyle().Width(labelW).Render(label)
-	valueBlock := lipgloss.NewStyle().Width(fieldWidth).MaxWidth(fieldWidth).Inline(true).Render(value)
+	valueBlock := lipgloss.NewStyle().
+		Width(fieldWidth).
+		MaxWidth(fieldWidth).
+		Inline(true).
+		Render(value)
 	cell := "[" + valueBlock + "]"
 
 	if s.focusField == field {

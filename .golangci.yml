@@ -49,7 +49,7 @@ formatters:
     golines:
       # Target maximum line length.
       # Default: 100
-      max-len: 120
+      max-len: 100
 
 linters:
   enable:
@@ -383,7 +383,7 @@ linters:
     nolintlint:
       # Exclude following linters from requiring an explanation.
       # Default: []
-      allow-no-explanation: [ funlen, gocognit, golines ]
+      allow-no-explanation: [funlen, gocognit, golines]
       # Enable to require an explanation of nonzero length after each nolint directive.
       # Default: false
       require-explanation: true
@@ -453,17 +453,17 @@ linters:
       - common-false-positives
     # Excluding configuration per-path, per-linter, per-text and per-source.
     rules:
-      - text: 'should have a package comment'
-        linters: [ revive ]
+      - text: "should have a package comment"
+        linters: [revive]
       - text: 'exported var Err\w+ should have comment or be unexported'
-        linters: [ revive ]
+        linters: [revive]
       - path: '_test\.go'
         linters:
           - exhaustruct
       - path: 'cmd/root\.go'
         linters:
           - gochecknoglobals # Cobra root command requires package-level vars for flags and state
-          - gochecknoinits   # Cobra root command requires init() for flag and subcommand registration
-          - err113           # Dynamic error in validateProjectFile is intentional (carries path context)
-          - exhaustruct      # tint.Options intentionally uses zero-value defaults for omitted fields
-          - sloglint         # Package-level logger is idiomatic for Cobra CLI root commands
+          - gochecknoinits # Cobra root command requires init() for flag and subcommand registration
+          - err113 # Dynamic error in validateProjectFile is intentional (carries path context)
+          - exhaustruct # tint.Options intentionally uses zero-value defaults for omitted fields
+          - sloglint # Package-level logger is idiomatic for Cobra CLI root commands

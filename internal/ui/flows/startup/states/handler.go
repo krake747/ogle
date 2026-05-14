@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
@@ -21,6 +22,7 @@ type fileHandler struct {
 	scanner scanner.Scanner
 	parser  parser.Parser
 	theme   *theme.Theme
+	zm      *zone.Manager
 	width   int
 	height  int
 }
@@ -39,7 +41,11 @@ func (fh fileHandler) handle(valid []string, current tea.Model) (tea.Model, tea.
 			display: fh.visibleState(current),
 		}, parse
 	default:
-		return Selecting{model: fileselect.New(valid, fh.theme, fh.width, fh.height), handler: fh}, nil
+		return Selecting{
+			model:   fileselect.New(valid, fh.theme, fh.zm, fh.width, fh.height),
+			handler: fh,
+			zm:      fh.zm,
+		}, nil
 	}
 }
 

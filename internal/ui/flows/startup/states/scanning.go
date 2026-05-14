@@ -2,6 +2,7 @@ package states
 
 import (
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
@@ -21,6 +22,7 @@ func NewScanning(
 	sc scanner.Scanner,
 	p parser.Parser,
 	th *theme.Theme,
+	zm *zone.Manager,
 	width, height int,
 ) tea.Model {
 	fh := fileHandler{
@@ -28,6 +30,7 @@ func NewScanning(
 		scanner: sc,
 		parser:  p,
 		theme:   th,
+		zm:      zm,
 		width:   width,
 		height:  height,
 	}

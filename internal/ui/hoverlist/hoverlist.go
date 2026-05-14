@@ -4,9 +4,12 @@
 package hoverlist
 
 import (
+	"fmt"
 	"io"
+	"strings"
 
 	"charm.land/bubbles/v2/list"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -26,11 +29,12 @@ type delegate struct {
 
 	hoverIndex int
 	theme      *theme.Theme
+	zm         *zone.Manager
 }
 
 // NewDelegate returns a Delegate wrapping base with no item hovered.
-func NewDelegate(base list.DefaultDelegate, th *theme.Theme) Delegate {
-	return &delegate{DefaultDelegate: base, hoverIndex: -1, theme: th}
+func NewDelegate(base list.DefaultDelegate, th *theme.Theme, zm *zone.Manager) Delegate {
+	return &delegate{DefaultDelegate: base, hoverIndex: -1, theme: th, zm: zm}
 }
 
 func (d *delegate) SetHover(index int) {
@@ -40,17 +44,19 @@ func (d *delegate) SetHover(index int) {
 // Render implements list.ItemDelegate. It applies a background tint to the
 // hovered item and delegates rendering to DefaultDelegate for all others.
 func (d *delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
+	var buf strings.Builder
+
 	if index == d.hoverIndex {
 		dd := d.DefaultDelegate
 		bg := d.theme.HoverBackground
 		dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(bg)
 		dd.Styles.NormalDesc = dd.Styles.NormalDesc.Background(bg)
-		dd.Render(w, m, index, item)
-
-		return
+		dd.Render(&buf, m, index, item)
+	} else {
+		d.DefaultDelegate.Render(&buf, m, index, item)
 	}
 
-	d.DefaultDelegate.Render(w, m, index, item)
+	_, _ = io.WriteString(w, d.zm.Mark(fmt.Sprintf("item-%d", index), buf.String()))
 }
 
 // Layout describes the static and positional geometry of a list component.

@@ -56,7 +56,12 @@ func (c combinedKeyMap) ShortHelp() []key.Binding {
 func (c combinedKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{c.list.CursorUp, c.list.CursorDown, c.list.NextPage, c.list.PrevPage},
-		{c.list.Filter, c.list.ClearFilter, c.list.AcceptWhileFiltering, c.list.CancelWhileFiltering},
+		{
+			c.list.Filter,
+			c.list.ClearFilter,
+			c.list.AcceptWhileFiltering,
+			c.list.CancelWhileFiltering,
+		},
 		{c.dashboard.Zoom, c.dashboard.ToggleLabels, c.dashboard.Quit},
 	}
 }

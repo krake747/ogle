@@ -4,6 +4,7 @@ package startup
 
 import (
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -21,6 +22,7 @@ type Model struct {
 	scanner scanner.Scanner
 	parser  parser.Parser
 	theme   *theme.Theme
+	zm      *zone.Manager
 	current tea.Model
 }
 
@@ -32,6 +34,7 @@ func New(
 	sc scanner.Scanner,
 	p parser.Parser,
 	th *theme.Theme,
+	zm *zone.Manager,
 	width,
 	height int,
 ) Model {
@@ -39,11 +42,15 @@ func New(
 
 	switch {
 	case watcherErr != nil:
-		current = states.NewWatchingWithError(dir, watcherErr, sc, p, th, width, height)
+		current = states.NewWatchingWithError(dir, watcherErr, sc, p, th, zm, width, height)
 	case cfg.ProjectFile != "":
-		current = states.NewParsing(cfg.ProjectFile, states.NewWatching(dir, sc, p, th, width, height), p)
+		current = states.NewParsing(
+			cfg.ProjectFile,
+			states.NewWatching(dir, sc, p, th, zm, width, height),
+			p,
+		)
 	default:
-		current = states.NewScanning(dir, sc, p, th, width, height)
+		current = states.NewScanning(dir, sc, p, th, zm, width, height)
 	}
 
 	return Model{
@@ -53,6 +60,7 @@ func New(
 		scanner: sc,
 		parser:  p,
 		theme:   th,
+		zm:      zm,
 		current: current,
 	}
 }
@@ -76,6 +84,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.scanner,
 			m.parser,
 			m.theme,
+			m.zm,
 			m.width,
 			m.height,
 		)

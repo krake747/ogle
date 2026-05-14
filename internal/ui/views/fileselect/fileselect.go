@@ -6,6 +6,7 @@ import (
 
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
@@ -40,6 +41,7 @@ type Model struct {
 	errFile  string // basename of the file that produced a parse error
 	parsing  bool
 	files    []string // kept for cursor-clamp and error-clear logic in SetFiles
+	zm       *zone.Manager
 	w, h     int
 }
 
@@ -54,8 +56,8 @@ func toItems(files []string) []list.Item {
 
 // New returns a Model pre-loaded with the given file paths. files must be
 // non-empty; callers should not construct a fileselect model with 0 files.
-func New(files []string, th *theme.Theme, width, height int) Model {
-	hd := hoverlist.NewDelegate(list.NewDefaultDelegate(), th)
+func New(files []string, th *theme.Theme, zm *zone.Manager, width, height int) Model {
+	hd := hoverlist.NewDelegate(list.NewDefaultDelegate(), th, zm)
 
 	l := list.New(toItems(files), hd, width, height)
 	l.Title = "ogle"
@@ -67,10 +69,16 @@ func New(files []string, th *theme.Theme, width, height int) Model {
 	return Model{
 		list:     l,
 		delegate: hd,
-		layout:   hoverlist.Layout{HeaderRows: headerRows, ItemHeight: itemHeight, RowStride: rowStride, Width: width},
-		files:    files,
-		w:        width,
-		h:        height,
+		layout: hoverlist.Layout{
+			HeaderRows: headerRows,
+			ItemHeight: itemHeight,
+			RowStride:  rowStride,
+			Width:      width,
+		},
+		files: files,
+		zm:    zm,
+		w:     width,
+		h:     height,
 	}
 }
 
@@ -180,7 +188,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.Button == tea.MouseLeft {
 			if idx, ok := m.hitTest(msg.X, msg.Y); ok {
 				if item, isFile := m.list.VisibleItems()[idx].(fileItem); isFile {
-					return m, tea.Batch(cmd, func() tea.Msg { return msgs.FileSelected{Path: item.path} })
+					return m, tea.Batch(
+						cmd,
+						func() tea.Msg { return msgs.FileSelected{Path: item.path} },
+					)
 				}
 			}
 		}
@@ -188,7 +199,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if item, ok := m.list.SelectedItem().(fileItem); ok {
 			if msg.String() == "enter" {
-				return m, tea.Batch(cmd, func() tea.Msg { return msgs.FileSelected{Path: item.path} })
+				return m, tea.Batch(
+					cmd,
+					func() tea.Msg { return msgs.FileSelected{Path: item.path} },
+				)
 			}
 		}
 	}

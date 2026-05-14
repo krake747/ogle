@@ -2,6 +2,7 @@ package states
 
 import (
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/views/fileselect"
@@ -12,16 +13,17 @@ import (
 type Selecting struct {
 	model   fileselect.Model
 	handler fileHandler
+	zm      *zone.Manager
 }
 
 // withError returns a copy of s with an error set on the underlying view for path.
 func (s Selecting) withError(path string, err error) Selecting {
-	return Selecting{model: s.model.SetError(path, err), handler: s.handler}
+	return Selecting{model: s.model.SetError(path, err), handler: s.handler, zm: s.zm}
 }
 
 // withParsing returns a copy of s with the parsing indicator set.
 func (s Selecting) withParsing(v bool) Selecting {
-	return Selecting{model: s.model.SetParsing(v), handler: s.handler}
+	return Selecting{model: s.model.SetParsing(v), handler: s.handler, zm: s.zm}
 }
 
 // Init implements tea.Model.
@@ -35,7 +37,7 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case 0, 1:
 			return s.handler.handle(valid, s)
 		default:
-			return Selecting{model: s.model.SetFiles(valid), handler: s.handler}, nil
+			return Selecting{model: s.model.SetFiles(valid), handler: s.handler, zm: s.zm}, nil
 		}
 
 	case msgs.FileSelected:
@@ -47,7 +49,7 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		updated, cmd := s.model.Update(msg)
 
-		return Selecting{model: updated, handler: s.handler}, cmd
+		return Selecting{model: updated, handler: s.handler, zm: s.zm}, cmd
 	}
 }
 

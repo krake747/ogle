@@ -35,7 +35,12 @@ func renderHeader(svc domain.ServiceDef, rt *domain.ServiceRuntimeData, width in
 	leftW := width / halfWidth
 	rightW := width - leftW
 	left := lipgloss.NewStyle().Width(leftW).MaxWidth(leftW).Inline(true).Render(svc.Name)
-	right := lipgloss.NewStyle().Width(rightW).MaxWidth(rightW).Inline(true).Align(lipgloss.Right).Render(image)
+	right := lipgloss.NewStyle().
+		Width(rightW).
+		MaxWidth(rightW).
+		Inline(true).
+		Align(lipgloss.Right).
+		Render(image)
 	row1 := left + right
 
 	// Row 2: container hash | state | health | age

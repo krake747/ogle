@@ -2,6 +2,7 @@ package states
 
 import (
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -31,12 +32,13 @@ type Rect struct{ X, Y, W, H int }
 type PaneLayout struct {
 	mode  layoutMode
 	theme *theme.Theme
+	zm    *zone.Manager
 	w, h  int
 }
 
 // NewPaneLayout returns a PaneLayout in split mode with no size set.
-func NewPaneLayout(th *theme.Theme) PaneLayout {
-	return PaneLayout{mode: modeSplit, theme: th, w: 0, h: 0}
+func NewPaneLayout(th *theme.Theme, zm *zone.Manager) PaneLayout {
+	return PaneLayout{mode: modeSplit, theme: th, zm: zm, w: 0, h: 0}
 }
 
 // SetSize returns a copy of the layout with new terminal dimensions.
@@ -119,6 +121,7 @@ func (p PaneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 			Width(contentW).
 			Height(innerH).
 			Render(logViewStr)
+		rightInner = p.zm.Mark("pane-right", rightInner)
 
 		return rightBorderStyle.
 			Width(p.w).
@@ -137,11 +140,13 @@ func (p PaneLayout) View(serviceListStr, logViewStr string, leftFocused bool) st
 	}
 
 	leftInner := lipgloss.NewStyle().Width(leftContentW).Height(innerH).Render(serviceListStr)
+	leftInner = p.zm.Mark("pane-left", leftInner)
 
 	rightInner := lipgloss.NewStyle().
 		Width(rightContentW).
 		Height(innerH).
 		Render(logViewStr)
+	rightInner = p.zm.Mark("pane-right", rightInner)
 
 	leftPane := leftBorderStyle.
 		Width(leftW).

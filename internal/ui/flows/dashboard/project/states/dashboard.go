@@ -8,6 +8,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -44,6 +45,7 @@ type Dashboard struct {
 	showLabels      bool
 	theme           *theme.Theme
 	themeName       string
+	zm              *zone.Manager
 	pollInterval    time.Duration
 	logBufferCap    int
 	connection      ConnectionMachine
@@ -60,6 +62,7 @@ func NewDashboard(
 	poll time.Duration,
 	logBufCap int,
 	streamer logs.Streamer,
+	zm *zone.Manager,
 ) State {
 	var first domain.ServiceDef
 	if len(project.Services) > 0 {
@@ -71,9 +74,9 @@ func NewDashboard(
 		project:         project,
 		keys:            defaultDashboardKeys,
 		help:            help.New(),
-		serviceList:     servicelist.New(project, th, 0, 0),
+		serviceList:     servicelist.New(project, th, zm, 0, 0),
 		inspector:       inspector.New(first, th),
-		layout:          NewPaneLayout(th),
+		layout:          NewPaneLayout(th, zm),
 		focus:           focusLeft,
 		selectedService: first,
 		connection: ConnectionMachine{
@@ -91,6 +94,7 @@ func NewDashboard(
 		showLabels:   false,
 		theme:        th,
 		themeName:    themeName,
+		zm:           zm,
 		pollInterval: poll,
 		logBufferCap: logBufCap,
 	}
@@ -138,7 +142,13 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 			return d, nil
 		}
 	case tea.MouseReleaseMsg:
-		text, handled := d.drag.HandleRelease(msg, d.layout, d.serviceList.View(), d.inspector.View(), d.footerView())
+		text, handled := d.drag.HandleRelease(
+			msg,
+			d.layout,
+			d.serviceList.View(),
+			d.inspector.View(),
+			d.footerView(),
+		)
 		if handled {
 			if text != "" {
 				return d, tea.SetClipboard(text)
@@ -198,7 +208,15 @@ func (d *Dashboard) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool
 		}
 
 		if key.Matches(msg, d.keys.Settings) {
-			return NewSettings(d.ctx, d.project, d.themeName, d.pollInterval, d.logBufferCap, d.theme), nil, true
+			return NewSettings(
+				d.ctx,
+				d.project,
+				d.themeName,
+				d.pollInterval,
+				d.logBufferCap,
+				d.theme,
+				d.zm,
+			), nil, true
 		}
 	}
 
@@ -229,7 +247,11 @@ func (d *Dashboard) handleMouseWheel(msg tea.MouseWheelMsg) bool {
 		}
 	}
 
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return true
 }
@@ -248,7 +270,11 @@ func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) tea.Cmd {
 		d.logView.state = inspector.LogAreaConnecting
 	}
 
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
@@ -266,13 +292,18 @@ func (d *Dashboard) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
 
 	var cmd tea.Cmd
 
-	if d.connection.ConnectState() == inspector.ConnectStateConnected && len(msg.Project.Services) > 0 {
+	if d.connection.ConnectState() == inspector.ConnectStateConnected &&
+		len(msg.Project.Services) > 0 {
 		cmd = d.startLogStream(d.selectedService)
 	} else {
 		d.logView.state = inspector.LogAreaConnecting
 	}
 
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
@@ -283,7 +314,11 @@ func (d *Dashboard) handleDaemonConnectedMsg() tea.Cmd {
 
 	cmd := d.startLogStream(d.selectedService)
 
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
@@ -298,7 +333,11 @@ func (d *Dashboard) handleDaemonUnavailable() tea.Cmd {
 
 	if d.logView.State() == inspector.LogAreaNotFound {
 		d.logView.state = inspector.LogAreaUnavailable
-		d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+		d.inspector = d.inspector.SetLogView(
+			d.computeDisplayLines(),
+			d.logView.Paused(),
+			d.logView.State(),
+		)
 	}
 
 	return cmd
@@ -345,27 +384,47 @@ func (d *Dashboard) handleServiceActionCompleted(msg msgs.ServiceActionCompleted
 
 func (d *Dashboard) handleLogLine(msg msgs.LogLine) tea.Cmd {
 	cmd := d.logView.HandleLogLine(msg)
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
 
 func (d *Dashboard) handleLogStreamError() {
 	d.logView.HandleStreamError()
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 }
 
 func (d *Dashboard) handleLogStreamContainerNotFound() tea.Cmd {
 	cmd := d.logView.HandleContainerNotFound()
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
 
 func (d *Dashboard) handleLogStreamRetry() tea.Cmd {
-	name := logs.ContainerName(d.project.Name, d.selectedService.Name, d.selectedService.ContainerName)
+	name := logs.ContainerName(
+		d.project.Name,
+		d.selectedService.Name,
+		d.selectedService.ContainerName,
+	)
 	cmd := d.logView.HandleRetry(d.ctx, name)
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 
 	return cmd
 }
@@ -469,13 +528,21 @@ func (d *Dashboard) handleToggleLabels() {
 func (d *Dashboard) handleScrollUp() {
 	lb := d.layout.LogViewBounds()
 	d.logView.ScrollUp(lb.H)
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 }
 
 func (d *Dashboard) handleScrollDown() {
 	lb := d.layout.LogViewBounds()
 	d.logView.ScrollDown(lb.H)
-	d.inspector = d.inspector.SetLogView(d.computeDisplayLines(), d.logView.Paused(), d.logView.State())
+	d.inspector = d.inspector.SetLogView(
+		d.computeDisplayLines(),
+		d.logView.Paused(),
+		d.logView.State(),
+	)
 }
 
 func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {

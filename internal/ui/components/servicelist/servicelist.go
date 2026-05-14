@@ -9,6 +9,7 @@ import (
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -123,16 +124,17 @@ type Model struct {
 	delegate     hoverlist.Delegate
 	layout       hoverlist.Layout
 	theme        *theme.Theme
+	zm           *zone.Manager
 	lastSelected string
 	runtimes     map[string]*domain.ServiceRuntimeData
 }
 
 // New returns a Model pre-loaded with the given project's services.
-func New(project *domain.Project, th *theme.Theme, w, h int) Model {
+func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) Model {
 	base := list.NewDefaultDelegate()
 	base.ShowDescription = false
 	base.SetSpacing(0)
-	hd := hoverlist.NewDelegate(base, th)
+	hd := hoverlist.NewDelegate(base, th, zm)
 
 	l := list.New(toItems(project.Services, nil, th), hd, w, h)
 	l.Title = filepath.Base(project.File)
@@ -151,6 +153,7 @@ func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 		delegate: hd,
 		layout:   hoverlist.Layout{HeaderRows: headerRows, ItemHeight: 1, RowStride: 1, Width: w},
 		theme:    th,
+		zm:       zm,
 	}
 }
 

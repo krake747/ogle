@@ -8,6 +8,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	logs "github.com/ma-tf/ogle/internal/services/docker/logs"
@@ -30,11 +31,12 @@ func New(
 	themeName string,
 	poll time.Duration,
 	logBufCap int,
+	zm *zone.Manager,
 	w, h int,
 ) Model {
 	m := Model{
 		ctx:     ctx,
-		current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New()),
+		current: states.NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
 		w:       w,
 		h:       h,
 	}

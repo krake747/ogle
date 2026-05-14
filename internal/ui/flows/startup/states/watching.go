@@ -2,6 +2,7 @@ package states
 
 import (
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
@@ -23,12 +24,21 @@ func NewWatching(
 	sc scanner.Scanner,
 	p parser.Parser,
 	th *theme.Theme,
+	zm *zone.Manager,
 	width int,
 	height int,
 ) tea.Model {
 	return Watching{
-		model:   watching.New(dir, width, height),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p, theme: th, width: width, height: height},
+		model: watching.New(dir, width, height),
+		handler: fileHandler{
+			dir:     dir,
+			scanner: sc,
+			parser:  p,
+			theme:   th,
+			zm:      zm,
+			width:   width,
+			height:  height,
+		},
 	}
 }
 
@@ -39,11 +49,20 @@ func NewWatchingWithError(
 	sc scanner.Scanner,
 	p parser.Parser,
 	th *theme.Theme,
+	zm *zone.Manager,
 	width, height int,
 ) tea.Model {
 	return Watching{
-		model:   watching.New(dir, width, height).SetError(err),
-		handler: fileHandler{dir: dir, scanner: sc, parser: p, theme: th, width: width, height: height},
+		model: watching.New(dir, width, height).SetError(err),
+		handler: fileHandler{
+			dir:     dir,
+			scanner: sc,
+			parser:  p,
+			theme:   th,
+			zm:      zm,
+			width:   width,
+			height:  height,
+		},
 	}
 }
 
