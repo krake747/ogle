@@ -17,7 +17,10 @@ import (
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 )
 
-const gracePeriodDuration = 10 * time.Second
+const (
+	gracePeriodDuration = 10 * time.Second
+	healthCheckInterval = 2 * time.Second
+)
 
 // Model tracks Docker daemon connectivity and renders status text.
 type Model struct {
@@ -59,6 +62,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.DaemonConnected:
 		m.conn.HandleConnected()
 
+		cmds = append(cmds, pollDaemonCmd())
+
 	case msgs.DaemonUnavailable:
 		m.conn.HandleUnavailable(time.Now().UTC())
 
@@ -84,6 +89,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.spn, cmd = m.spn.Update(msg)
 
 		cmds = append(cmds, cmd)
+
+	case msgs.DaemonPoll:
+		if m.conn.ConnectState() == connection.ConnectStateConnected {
+			cmds = append(cmds, svcdocker.Connect(m.ctx))
+		}
 	}
 
 	if m.conn.IsRetryDue(time.Now().UTC()) {
@@ -96,6 +106,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func daemonTickCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return msgs.DaemonTick{}
+	})
+}
+
+func pollDaemonCmd() tea.Cmd {
+	return tea.Tick(healthCheckInterval, func(_ time.Time) tea.Msg {
+		return msgs.DaemonPoll{}
 	})
 }
 

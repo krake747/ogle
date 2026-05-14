@@ -71,6 +71,12 @@ type DaemonGraceExpired struct{}
 
 func (DaemonGraceExpired) daemonMsg() {}
 
+// DaemonPoll fires at a regular interval while connected to detect when Docker
+// becomes unavailable.
+type DaemonPoll struct{}
+
+func (DaemonPoll) daemonMsg() {}
+
 // ServiceActionCompleted is emitted by a docker action cmd when the
 // docker compose subprocess exits, whether successfully or not.
 type ServiceActionCompleted struct {
