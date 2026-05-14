@@ -12,7 +12,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -20,7 +20,7 @@ import (
 type Model struct {
 	conn        *connection.Machine
 	daemon      daemonstatus.Model
-	serviceList servicelist.Model
+	serviceList servicelist2.Model
 	selected    string
 	w, h        int
 }
@@ -34,11 +34,12 @@ func New(
 	w, h int,
 ) tea.Model {
 	conn := connection.New()
+	listH := max(h-1, 0)
 
 	return Model{
 		conn:        conn,
 		daemon:      daemonstatus.New(ctx, conn, th),
-		serviceList: servicelist.New(project, th, zm, 0, 0),
+		serviceList: servicelist2.New(project, th, zm, w, listH),
 		selected:    "",
 		w:           w,
 		h:           h,
@@ -81,7 +82,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the daemon status header above the service list.
 func (m Model) View() tea.View {
 	statusContent := m.daemon.View().Content
-	listContent := m.serviceList.View()
+	listContent := m.serviceList.View().Content
 
 	return tea.NewView(statusContent + "\n" + listContent)
 }
