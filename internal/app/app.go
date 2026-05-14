@@ -127,7 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = dashboard2.New(m.ctx)
+		m.current = dashboard2.New(m.ctx, m.theme)
 
 		return m, m.current.Init()
 

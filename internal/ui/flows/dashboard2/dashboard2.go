@@ -10,6 +10,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Model is the dashboard flow orchestrator.
@@ -20,12 +21,12 @@ type Model struct {
 }
 
 // New returns a Model in the Connecting state.
-func New(ctx context.Context) tea.Model {
+func New(ctx context.Context, th *theme.Theme) tea.Model {
 	conn := connection.New()
 
 	return Model{
 		conn:   conn,
-		daemon: daemonstatus.New(ctx, conn),
+		daemon: daemonstatus.New(ctx, conn, th),
 		w:      0,
 		h:      0,
 	}

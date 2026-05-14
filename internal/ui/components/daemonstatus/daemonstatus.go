@@ -15,6 +15,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
@@ -27,14 +28,16 @@ type Model struct {
 	ctx  context.Context
 	conn *connection.Machine
 	spn  spinner.Model
+	th   *theme.Theme
 }
 
 // New returns a Model that shares the given Machine.
-func New(ctx context.Context, conn *connection.Machine) Model {
+func New(ctx context.Context, conn *connection.Machine, th *theme.Theme) Model {
 	return Model{
 		ctx:  ctx,
 		conn: conn,
 		spn:  spinner.New(spinner.WithSpinner(spinner.MiniDot)),
+		th:   th,
 	}
 }
 
@@ -120,12 +123,12 @@ func (m Model) View() tea.View {
 	switch m.conn.ConnectState() {
 	case connection.ConnectStateConnecting:
 		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
-		label := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Render("○")
+		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
 
 		return tea.NewView(faded + " " + label + " " + m.spn.View())
 
 	case connection.ConnectStateConnected:
-		live := lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("● LIVE")
+		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
 
 		return tea.NewView("🐳 " + live)
 
@@ -138,7 +141,7 @@ func (m Model) View() tea.View {
 		}
 
 		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
-		label := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Render("○")
+		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
 
 		return tea.NewView(faded + " " + label + " " + countdown)
 
