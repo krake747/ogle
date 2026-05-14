@@ -137,8 +137,13 @@ func (lp *LogPane) HandleContainerNotFound() tea.Cmd {
 }
 
 // HandleRetry starts a new stream using the stored context and container name
-// from the last StartStream call.
+// from the last StartStream call. Only acts when state is LogAreaNotFound —
+// that is the only state from which a logStreamRetryMsg was scheduled.
 func (lp *LogPane) HandleRetry() tea.Cmd {
+	if lp.state != inspector.LogAreaNotFound {
+		return nil
+	}
+
 	if lp.ctx == nil || lp.containerName == "" {
 		return nil
 	}
@@ -156,7 +161,7 @@ func (lp *LogPane) ComputeDisplayLines(width, height int, stderrStyle lipgloss.S
 	var displayRows []string
 
 	for _, line := range lp.buffer.Lines() {
-		for part := range strings.SplitSeq(line.text, "\n") {
+		for part := range strings.SplitSeq(strings.TrimSuffix(line.text, "\n"), "\n") {
 			for row := range strings.SplitSeq(ansi.Hardwrap(part, width, true), "\n") {
 				if line.isStderr {
 					row = stderrStyle.Render(row)
