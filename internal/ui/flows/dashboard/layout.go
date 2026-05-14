@@ -1,4 +1,4 @@
-package project
+package dashboard
 
 import (
 	"charm.land/lipgloss/v2"
@@ -104,7 +104,7 @@ func (p PaneLayout) LogViewBounds() Rect {
 // View renders both panes with NormalBorder, applying the highlight colour to
 // the focused pane and dimmed to the other, then joins them horizontally. In
 // log-fullscreen mode only the right pane is rendered at full terminal width.
-// The help bar is not rendered here — that remains in Dashboard.View.
+// The help bar is not rendered here — that remains in Screen.View.
 func (p PaneLayout) View(serviceListStr, logViewStr string, leftFocused bool) string {
 	paneH := max(p.h-separatorRows-helpBarHeight, 0)
 	innerH := max(paneH-borderHeight, 0)

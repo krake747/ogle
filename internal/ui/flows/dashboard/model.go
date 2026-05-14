@@ -1,7 +1,7 @@
-// Package project implements the project sub-flow: the state machine active
+// Package dashboard implements the dashboard sub-flow: the state machine active
 // after a compose project is successfully loaded. It is only reachable through
-// the dashboard orchestrator, reflected by its location under flows/dashboard/.
-package project
+// the app orchestrator.
+package dashboard
 
 import (
 	"context"
@@ -15,14 +15,14 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// Model is the project flow orchestrator.
+// Model is the dashboard flow orchestrator.
 type Model struct {
 	ctx     context.Context
 	current State
 	w, h    int
 }
 
-// New constructs a project Model initialised in the Dashboard state.
+// New constructs a dashboard Model initialised in the Screen state.
 func New(
 	ctx context.Context,
 	project *domain.Project,
@@ -35,7 +35,7 @@ func New(
 ) Model {
 	m := Model{
 		ctx:     ctx,
-		current: NewDashboard(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
+		current: NewScreen(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
 		w:       w,
 		h:       h,
 	}

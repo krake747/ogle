@@ -1,23 +1,23 @@
-package project_test
+package dashboard_test
 
 import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 )
 
-func newTestLayout() project.PaneLayout {
-	return project.NewPaneLayout(nil, nil).SetSize(200, 50)
+func newTestLayout() dashboard.PaneLayout {
+	return dashboard.NewPaneLayout(nil, nil).SetSize(200, 50)
 }
 
 func TestDragCoordinator_HandleClick_ClearsActiveDrag(t *testing.T) {
 	t.Parallel()
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
-	dc.SetActiveDrag(true, 5, 5, 10, project.SelectionInspector)
+	dc.SetActiveDrag(true, 5, 5, 10, dashboard.SelectionInspector)
 
 	dc.HandleClick(tea.MouseClickMsg{X: 3, Y: 7})
 
@@ -33,7 +33,7 @@ func TestDragCoordinator_HandleClick_ClearsActiveDrag(t *testing.T) {
 func TestDragCoordinator_HandleClick_RecordsPressPosition(t *testing.T) {
 	t.Parallel()
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
 	dc.HandleClick(tea.MouseClickMsg{X: 42, Y: 17})
 
@@ -45,7 +45,7 @@ func TestDragCoordinator_HandleClick_RecordsPressPosition(t *testing.T) {
 func TestDragCoordinator_HandleMotion_BelowThreshold_ReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
 	dc.SetLastPress(10, 10)
 
@@ -74,7 +74,7 @@ func TestDragCoordinator_HandleMotion_AboveThreshold_StartsDrag(t *testing.T) {
 	pressX := lb.X + 5
 	pressY := lb.Y + 5
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
 	dc.SetLastPress(pressX, pressY)
 
@@ -92,7 +92,7 @@ func TestDragCoordinator_HandleMotion_AboveThreshold_StartsDrag(t *testing.T) {
 		t.Error("expected drag.active=true after threshold crossed")
 	}
 
-	if dc.DragComponent() != project.SelectionInspector {
+	if dc.DragComponent() != dashboard.SelectionInspector {
 		t.Errorf("expected SelectionInspector, got %v", dc.DragComponent())
 	}
 }
@@ -100,9 +100,9 @@ func TestDragCoordinator_HandleMotion_AboveThreshold_StartsDrag(t *testing.T) {
 func TestDragCoordinator_HandleRelease_ActiveDrag_ReturnsHandled(t *testing.T) {
 	t.Parallel()
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
-	dc.SetActiveDrag(true, 5, 5, 10, project.SelectionInspector)
+	dc.SetActiveDrag(true, 5, 5, 10, dashboard.SelectionInspector)
 
 	layout := newTestLayout()
 
@@ -124,7 +124,7 @@ func TestDragCoordinator_HandleRelease_ActiveDrag_ReturnsHandled(t *testing.T) {
 func TestDragCoordinator_HandleRelease_InactiveDrag_ReturnsFalse(t *testing.T) {
 	t.Parallel()
 
-	var dc project.DragCoordinator
+	var dc dashboard.DragCoordinator
 
 	layout := newTestLayout()
 

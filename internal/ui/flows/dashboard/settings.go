@@ -1,4 +1,4 @@
-package project
+package dashboard
 
 import (
 	"fmt"
@@ -69,7 +69,7 @@ var defaultSettingsKeys = settingsKeyMap{
 }
 
 // Settings is the in-session settings overlay. It is managed as a compositor
-// layer inside Dashboard rather than as a top-level State; Dashboard stays live
+// layer inside Screen rather than as a top-level State; Screen stays live
 // underneath while the overlay is visible.
 type Settings struct {
 	zm *zone.Manager
@@ -93,7 +93,7 @@ type Settings struct {
 	w, h       int
 }
 
-// NewSettings constructs a Settings overlay from the current Dashboard values.
+// NewSettings constructs a Settings overlay from the current Screen values.
 // Themes are preloaded at construction so cycling never performs I/O during Update.
 func NewSettings(
 	themeName string,

@@ -1,17 +1,17 @@
-package project_test
+package dashboard_test
 
 import (
 	"context"
 	"testing"
 
 	"github.com/ma-tf/ogle/internal/ui/components/inspector"
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard/project"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 )
 
 func TestConnectionMachine_HandleConnected(t *testing.T) {
 	t.Parallel()
 
-	cm := project.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
 	cm.HandleConnected()
 
 	if cm.ConnectState() != inspector.ConnectStateConnected {
@@ -23,7 +23,7 @@ func TestConnectionMachine_HandleUnavailable_GuardWhenNotConnected(t *testing.T)
 	t.Parallel()
 
 	// Only ConnectStateUnavailable should guard (already counting down)
-	cm := project.NewConnectionMachine(inspector.ConnectStateUnavailable, 30)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateUnavailable, 30)
 	cmd := cm.HandleUnavailable()
 
 	if cmd != nil {
@@ -48,7 +48,7 @@ func TestConnectionMachine_HandleUnavailable_GuardWhenNotConnected(t *testing.T)
 func TestConnectionMachine_HandleUnavailable_TransitionsWhenConnected(t *testing.T) {
 	t.Parallel()
 
-	cm := project.NewConnectionMachine(inspector.ConnectStateConnected, 0)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateConnected, 0)
 	cmd := cm.HandleUnavailable()
 
 	if cmd == nil {
@@ -59,10 +59,10 @@ func TestConnectionMachine_HandleUnavailable_TransitionsWhenConnected(t *testing
 		t.Fatalf("expected ConnectStateUnavailable, got %v", cm.ConnectState())
 	}
 
-	if cm.Unavailable().SecondsUntilRetry != project.RetryIntervalSeconds {
+	if cm.Unavailable().SecondsUntilRetry != dashboard.RetryIntervalSeconds {
 		t.Fatalf(
 			"expected SecondsUntilRetry=%d, got %d",
-			project.RetryIntervalSeconds,
+			dashboard.RetryIntervalSeconds,
 			cm.Unavailable().SecondsUntilRetry,
 		)
 	}
@@ -73,7 +73,7 @@ func TestConnectionMachine_HandleUnavailable_RestartCountdownWhenRetryFails(t *t
 
 	// Regression test: when a retry attempt (ConnectStateConnecting) fails
 	// and Docker is still unavailable, the countdown should restart.
-	cm := project.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
 	cmd := cm.HandleUnavailable()
 
 	if cmd == nil {
@@ -84,10 +84,10 @@ func TestConnectionMachine_HandleUnavailable_RestartCountdownWhenRetryFails(t *t
 		t.Fatalf("expected ConnectStateUnavailable, got %v", cm.ConnectState())
 	}
 
-	if cm.Unavailable().SecondsUntilRetry != project.RetryIntervalSeconds {
+	if cm.Unavailable().SecondsUntilRetry != dashboard.RetryIntervalSeconds {
 		t.Fatalf(
 			"expected SecondsUntilRetry=%d, got %d",
-			project.RetryIntervalSeconds,
+			dashboard.RetryIntervalSeconds,
 			cm.Unavailable().SecondsUntilRetry,
 		)
 	}
@@ -100,7 +100,7 @@ func TestConnectionMachine_HandleGracePeriodExpired_GuardWhenNotConnecting(t *te
 		inspector.ConnectStateConnected,
 		inspector.ConnectStateUnavailable,
 	} {
-		cm := project.NewConnectionMachine(initial, 0)
+		cm := dashboard.NewConnectionMachine(initial, 0)
 		cmd := cm.HandleGracePeriodExpired()
 
 		if cmd != nil {
@@ -116,7 +116,7 @@ func TestConnectionMachine_HandleGracePeriodExpired_GuardWhenNotConnecting(t *te
 func TestConnectionMachine_HandleGracePeriodExpired_TransitionsWhenConnecting(t *testing.T) {
 	t.Parallel()
 
-	cm := project.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateConnecting, 0)
 	cmd := cm.HandleGracePeriodExpired()
 
 	if cmd == nil {
@@ -127,10 +127,10 @@ func TestConnectionMachine_HandleGracePeriodExpired_TransitionsWhenConnecting(t 
 		t.Fatalf("expected ConnectStateUnavailable, got %v", cm.ConnectState())
 	}
 
-	if cm.Unavailable().SecondsUntilRetry != project.RetryIntervalSeconds {
+	if cm.Unavailable().SecondsUntilRetry != dashboard.RetryIntervalSeconds {
 		t.Fatalf(
 			"expected SecondsUntilRetry=%d, got %d",
-			project.RetryIntervalSeconds,
+			dashboard.RetryIntervalSeconds,
 			cm.Unavailable().SecondsUntilRetry,
 		)
 	}
@@ -143,7 +143,7 @@ func TestConnectionMachine_HandleRetryTick_NoOpWhenNotUnavailable(t *testing.T) 
 		inspector.ConnectStateConnecting,
 		inspector.ConnectStateConnected,
 	} {
-		cm := project.NewConnectionMachine(initial, 0)
+		cm := dashboard.NewConnectionMachine(initial, 0)
 		cmd := cm.HandleRetryTick(context.Background())
 
 		if cmd != nil {
@@ -155,7 +155,7 @@ func TestConnectionMachine_HandleRetryTick_NoOpWhenNotUnavailable(t *testing.T) 
 func TestConnectionMachine_HandleRetryTick_CountdownFiresConnect(t *testing.T) {
 	t.Parallel()
 
-	cm := project.NewConnectionMachine(inspector.ConnectStateUnavailable, 1)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateUnavailable, 1)
 
 	cmd := cm.HandleRetryTick(context.Background())
 
@@ -176,7 +176,7 @@ func TestConnectionMachine_HandleRetryTick_CountdownFiresConnect(t *testing.T) {
 func TestConnectionMachine_HandleRetryTick_CountdownContinues(t *testing.T) {
 	t.Parallel()
 
-	cm := project.NewConnectionMachine(inspector.ConnectStateUnavailable, 3)
+	cm := dashboard.NewConnectionMachine(inspector.ConnectStateUnavailable, 3)
 
 	cmd := cm.HandleRetryTick(context.Background())
 

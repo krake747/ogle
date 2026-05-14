@@ -1,4 +1,4 @@
-package project
+package dashboard
 
 import (
 	"strings"
@@ -98,7 +98,7 @@ type DragCoordinator struct {
 }
 
 // newDragCoordinator returns a DragCoordinator with all fields explicitly
-// initialised to their zero values. Used by NewDashboard to satisfy exhaustruct.
+// initialised to their zero values. Used by NewScreen to satisfy exhaustruct.
 func newDragCoordinator(zm *zone.Manager) DragCoordinator {
 	return DragCoordinator{
 		zm: zm,

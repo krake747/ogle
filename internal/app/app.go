@@ -1,7 +1,7 @@
-// Package dashboard implements the root flow orchestrator. It owns the watcher
+// Package app implements the root flow orchestrator. It owns the watcher
 // lifecycle (creation, subscription, retry, reconnect) and drives the top-level
-// flow transitions: startup → project on msgs.ProjectLoaded.
-package dashboard
+// flow transitions: startup → dashboard on msgs.ProjectLoaded.
+package app
 
 import (
 	"context"
@@ -19,7 +19,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard2"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -45,7 +45,7 @@ type Model struct {
 	height    int
 }
 
-// New constructs the dashboard Model. Watcher creation is synchronous; a
+// New constructs the app Model. Watcher creation is synchronous; a
 // failure is surfaced to the startup flow as a WatcherError so the watching
 // view enters its error state with a retry keybinding.
 func New(
@@ -104,7 +104,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update drives the root state machine. msgs.WatcherError is forwarded
-// unhandled to the active state — startup.Model and project.Model each own
+// unhandled to the active state — startup.Model and dashboard.Model each own
 // their own error semantics.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -127,15 +127,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = dashboard2.New()
+		m.current = dashboard.New(
+			m.ctx,
+			msg.Project,
+			m.theme,
+			m.cfg.Theme,
+			m.cfg.PollInterval,
+			m.cfg.LogBufferCap,
+			m.zm,
+			m.width,
+			m.height,
+		)
 
 		return m, m.current.Init()
 
 	case msgs.SettingsApplied:
 		// m.cfg and m.theme are updated so that the next ProjectLoaded event
-		// (triggered by a compose-file change) constructs the project model
+		// (triggered by a compose-file change) constructs the dashboard model
 		// with the new settings. The live UI update is already handled by
-		// Settings.Update returning a new Dashboard state directly.
+		// Settings.Update returning a new Screen state directly.
 		th, err := theme.Load(msg.Theme, m.configDir)
 		if err != nil {
 			m.logger.Warn("settings: theme load failed, keeping previous", slog.Any("err", err))

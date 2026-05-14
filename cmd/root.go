@@ -15,9 +15,9 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/ma-tf/ogle/config"
+	"github.com/ma-tf/ogle/internal/app"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
-	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -111,14 +111,14 @@ var (
 				)
 			}
 
-			model := dashboard.New(ctx, cfg, configDir, logger, sc, p, th)
+			model := app.New(ctx, cfg, configDir, logger, sc, p, th)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
 			)
 
 			final, err := program.Run()
-			if m, ok := final.(dashboard.Model); ok {
+			if m, ok := final.(app.Model); ok {
 				if closeErr := m.Close(); closeErr != nil {
 					logger.ErrorContext(ctx, "close watcher", "err", closeErr)
 				}

@@ -1,4 +1,4 @@
-package project
+package dashboard
 
 import (
 	"charm.land/bubbles/v2/key"

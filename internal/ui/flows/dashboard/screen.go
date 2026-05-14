@@ -1,4 +1,4 @@
-package project
+package dashboard
 
 import (
 	"context"
@@ -31,9 +31,9 @@ const (
 	focusRight = 1 // reserved for tab/focus switching (out of scope this iteration)
 )
 
-// Dashboard is the main project state. It renders a two-pane horizontal split:
+// Screen is the main dashboard state. It renders a two-pane horizontal split:
 // service list on the left, the top Service Layer on the right.
-type Dashboard struct {
+type Screen struct {
 	ctx          context.Context
 	project      *domain.Project
 	keys         dashboardKeyMap
@@ -55,10 +55,10 @@ type Dashboard struct {
 	drag         DragCoordinator
 }
 
-// NewDashboard returns a Dashboard state initialised with the given project.
+// NewScreen returns a Screen state initialised with the given project.
 // The streamer parameter is retained for API compatibility; each Service Layer
 // creates its own streamer via logs.New().
-func NewDashboard(
+func NewScreen(
 	ctx context.Context,
 	project *domain.Project,
 	th *theme.Theme,
@@ -68,7 +68,7 @@ func NewDashboard(
 	_ logs.Streamer,
 	zm *zone.Manager,
 ) State {
-	d := &Dashboard{
+	d := &Screen{
 		ctx:         ctx,
 		project:     project,
 		keys:        defaultDashboardKeys,
@@ -100,7 +100,7 @@ func NewDashboard(
 
 // Init implements State. Fires Docker Connect, the grace-period timer, and all
 // Service Layer Init commands in parallel.
-func (d *Dashboard) Init() tea.Cmd {
+func (d *Screen) Init() tea.Cmd {
 	graceTick := tea.Tick(gracePeriodDuration, func(_ time.Time) tea.Msg {
 		return gracePeriodExpiredMsg{}
 	})
@@ -116,7 +116,7 @@ func (d *Dashboard) Init() tea.Cmd {
 }
 
 // SetSize implements State.
-func (d *Dashboard) SetSize(w, h int) {
+func (d *Screen) SetSize(w, h int) {
 	d.help.SetWidth(w)
 	d.layout = d.layout.SetSize(w, h)
 
@@ -134,8 +134,8 @@ func (d *Dashboard) SetSize(w, h int) {
 	}
 }
 
-// Update handles all Dashboard messages.
-func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
+// Update handles all Screen messages.
+func (d *Screen) Update(msg tea.Msg) (State, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if s, cmd, handled := d.handleKeyPressMsg(msg); handled {
@@ -195,7 +195,7 @@ func (d *Dashboard) Update(msg tea.Msg) (State, tea.Cmd) {
 }
 
 // routeUnhandled routes unrecognised messages through all layers and the service list.
-func (d *Dashboard) routeUnhandled(msg tea.Msg) tea.Cmd {
+func (d *Screen) routeUnhandled(msg tea.Msg) tea.Cmd {
 	var cmds []tea.Cmd
 
 	for _, layer := range d.layers {
@@ -216,7 +216,7 @@ func (d *Dashboard) routeUnhandled(msg tea.Msg) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (d *Dashboard) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool) {
+func (d *Screen) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool) {
 	if d.settings != nil {
 		next, cmd := d.settings.Update(msg)
 		d.settings = next
@@ -244,7 +244,7 @@ func (d *Dashboard) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool
 	return nil, nil, false
 }
 
-func (d *Dashboard) handleMouseWheel(msg tea.MouseWheelMsg) bool {
+func (d *Screen) handleMouseWheel(msg tea.MouseWheelMsg) bool {
 	lb := d.layout.LogViewBounds()
 	if msg.Y < lb.Y || msg.Y >= lb.Y+lb.H {
 		return false
@@ -265,7 +265,7 @@ func (d *Dashboard) handleMouseWheel(msg tea.MouseWheelMsg) bool {
 	return true
 }
 
-func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) {
+func (d *Screen) handleServiceSelected(msg msgs.ServiceSelected) {
 	if prev, ok := d.layers[d.topLayer]; ok {
 		prev.SetFocused(false)
 	}
@@ -280,7 +280,7 @@ func (d *Dashboard) handleServiceSelected(msg msgs.ServiceSelected) {
 	}
 }
 
-func (d *Dashboard) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
+func (d *Screen) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
 	d.project = msg.Project
 	d.serviceList = d.serviceList.SetProject(msg.Project)
 
@@ -345,7 +345,7 @@ func (d *Dashboard) handleProjectLoaded(msg msgs.ProjectLoaded) tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (d *Dashboard) handleDaemonConnectedMsg() tea.Cmd {
+func (d *Screen) handleDaemonConnectedMsg() tea.Cmd {
 	d.connection.HandleConnected()
 
 	var cmds []tea.Cmd
@@ -360,7 +360,7 @@ func (d *Dashboard) handleDaemonConnectedMsg() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (d *Dashboard) handleDaemonUnavailable() tea.Cmd {
+func (d *Screen) handleDaemonUnavailable() tea.Cmd {
 	countdownCmd := d.connection.HandleUnavailable()
 	if countdownCmd == nil {
 		return nil
@@ -380,7 +380,7 @@ func (d *Dashboard) handleDaemonUnavailable() tea.Cmd {
 	return tea.Batch(cmds...)
 }
 
-func (d *Dashboard) handleGracePeriodExpired() tea.Cmd {
+func (d *Screen) handleGracePeriodExpired() tea.Cmd {
 	countdownCmd := d.connection.HandleGracePeriodExpired()
 	if countdownCmd == nil {
 		return nil
@@ -393,7 +393,7 @@ func (d *Dashboard) handleGracePeriodExpired() tea.Cmd {
 	return countdownCmd
 }
 
-func (d *Dashboard) handleRetryTick() tea.Cmd {
+func (d *Screen) handleRetryTick() tea.Cmd {
 	cmd := d.connection.HandleRetryTick(d.ctx)
 	if cmd == nil {
 		return nil
@@ -412,7 +412,7 @@ func (d *Dashboard) handleRetryTick() tea.Cmd {
 	return cmd
 }
 
-func (d *Dashboard) handleServiceActionCompleted(msg msgs.ServiceActionCompleted) {
+func (d *Screen) handleServiceActionCompleted(msg msgs.ServiceActionCompleted) {
 	optimistic := domain.ServiceStateRunning
 	if msg.Action == domain.ServiceActionStop {
 		optimistic = domain.ServiceStateExited
@@ -425,7 +425,7 @@ func (d *Dashboard) handleServiceActionCompleted(msg msgs.ServiceActionCompleted
 	}
 }
 
-func (d *Dashboard) handleLogLine(msg msgs.LogLine) tea.Cmd {
+func (d *Screen) handleLogLine(msg msgs.LogLine) tea.Cmd {
 	layer, ok := d.layers[msg.ServiceName]
 	if !ok {
 		return nil
@@ -436,7 +436,7 @@ func (d *Dashboard) handleLogLine(msg msgs.LogLine) tea.Cmd {
 	return cmd
 }
 
-func (d *Dashboard) handleLogStreamError(msg msgs.LogStreamError) {
+func (d *Screen) handleLogStreamError(msg msgs.LogStreamError) {
 	layer, ok := d.layers[msg.ServiceName]
 	if !ok {
 		return
@@ -445,7 +445,7 @@ func (d *Dashboard) handleLogStreamError(msg msgs.LogStreamError) {
 	layer.Update(msg)
 }
 
-func (d *Dashboard) handleLogStreamContainerNotFound(msg msgs.LogStreamContainerNotFound) tea.Cmd {
+func (d *Screen) handleLogStreamContainerNotFound(msg msgs.LogStreamContainerNotFound) tea.Cmd {
 	layer, ok := d.layers[msg.ServiceName]
 	if !ok {
 		return nil
@@ -456,7 +456,7 @@ func (d *Dashboard) handleLogStreamContainerNotFound(msg msgs.LogStreamContainer
 	return cmd
 }
 
-func (d *Dashboard) handleSettingsApplied(msg msgs.SettingsApplied) tea.Cmd {
+func (d *Screen) handleSettingsApplied(msg msgs.SettingsApplied) tea.Cmd {
 	th, _ := theme.Load(msg.Theme, "")
 	d.theme = th
 	d.themeName = msg.Theme
@@ -490,7 +490,7 @@ func (d *Dashboard) handleSettingsApplied(msg msgs.SettingsApplied) tea.Cmd {
 }
 
 // View renders the dashboard via the lipgloss Compositor with a help bar appended.
-func (d *Dashboard) View() string {
+func (d *Screen) View() string {
 	if d.layout.w == 0 || d.layout.h == 0 {
 		return ""
 	}
@@ -499,7 +499,7 @@ func (d *Dashboard) View() string {
 	return d.renderFull()
 }
 
-func (d *Dashboard) renderFull() string {
+func (d *Screen) renderFull() string {
 	w := d.layout.w
 	h := d.layout.h
 	paneH := max(h-separatorRows-helpBarHeight, 0)
@@ -566,7 +566,7 @@ func (d *Dashboard) renderFull() string {
 	return lipgloss.NewCompositor(lyrs...).Render() + "\n" + d.footerView()
 }
 
-func (d *Dashboard) footerView() string {
+func (d *Screen) footerView() string {
 	km := combinedKeyMap{
 		dashboard:      d.keys,
 		list:           d.serviceList.KeyMap(),
@@ -578,7 +578,7 @@ func (d *Dashboard) footerView() string {
 
 // actionBindings returns the context-sensitive action key bindings for the
 // help bar. Returns nil when Docker is unavailable or an action is in-flight.
-func (d *Dashboard) actionBindings() []key.Binding {
+func (d *Screen) actionBindings() []key.Binding {
 	if d.connection.ConnectState() != inspector.ConnectStateConnected {
 		return nil
 	}
@@ -600,7 +600,7 @@ func (d *Dashboard) actionBindings() []key.Binding {
 	return append(bindings, d.keys.ActionRebuild)
 }
 
-func (d *Dashboard) handleZoom() {
+func (d *Screen) handleZoom() {
 	d.layout = d.layout.ToggleMode()
 	if d.layout.IsLogFullscreen() {
 		d.keys.Zoom = key.NewBinding(key.WithKeys("z"), key.WithHelp("z", "split"))
@@ -620,7 +620,7 @@ func (d *Dashboard) handleZoom() {
 	}
 }
 
-func (d *Dashboard) handleToggleLabels() {
+func (d *Screen) handleToggleLabels() {
 	d.showLabels = !d.showLabels
 
 	if layer, ok := d.layers[d.topLayer]; ok {
@@ -628,7 +628,7 @@ func (d *Dashboard) handleToggleLabels() {
 	}
 }
 
-func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
+func (d *Screen) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	if d.serviceList.IsFiltering() {
 		return nil
 	}
@@ -689,7 +689,7 @@ func (d *Dashboard) handleKeyPress(msg tea.KeyPressMsg) tea.Cmd {
 	return nil
 }
 
-func (d *Dashboard) handleOrphanDiscovered(msg msgs.OrphanDiscovered) tea.Cmd {
+func (d *Screen) handleOrphanDiscovered(msg msgs.OrphanDiscovered) tea.Cmd {
 	if _, exists := d.layers[msg.Service.Name]; exists {
 		return nil
 	}
@@ -724,7 +724,7 @@ func (d *Dashboard) handleOrphanDiscovered(msg msgs.OrphanDiscovered) tea.Cmd {
 	return cmd
 }
 
-func (d *Dashboard) handleOrphanGone(msg msgs.OrphanGone) {
+func (d *Screen) handleOrphanGone(msg msgs.OrphanGone) {
 	layer, ok := d.layers[msg.ServiceName]
 	if !ok {
 		return
@@ -752,7 +752,7 @@ func (d *Dashboard) handleOrphanGone(msg msgs.OrphanGone) {
 // initLayers creates a Service Layer for every Service in the current project.
 // The first service is set as focused and assigned Z=nextZ. Returns the layers
 // map and the name of the top layer.
-func (d *Dashboard) initLayers() (map[string]*servicelayer.Model, string) {
+func (d *Screen) initLayers() (map[string]*servicelayer.Model, string) {
 	layers := make(map[string]*servicelayer.Model, len(d.project.Services))
 	topLayer := ""
 
