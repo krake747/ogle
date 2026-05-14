@@ -3,30 +3,45 @@ package dashboard2
 
 import (
 	"context"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
+	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
+	"github.com/ma-tf/ogle/internal/ui/components/inspector2"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const helpbarHeight = 2
+const (
+	helpbarHeight = 2
+	statusHeight  = 1
+	listRatio     = 30 // percent
+	listMaxWidth  = 80
+	pctDivisor    = 100
+)
+
+// statePollMsg is delivered by a 1-second tick to trigger a docker compose ps poll.
+type statePollMsg struct{}
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
+	ctx         context.Context
+	project     *domain.Project
 	conn        *connection.Machine
 	daemon      daemonstatus.Model
 	serviceList servicelist2.Model
+	inspector   inspector2.Model
 	helpbar     helpbar.Model
-	selected    string
 	w, h        int
 }
 
@@ -39,15 +54,19 @@ func New(
 	w, h int,
 ) tea.Model {
 	conn := connection.New()
-	listH := max(h-helpbarHeight, 0)
-	svcList := servicelist2.New(project, th, zm, w, listH)
+
+	contentH := max(h-statusHeight-helpbarHeight, 0)
+	listW := listWidth(w)
+	svcList := servicelist2.New(project, th, zm, listW, contentH)
 
 	return Model{
+		ctx:         ctx,
+		project:     project,
 		conn:        conn,
 		daemon:      daemonstatus.New(ctx, conn, th),
 		serviceList: svcList,
+		inspector:   inspector2.New(th).SetBounds(w-listW, contentH),
 		helpbar:     helpbar.New().WithListKeys(svcList),
-		selected:    "",
 		w:           w,
 		h:           h,
 	}
@@ -68,20 +87,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.h = msg.Height
 		m.helpbar = m.helpbar.SetWidth(m.w)
 
-		listH := max(m.h-helpbarHeight, 0)
-		m.serviceList = m.serviceList.SetBounds(0, 0, m.w, listH)
+		contentH := max(m.h-statusHeight-helpbarHeight, 0)
+		listW := listWidth(m.w)
+		m.serviceList = m.serviceList.SetBounds(0, 0, listW, contentH)
+		m.inspector = m.inspector.SetBounds(m.w-listW, contentH)
 
 		return m, nil
 
 	case msgs.DaemonMsg, spinner.TickMsg:
 		m.daemon, cmd = m.daemon.Update(msg)
+		if _, isConn := msg.(msgs.DaemonConnected); isConn {
+			cmd = tea.Batch(cmd, pollStateCmd())
+		}
 
 		return m, cmd
 
-	case msgs.ServiceSelected:
-		m.selected = msg.Service.Name
-
-		return m, nil
+	case statePollMsg:
+		return m, tea.Batch(
+			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
+			pollStateCmd(),
+		)
 
 	case tea.KeyPressMsg:
 		if m.serviceList.IsFiltering() {
@@ -93,16 +118,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	m.serviceList, cmd = m.serviceList.Update(msg)
+	var inspCmd tea.Cmd
 
-	return m, cmd
+	m.serviceList, cmd = m.serviceList.Update(msg)
+	m.inspector, inspCmd = m.inspector.Update(msg)
+
+	return m, tea.Batch(cmd, inspCmd)
 }
 
-// View renders the daemon status header above the service list, with a help
-// bar at the bottom.
+// View renders the daemon status header, service list + inspector side by side,
+// and a help bar at the bottom.
 func (m Model) View() tea.View {
 	statusContent := m.daemon.View().Content
-	listContent := m.serviceList.View().Content
 
-	return tea.NewView(statusContent + "\n" + listContent + "\n" + m.helpbar.View())
+	contentH := max(m.h-statusHeight-helpbarHeight, 0)
+
+	listContent := m.serviceList.View().Content
+	inspContent := lipgloss.NewStyle().Height(contentH).Render(m.inspector.View())
+
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, inspContent)
+
+	return tea.NewView(statusContent + "\n" + body + "\n" + m.helpbar.View())
+}
+
+func listWidth(totalW int) int {
+	w := min(totalW*listRatio/pctDivisor, listMaxWidth)
+
+	return w
+}
+
+func pollStateCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+		return statePollMsg{}
+	})
 }

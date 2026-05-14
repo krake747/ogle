@@ -24,7 +24,6 @@ type Model struct {
 	delegate     hoverlist.Delegate
 	theme        *theme.Theme
 	lastSelected string
-	runtimes     map[string]*domain.ServiceRuntimeData
 }
 
 // New returns a Model pre-loaded with the given project's services.
@@ -57,7 +56,6 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 		delegate:     hd,
 		theme:        th,
 		lastSelected: "",
-		runtimes:     nil,
 	}
 }
 
@@ -77,6 +75,17 @@ func (m Model) Init() tea.Cmd {
 // cursor moves to a different service.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if sp, ok := msg.(msgs.ServicesPolled); ok && sp.Err == nil {
+		items := m.list.Items()
+		for i, item := range items {
+			if st, isModel := item.(servicetitle.Model); isModel {
+				items[i] = st.SetRuntime(sp.Runtimes[st.ServiceDef().Name])
+			}
+		}
+
+		m.list.SetItems(items)
+	}
 
 	m.list, cmd = m.list.Update(msg)
 
