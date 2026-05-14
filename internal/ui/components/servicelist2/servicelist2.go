@@ -5,6 +5,7 @@ package servicelist2
 import (
 	"path/filepath"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -19,10 +20,9 @@ import (
 // Model is the service list component. It is a value type; all mutating
 // methods return a new Model.
 type Model struct {
-	list     list.Model
-	delegate hoverlist.Delegate
-	theme    *theme.Theme
-	// zm           *zone.Manager
+	list         list.Model
+	delegate     hoverlist.Delegate
+	theme        *theme.Theme
 	lastSelected string
 	runtimes     map[string]*domain.ServiceRuntimeData
 }
@@ -41,6 +41,8 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 
 	l := list.New(items, hd, w, h)
 	l.DisableQuitKeybindings()
+	l.KeyMap.ShowFullHelp.SetEnabled(false)
+	l.KeyMap.CloseFullHelp.SetEnabled(false)
 	l.SetFilteringEnabled(true)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
@@ -51,10 +53,9 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 	l.Title = filepath.Base(project.File)
 
 	return Model{
-		list:     l,
-		delegate: hd,
-		theme:    th,
-		// zm:           zm,
+		list:         l,
+		delegate:     hd,
+		theme:        th,
 		lastSelected: "",
 		runtimes:     nil,
 	}
@@ -93,6 +94,36 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmd, func() tea.Msg {
 		return msgs.ServiceSelected{Service: selected.ServiceDef()}
 	})
+}
+
+// ShortHelp returns the inner list's short help bindings, excluding the help
+// toggle. Implements help.KeyMap.
+func (m Model) ShortHelp() []key.Binding {
+	all := m.list.ShortHelp()
+	out := make([]key.Binding, 0, len(all))
+
+	for _, b := range all {
+		helpKeys := b.Keys()
+		if len(helpKeys) == 1 && helpKeys[0] == "?" {
+			continue
+		}
+
+		if b.Enabled() {
+			out = append(out, b)
+		}
+	}
+
+	return out
+}
+
+// FullHelp returns the inner list's full help bindings. Implements help.KeyMap.
+func (m Model) FullHelp() [][]key.Binding {
+	return m.list.FullHelp()
+}
+
+// IsFiltering reports whether the inner list is currently in filter-input mode.
+func (m Model) IsFiltering() bool {
+	return m.list.FilterState() == list.Filtering
 }
 
 // View renders the service list.
