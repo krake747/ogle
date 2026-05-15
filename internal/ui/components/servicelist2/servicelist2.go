@@ -122,11 +122,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, KeyStop):
-			m = m.updateItem(name, msgs.ServiceStop{ServiceName: name})
+		case key.Matches(msg, KeyStop), key.Matches(msg, KeyStart):
+			rt := m.selectedRuntime(name)
+			if rt != nil && rt.State == domain.ServiceStateRunning {
+				m = m.updateItem(name, msgs.ServiceStop{ServiceName: name})
 
-			return m, func() tea.Msg { return msgs.ServiceStop{ServiceName: name} }
-		case key.Matches(msg, KeyStart):
+				return m, func() tea.Msg { return msgs.ServiceStop{ServiceName: name} }
+			}
+
 			m = m.updateItem(name, msgs.ServiceStart{ServiceName: name})
 
 			return m, func() tea.Msg { return msgs.ServiceStart{ServiceName: name} }
@@ -167,6 +170,20 @@ func (m Model) selectedName() string {
 	}
 
 	return selected.ServiceName()
+}
+
+func (m Model) selectedRuntime(name string) *domain.ServiceRuntimeData {
+	items := m.list.Items()
+	for _, item := range items {
+		it, ok := item.(serviceItem)
+		if !ok || it.ServiceName() != name {
+			continue
+		}
+
+		return it.runtime
+	}
+
+	return nil
 }
 
 func (m Model) updateItem(name string, msg tea.Msg) Model {
