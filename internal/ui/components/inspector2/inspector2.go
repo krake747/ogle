@@ -1,7 +1,9 @@
 package inspector2
 
 import (
+	"fmt"
 	"image/color"
+	"strings"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -14,36 +16,57 @@ import (
 )
 
 const (
-	dash        = "—"
-	shortIDLen  = 12
-	frameChrome = 2
+	dash          = "—"
+	shortIDLen    = 12
+	secsPerMinute = 60
+	secsPerHour   = 3600
 )
 
-// Model renders the detail header for the selected service. It is a value type;
+// Model renders the detail header for a single service. It is a value type;
 // all mutating methods return a new Model.
 type Model struct {
-	selected      string
-	runtime       *domain.ServiceRuntimeData
-	theme         *theme.Theme
-	w, h          int
-	pollerStarted bool
+	def     domain.ServiceDef
+	runtime *domain.ServiceRuntimeData
+	theme   *theme.Theme
+	w, h    int
 }
 
-// New returns a Model with no selected service.
-func New(th *theme.Theme, w, h int) Model {
+// New returns a Model for the given service.
+func New(th *theme.Theme, def domain.ServiceDef, w, h int) Model {
 	return Model{
-		selected:      "",
-		runtime:       nil,
-		theme:         th,
-		w:             w,
-		h:             h,
-		pollerStarted: false,
+		def:     def,
+		runtime: nil,
+		theme:   th,
+		w:       w,
+		h:       h,
 	}
 }
 
-// View renders the detail header for the selected service.
+// ServiceName returns the service this model represents.
+func (m Model) ServiceName() string { return m.def.Name }
+
+// Init satisfies tea.Model.
+func (m Model) Init() tea.Cmd { return nil }
+
+// Update handles dimension changes and runtime data.
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.w = msg.Width - servicelist2.ListWidth(msg.Width)
+		m.h = msg.Height
+
+	case msgs.ServicesPolled:
+		if msg.Err == nil && m.def.Name != "" {
+			m.runtime = msg.Runtimes[m.def.Name]
+		}
+	}
+
+	return m, nil
+}
+
+// View renders the detail header for this service.
 func (m Model) View() string {
-	if m.selected == "" || m.w == 0 {
+	if m.def.Name == "" || m.w == 0 {
 		return ""
 	}
 
@@ -53,6 +76,10 @@ func (m Model) View() string {
 
 	if m.runtime != nil {
 		stateStr = string(m.runtime.State)
+
+		ageStr := formatAge(m.runtime.StateAge)
+		stateStr += " (" + ageStr + " ago)"
+
 		if m.runtime.ContainerID != "" {
 			containerID = m.runtime.ContainerID
 			if len(containerID) > shortIDLen {
@@ -63,8 +90,6 @@ func (m Model) View() string {
 		healthStr = string(m.runtime.Health)
 	}
 
-	title := m.theme.ServiceListTitle.Render(m.selected)
-
 	stateColour := m.theme.StateRunning
 	if m.runtime != nil {
 		stateColour = colourForState(m.runtime.State, m.theme)
@@ -73,14 +98,27 @@ func (m Model) View() string {
 	stateLabel := lipgloss.NewStyle().Foreground(stateColour).Render(stateStr)
 
 	lines := []string{
-		title,
-		"",
+		"Image:         " + m.def.Image,
 		"Container ID:  " + containerID,
 		"State:         " + stateLabel,
 		"Health:        " + healthStr,
+		"Ports:         " + strings.Join(m.def.Ports, ", "),
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+}
+
+func formatAge(d time.Duration) string {
+	secs := max(int(d.Seconds()), 0)
+
+	switch {
+	case secs < secsPerMinute:
+		return fmt.Sprintf("%ds", secs)
+	case secs < secsPerHour:
+		return fmt.Sprintf("%dm", secs/secsPerMinute)
+	default:
+		return fmt.Sprintf("%dh", secs/secsPerHour)
+	}
 }
 
 func colourForState(s domain.ServiceState, th *theme.Theme) color.Color {
@@ -98,43 +136,4 @@ func colourForState(s domain.ServiceState, th *theme.Theme) color.Color {
 	default:
 		return th.StateMuted
 	}
-}
-
-// Init satisfies tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
-
-// Update handles domain messages that affect inspector state.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.w = msg.Width - servicelist2.ListWidth(msg.Width)
-		m.h = msg.Height - frameChrome
-
-	case msgs.ServiceSelected:
-		m.selected = msg.Service.Name
-		m.runtime = nil
-
-	case msgs.ServicesPolled:
-		if msg.Err == nil && m.selected != "" {
-			m.runtime = msg.Runtimes[m.selected]
-		}
-
-	case msgs.DaemonConnected:
-		if !m.pollerStarted {
-			m.pollerStarted = true
-
-			return m, m.pollStateCmd()
-		}
-
-	case msgs.StatePollTick:
-		return m, m.pollStateCmd()
-	}
-
-	return m, nil
-}
-
-func (m Model) pollStateCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-		return msgs.StatePollTick{}
-	})
 }
