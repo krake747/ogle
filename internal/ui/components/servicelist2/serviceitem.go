@@ -1,6 +1,7 @@
 package servicelist2
 
 import (
+	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -8,6 +9,9 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+//nolint:exhaustruct // satisfies bubbles list.DefaultItem
+var _ list.DefaultItem = serviceItem{}
 
 // serviceItem is a per-service list item that renders a coloured state icon,
 // service name, and optional action label.
