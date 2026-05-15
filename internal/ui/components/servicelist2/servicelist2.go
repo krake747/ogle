@@ -42,7 +42,7 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 	l.DisableQuitKeybindings()
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
 	l.KeyMap.CloseFullHelp.SetEnabled(false)
-	l.SetFilteringEnabled(true)
+	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
 	l.SetShowStatusBar(false)
