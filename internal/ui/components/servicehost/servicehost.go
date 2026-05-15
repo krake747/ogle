@@ -32,23 +32,28 @@ func New(th *theme.Theme, def domain.ServiceDef, w, h int, logPane *logpane.LogP
 }
 
 // ServiceName returns the service name.
-func (m Model) ServiceName() string { return m.def.Name }
+func (m Model) ServiceName() string {
+	return m.def.Name
+}
 
 // Init satisfies tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
 // Update routes messages to the correct child.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if m.logPane != nil {
-		if _, ok := msg.(msgs.LogLine); ok {
+	switch msg := msg.(type) {
+	case msgs.LogLine:
+		if m.logPane != nil {
 			m.logPane, _ = m.logPane.Update(msg)
 		}
-
-		if _, ok := msg.(msgs.LogStreamError); ok {
+	case msgs.LogStreamError:
+		if m.logPane != nil {
 			m.logPane, _ = m.logPane.Update(msg)
 		}
-
-		if _, ok := msg.(msgs.LogStreamContainerNotFound); ok {
+	case msgs.LogStreamContainerNotFound:
+		if m.logPane != nil {
 			m.logPane, _ = m.logPane.Update(msg)
 		}
 	}

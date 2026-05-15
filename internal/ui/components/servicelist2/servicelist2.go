@@ -12,7 +12,6 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist2/servicetitle"
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -48,7 +47,7 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 
 	items := make([]list.Item, len(project.Services))
 	for i, svc := range project.Services {
-		items[i] = servicetitle.New(svc, th)
+		items[i] = newServiceItem(svc, th)
 	}
 
 	l := list.New(items, hd, w, h)
@@ -91,7 +90,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	if sp, ok := msg.(msgs.ServicesPolled); ok && sp.Err == nil {
 		items := m.list.Items()
 		for i, item := range items {
-			if st, isModel := item.(servicetitle.Model); isModel {
+			if st, isModel := item.(serviceItem); isModel {
 				items[i] = st.SetRuntime(sp.Runtimes[st.ServiceDef().Name])
 			}
 		}
@@ -101,7 +100,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	m.list, cmd = m.list.Update(msg)
 
-	selected, ok := m.list.SelectedItem().(servicetitle.Model)
+	selected, ok := m.list.SelectedItem().(serviceItem)
 	if !ok {
 		return m, cmd
 	}
