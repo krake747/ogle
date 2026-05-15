@@ -49,7 +49,6 @@ type Screen struct {
 	themeName    string
 	settings     *Settings
 	zm           *zone.Manager
-	pollInterval time.Duration
 	logBufferCap int
 	connection   ConnectionMachine
 	drag         DragCoordinator
@@ -63,7 +62,6 @@ func NewScreen(
 	project *domain.Project,
 	th *theme.Theme,
 	themeName string,
-	poll time.Duration,
 	logBufCap int,
 	_ logs.Streamer,
 	zm *zone.Manager,
@@ -85,7 +83,6 @@ func NewScreen(
 		theme:        th,
 		themeName:    themeName,
 		zm:           zm,
-		pollInterval: poll,
 		logBufferCap: logBufCap,
 		nextZ:        1,
 		layers:       nil,
@@ -230,7 +227,7 @@ func (d *Screen) handleKeyPressMsg(msg tea.KeyPressMsg) (State, tea.Cmd, bool) {
 		}
 
 		if key.Matches(msg, d.keys.Settings) {
-			d.settings = NewSettings(d.themeName, d.pollInterval, d.logBufferCap, d.theme, d.zm)
+			d.settings = NewSettings(d.themeName, d.logBufferCap, d.theme, d.zm)
 			d.settings.SetSize(d.layout.w, d.layout.h)
 
 			return d, nil, true
@@ -460,7 +457,6 @@ func (d *Screen) handleSettingsApplied(msg msgs.SettingsApplied) tea.Cmd {
 	th, _ := theme.Load(msg.Theme, "")
 	d.theme = th
 	d.themeName = msg.Theme
-	d.pollInterval = msg.PollInterval
 	d.logBufferCap = msg.LogBufferCap
 
 	d.serviceList = servicelist.New(d.project, th, d.zm, 0, 0)

@@ -131,15 +131,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = dashboard2.New(
-			m.ctx,
-			msg.Project,
-			m.theme,
-			m.zm,
-			m.width,
-			m.height,
-			m.cfg.PollInterval,
-		)
+		m.current = dashboard2.New(m.ctx, msg.Project, m.theme, m.zm, m.width, m.height)
 
 		return m, m.current.Init()
 
@@ -156,7 +148,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.cfg.Theme = msg.Theme
-		m.cfg.PollInterval = msg.PollInterval
 		m.cfg.LogBufferCap = msg.LogBufferCap
 
 		return m, nil

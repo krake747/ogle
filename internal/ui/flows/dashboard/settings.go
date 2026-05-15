@@ -1,10 +1,8 @@
 package dashboard
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
-	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -18,16 +16,11 @@ import (
 
 const (
 	fieldTheme = iota
-	fieldPollInterval
 	fieldLogBufferCap
 	fieldCount
 )
 
 const (
-	pollMin    = 1 * time.Second
-	pollMax    = 60 * time.Second
-	pollStep   = 1 * time.Second
-	pollFast   = 5 * time.Second
 	bufCapMin  = 100
 	bufCapMax  = 10_000
 	bufCapStep = 100
@@ -76,13 +69,11 @@ type Settings struct {
 
 	origThemeName string
 	origTheme     *theme.Theme
-	origPoll      time.Duration
 	origCap       int
 
 	themeIdx     int
 	themeNames   []string
 	themes       []*theme.Theme
-	pollInterval time.Duration
 	logBufferCap int
 
 	liveTheme *theme.Theme
@@ -97,7 +88,6 @@ type Settings struct {
 // Themes are preloaded at construction so cycling never performs I/O during Update.
 func NewSettings(
 	themeName string,
-	poll time.Duration,
 	logBufCap int,
 	th *theme.Theme,
 	zm *zone.Manager,
@@ -119,12 +109,10 @@ func NewSettings(
 		zm:            zm,
 		origThemeName: themeName,
 		origTheme:     th,
-		origPoll:      poll,
 		origCap:       logBufCap,
 		themeIdx:      idx,
 		themeNames:    names,
 		themes:        themes,
-		pollInterval:  poll,
 		logBufferCap:  logBufCap,
 		liveTheme:     themes[idx],
 		focusField:    fieldTheme,
@@ -155,7 +143,6 @@ func (s *Settings) Update(msg tea.Msg) (*Settings, tea.Cmd) {
 		settingsAppliedCmd := func() tea.Msg {
 			return msgs.SettingsApplied{
 				Theme:        s.themeNames[s.themeIdx],
-				PollInterval: s.pollInterval,
 				LogBufferCap: s.logBufferCap,
 			}
 		}
@@ -193,18 +180,6 @@ func (s *Settings) adjustField(dir int, fast bool) {
 		s.themeIdx = (s.themeIdx + dir + len(s.themeNames)) % len(s.themeNames)
 		s.liveTheme = s.themes[s.themeIdx]
 
-	case fieldPollInterval:
-		step := pollStep
-		if fast {
-			step = pollFast
-		}
-
-		if dir > 0 {
-			s.pollInterval = min(s.pollInterval+step, pollMax)
-		} else {
-			s.pollInterval = max(s.pollInterval-step, pollMin)
-		}
-
 	case fieldLogBufferCap:
 		step := bufCapStep
 		if fast {
@@ -233,13 +208,6 @@ func (s *Settings) View() string {
 		"Settings",
 		"",
 		s.renderRow(fieldTheme, "Theme", s.themeNames[s.themeIdx], labelW, focusStyle),
-		s.renderRow(
-			fieldPollInterval,
-			"Poll Interval",
-			fmt.Sprintf("%ds", int(s.pollInterval.Seconds())),
-			labelW,
-			focusStyle,
-		),
 		s.renderRow(
 			fieldLogBufferCap,
 			"Log Buffer Cap",

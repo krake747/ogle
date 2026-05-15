@@ -5,7 +5,6 @@ package dashboard
 
 import (
 	"context"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -28,14 +27,13 @@ func New(
 	project *domain.Project,
 	th *theme.Theme,
 	themeName string,
-	poll time.Duration,
 	logBufCap int,
 	zm *zone.Manager,
 	w, h int,
 ) Model {
 	m := Model{
 		ctx:     ctx,
-		current: NewScreen(ctx, project, th, themeName, poll, logBufCap, logs.New(), zm),
+		current: NewScreen(ctx, project, th, themeName, logBufCap, logs.New(), zm),
 		w:       w,
 		h:       h,
 	}

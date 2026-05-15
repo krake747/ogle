@@ -1,8 +1,6 @@
 package msgs
 
 import (
-	"time"
-
 	"github.com/ma-tf/ogle/internal/domain"
 )
 
@@ -115,7 +113,6 @@ type ServicesPolled struct {
 // dashboard.Model handles it to update the active configuration for the session.
 type SettingsApplied struct {
 	Theme        string
-	PollInterval time.Duration
 	LogBufferCap int
 }
 

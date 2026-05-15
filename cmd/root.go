@@ -24,11 +24,10 @@ import (
 )
 
 const (
-	defaultPollInterval    time.Duration = 2 * time.Second
-	defaultLogBufferCap                  = 1000
-	pprofReadHeaderTimeout               = 5 * time.Second
-	pprofReadTimeout                     = 60 * time.Second
-	pprofWriteTimeout                    = 60 * time.Second
+	defaultLogBufferCap    = 1000
+	pprofReadHeaderTimeout = 5 * time.Second
+	pprofReadTimeout       = 60 * time.Second
+	pprofWriteTimeout      = 60 * time.Second
 )
 
 var (
@@ -205,8 +204,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 	viper.SetDefault("theme", "default")
-	viper.SetDefault("poll-interval", defaultPollInterval)
-	viper.SetDefault("log-buffer-cap", defaultLogBufferCap)
+	viper.SetDefault("logBufferCap", defaultLogBufferCap)
 
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -238,6 +236,10 @@ func initialiseConfig(cmd *cobra.Command) error {
 
 	if err := viper.BindPFlags(cmd.InheritedFlags()); err != nil {
 		return fmt.Errorf("failed to bind inherited config flags: %w", err)
+	}
+
+	if err := viper.BindPFlag("projectFile", cmd.Flag("project-file")); err != nil {
+		return fmt.Errorf("failed to bind project-file flag: %w", err)
 	}
 
 	if err := viper.Unmarshal(&cfg); err != nil {

@@ -43,7 +43,6 @@ type Model struct {
 	inspector     inspector2.Model
 	helpbar       helpbar.Model
 	w, h          int
-	pollInterval  time.Duration
 	pollerStarted bool
 }
 
@@ -54,7 +53,6 @@ func New(
 	th *theme.Theme,
 	zm *zone.Manager,
 	w, h int,
-	pollInterval time.Duration,
 ) tea.Model {
 	conn := connection.New()
 
@@ -72,7 +70,6 @@ func New(
 		helpbar:       helpbar.New().WithListKeys(svcList),
 		w:             w,
 		h:             h,
-		pollInterval:  pollInterval,
 		pollerStarted: false,
 	}
 }
@@ -103,7 +100,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.daemon, cmd = m.daemon.Update(msg)
 		if _, isConn := msg.(msgs.DaemonConnected); isConn && !m.pollerStarted {
 			m.pollerStarted = true
-			cmd = tea.Batch(cmd, m.pollStateCmd())
+			cmd = tea.Batch(cmd, pollStateCmd())
 		}
 
 		return m, cmd
@@ -111,7 +108,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statePollMsg:
 		return m, tea.Batch(
 			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
-			m.pollStateCmd(),
+			pollStateCmd(),
 		)
 
 	case tea.KeyPressMsg:
@@ -153,8 +150,8 @@ func listWidth(totalW int) int {
 	return w
 }
 
-func (m Model) pollStateCmd() tea.Cmd {
-	return tea.Tick(m.pollInterval, func(_ time.Time) tea.Msg {
+func pollStateCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return statePollMsg{}
 	})
 }
