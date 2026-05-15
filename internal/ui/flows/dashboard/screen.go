@@ -267,7 +267,7 @@ func (d *Screen) handleServiceSelected(msg msgs.ServiceSelected) {
 		prev.SetFocused(false)
 	}
 
-	d.topLayer = msg.Service.Name
+	d.topLayer = msg.ServiceName
 	d.nextZ++
 
 	if layer, ok := d.layers[d.topLayer]; ok {

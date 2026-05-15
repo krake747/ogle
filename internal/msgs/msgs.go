@@ -35,9 +35,9 @@ type WatcherError struct{ Err error }
 type RetryWatcher struct{}
 
 // ServiceSelected is emitted by the service list component when the cursor
-// moves to a new service.
+// moves to a new service. ServiceName identifies the selected service.
 type ServiceSelected struct {
-	Service domain.ServiceDef
+	ServiceName string
 }
 
 // DaemonMsg is a marker interface for messages routed to the daemonstatus

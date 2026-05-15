@@ -356,7 +356,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.lastSelected = selected.def.Name
 
 	emit := func() tea.Msg {
-		return msgs.ServiceSelected{Service: selected.def}
+		return msgs.ServiceSelected{ServiceName: selected.def.Name}
 	}
 
 	return m, tea.Batch(cmd, emit)

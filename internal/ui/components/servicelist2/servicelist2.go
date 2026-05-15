@@ -76,23 +76,30 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update delegates to the inner list and emits msgs.ServiceSelected when the
-// cursor moves to a different service.
+// Update delegates to the inner list and tracks the selected service.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	if wm, ok := msg.(tea.WindowSizeMsg); ok {
-		m.list.SetSize(ListWidth(wm.Width), wm.Height-frameChrome)
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.list.SetSize(ListWidth(msg.Width), msg.Height-frameChrome)
 
 		return m, nil
-	}
 
-	if sp, ok := msg.(msgs.ServicesPolled); ok && sp.Err == nil {
+	case msgs.ServicesPolled:
+		if msg.Err != nil {
+			break
+		}
+
 		items := m.list.Items()
 		for i, item := range items {
-			if st, isModel := item.(serviceItem); isModel {
-				items[i] = st.SetRuntime(sp.Runtimes[st.ServiceDef().Name])
+			it, isItem := item.(serviceItem)
+			if !isItem {
+				continue
 			}
+
+			it, _ = it.Update(msg)
+			items[i] = it
 		}
 
 		m.list.SetItems(items)
@@ -105,14 +112,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	if selected.ServiceDef().Name == m.lastSelected {
+	if selected.def.Name == m.lastSelected {
 		return m, cmd
 	}
 
-	m.lastSelected = selected.ServiceDef().Name
+	m.lastSelected = selected.def.Name
 
 	return m, tea.Batch(cmd, func() tea.Msg {
-		return msgs.ServiceSelected{Service: selected.ServiceDef()}
+		return msgs.ServiceSelected{ServiceName: selected.def.Name}
 	})
 }
 

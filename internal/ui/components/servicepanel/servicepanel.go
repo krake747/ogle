@@ -23,6 +23,7 @@ type Model struct {
 	hosts         []servicehost.Model
 	theme         *theme.Theme
 	pollerStarted bool
+	selectedName  string
 }
 
 // New constructs a Model with one host per project service.
@@ -36,6 +37,7 @@ func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 		hosts:         hosts,
 		theme:         th,
 		pollerStarted: false,
+		selectedName:  "",
 	}
 }
 
@@ -44,7 +46,10 @@ func (m Model) Init() tea.Cmd { return nil }
 
 // Update handles poll lifecycle messages and forwards everything else to hosts.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg.(type) {
+	switch msg := msg.(type) {
+	case msgs.ServiceSelected:
+		m.selectedName = msg.ServiceName
+
 	case msgs.DaemonConnected:
 		if !m.pollerStarted {
 			m.pollerStarted = true
@@ -63,16 +68,37 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders all hosts as compositor layers stacked vertically.
+// View renders all hosts as compositor layers with the selected host at top.
 func (m Model) View() string {
 	if len(m.hosts) == 0 {
 		return ""
 	}
 
-	lyrs := make([]*lipgloss.Layer, len(m.hosts))
+	topIdx := -1
 
 	for i, h := range m.hosts {
-		lyrs[i] = lipgloss.NewLayer(h.View()).X(0).Y(i * tileHeight).Z(0)
+		if h.ServiceName() == m.selectedName {
+			topIdx = i
+
+			break
+		}
+	}
+
+	lyrs := make([]*lipgloss.Layer, 0, len(m.hosts))
+	y := 0
+
+	if topIdx >= 0 {
+		lyrs = append(lyrs, lipgloss.NewLayer(m.hosts[topIdx].View()).X(0).Y(0).Z(1))
+		y += tileHeight
+	}
+
+	for i, h := range m.hosts {
+		if i == topIdx {
+			continue
+		}
+
+		lyrs = append(lyrs, lipgloss.NewLayer(h.View()).X(0).Y(y).Z(0))
+		y += tileHeight
 	}
 
 	return lipgloss.NewCompositor(lyrs...).Render()
