@@ -29,13 +29,6 @@ func New() Model {
 	}
 }
 
-// SetWidth returns a copy with the help bar width set.
-func (m Model) SetWidth(w int) Model {
-	m.help.SetWidth(w)
-
-	return m
-}
-
 // WithListKeys returns a copy that includes the given keymap in the help bar.
 // Typically the list model from the parent dashboard.
 func (m Model) WithListKeys(l help.KeyMap) Model {
@@ -53,7 +46,13 @@ func (m Model) Quit() key.Binding {
 func (m Model) Init() tea.Cmd { return nil }
 
 // Update satisfies tea.Model.
-func (m Model) Update(_ tea.Msg) (Model, tea.Cmd) { return m, nil }
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	if wm, ok := msg.(tea.WindowSizeMsg); ok {
+		m.help.SetWidth(wm.Width)
+	}
+
+	return m, nil
+}
 
 // View renders the help bar with all composed bindings.
 func (m Model) View() string {

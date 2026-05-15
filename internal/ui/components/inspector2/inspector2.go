@@ -2,46 +2,43 @@ package inspector2
 
 import (
 	"image/color"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
-	dash       = "—"
-	shortIDLen = 12
+	dash        = "—"
+	shortIDLen  = 12
+	frameChrome = 2
 )
 
 // Model renders the detail header for the selected service. It is a value type;
 // all mutating methods return a new Model.
 type Model struct {
-	selected string
-	runtime  *domain.ServiceRuntimeData
-	theme    *theme.Theme
-	w, h     int
+	selected      string
+	runtime       *domain.ServiceRuntimeData
+	theme         *theme.Theme
+	w, h          int
+	pollerStarted bool
 }
 
 // New returns a Model with no selected service.
-func New(th *theme.Theme) Model {
+func New(th *theme.Theme, w, h int) Model {
 	return Model{
-		selected: "",
-		runtime:  nil,
-		theme:    th,
-		w:        0,
-		h:        0,
+		selected:      "",
+		runtime:       nil,
+		theme:         th,
+		w:             w,
+		h:             h,
+		pollerStarted: false,
 	}
-}
-
-// SetBounds returns a copy with new dimensions.
-func (m Model) SetBounds(w, h int) Model {
-	m.w = w
-	m.h = h
-
-	return m
 }
 
 // Selected returns the currently selected service name.
@@ -112,14 +109,35 @@ func (m Model) Init() tea.Cmd { return nil }
 // Update handles domain messages that affect inspector state.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.w = msg.Width - servicelist2.ListWidth(msg.Width)
+		m.h = msg.Height - frameChrome
+
 	case msgs.ServiceSelected:
 		m.selected = msg.Service.Name
 		m.runtime = nil
+
 	case msgs.ServicesPolled:
 		if msg.Err == nil && m.selected != "" {
 			m.runtime = msg.Runtimes[m.selected]
 		}
+
+	case msgs.DaemonConnected:
+		if !m.pollerStarted {
+			m.pollerStarted = true
+
+			return m, m.pollStateCmd()
+		}
+
+	case msgs.StatePollTick:
+		return m, m.pollStateCmd()
 	}
 
 	return m, nil
+}
+
+func (m Model) pollStateCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+		return msgs.StatePollTick{}
+	})
 }

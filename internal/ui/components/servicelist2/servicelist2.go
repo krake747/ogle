@@ -17,6 +17,19 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const (
+	listRatio    = 30
+	listMaxWidth = 80
+	pctDivisor   = 100
+	frameChrome  = 2
+)
+
+// ListWidth returns the allocated width for the service list
+// based on the total window width.
+func ListWidth(totalW int) int {
+	return min(totalW*listRatio/pctDivisor, listMaxWidth)
+}
+
 // Model is the service list component. It is a value type; all mutating
 // methods return a new Model.
 type Model struct {
@@ -59,13 +72,6 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 	}
 }
 
-// SetBounds propagates new terminal position and dimensions to the inner list.
-func (m Model) SetBounds(_, _, w, h int) Model {
-	m.list.SetSize(w, h)
-
-	return m
-}
-
 // Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd {
 	return nil
@@ -75,6 +81,12 @@ func (m Model) Init() tea.Cmd {
 // cursor moves to a different service.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
+
+	if wm, ok := msg.(tea.WindowSizeMsg); ok {
+		m.list.SetSize(ListWidth(wm.Width), wm.Height-frameChrome)
+
+		return m, nil
+	}
 
 	if sp, ok := msg.(msgs.ServicesPolled); ok && sp.Err == nil {
 		items := m.list.Items()

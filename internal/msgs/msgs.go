@@ -102,6 +102,9 @@ type LogStreamContainerNotFound struct {
 	ServiceName string
 }
 
+// StatePollTick is emitted by the inspector's poll loop to trigger a compose ps poll.
+type StatePollTick struct{}
+
 // ServicesPolled is emitted by the docker service after a "docker compose ps"
 // poll completes. Runtimes is nil on error.
 type ServicesPolled struct {

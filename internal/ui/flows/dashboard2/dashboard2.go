@@ -3,7 +3,6 @@ package dashboard2
 
 import (
 	"context"
-	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
@@ -25,25 +24,18 @@ import (
 const (
 	helpbarHeight = 2
 	statusHeight  = 1
-	listRatio     = 30 // percent
-	listMaxWidth  = 80
-	pctDivisor    = 100
 )
-
-// statePollMsg is delivered by a tick to trigger a docker compose ps poll.
-type statePollMsg struct{}
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
-	ctx           context.Context
-	project       *domain.Project
-	conn          *connection.Machine
-	daemon        daemonstatus.Model
-	serviceList   servicelist2.Model
-	inspector     inspector2.Model
-	helpbar       helpbar.Model
-	w, h          int
-	pollerStarted bool
+	ctx         context.Context
+	project     *domain.Project
+	conn        *connection.Machine
+	daemon      daemonstatus.Model
+	serviceList servicelist2.Model
+	inspector   inspector2.Model
+	helpbar     helpbar.Model
+	w, h        int
 }
 
 // New returns a Model in the Connecting state.
@@ -57,20 +49,19 @@ func New(
 	conn := connection.New()
 
 	contentH := max(h-statusHeight-helpbarHeight, 0)
-	listW := listWidth(w)
+	listW := servicelist2.ListWidth(w)
 	svcList := servicelist2.New(project, th, zm, listW, contentH)
 
 	return Model{
-		ctx:           ctx,
-		project:       project,
-		conn:          conn,
-		daemon:        daemonstatus.New(ctx, conn, th),
-		serviceList:   svcList,
-		inspector:     inspector2.New(th).SetBounds(w-listW, contentH),
-		helpbar:       helpbar.New().WithListKeys(svcList),
-		w:             w,
-		h:             h,
-		pollerStarted: false,
+		ctx:         ctx,
+		project:     project,
+		conn:        conn,
+		daemon:      daemonstatus.New(ctx, conn, th),
+		serviceList: svcList,
+		inspector:   inspector2.New(th, w-listW, contentH),
+		helpbar:     helpbar.New().WithListKeys(svcList),
+		w:           w,
+		h:           h,
 	}
 }
 
@@ -81,34 +72,26 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages and forwards daemon messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
+	var cmd, inspCmd, helpCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
-		m.helpbar = m.helpbar.SetWidth(m.w)
-
-		contentH := max(m.h-statusHeight-helpbarHeight, 0)
-		listW := listWidth(m.w)
-		m.serviceList = m.serviceList.SetBounds(0, 0, listW, contentH)
-		m.inspector = m.inspector.SetBounds(m.w-listW, contentH)
-
-		return m, nil
 
 	case msgs.DaemonMsg, spinner.TickMsg:
 		m.daemon, cmd = m.daemon.Update(msg)
-		if _, isConn := msg.(msgs.DaemonConnected); isConn && !m.pollerStarted {
-			m.pollerStarted = true
-			cmd = tea.Batch(cmd, pollStateCmd())
-		}
+		m.inspector, inspCmd = m.inspector.Update(msg)
+		cmd = tea.Batch(cmd, inspCmd)
 
 		return m, cmd
 
-	case statePollMsg:
+	case msgs.StatePollTick:
+		m.inspector, inspCmd = m.inspector.Update(msg)
+
 		return m, tea.Batch(
 			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
-			pollStateCmd(),
+			inspCmd,
 		)
 
 	case tea.KeyPressMsg:
@@ -121,12 +104,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	var inspCmd tea.Cmd
-
 	m.serviceList, cmd = m.serviceList.Update(msg)
 	m.inspector, inspCmd = m.inspector.Update(msg)
+	m.helpbar, helpCmd = m.helpbar.Update(msg)
 
-	return m, tea.Batch(cmd, inspCmd)
+	return m, tea.Batch(cmd, inspCmd, helpCmd)
 }
 
 // View renders the daemon status header, service list + inspector side by side,
@@ -142,16 +124,4 @@ func (m Model) View() tea.View {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, inspContent)
 
 	return tea.NewView(statusContent + "\n" + body + "\n" + m.helpbar.View())
-}
-
-func listWidth(totalW int) int {
-	w := min(totalW*listRatio/pctDivisor, listMaxWidth)
-
-	return w
-}
-
-func pollStateCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-		return statePollMsg{}
-	})
 }
