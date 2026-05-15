@@ -30,7 +30,7 @@ type Model struct {
 func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	hosts := make([]servicehost.Model, len(project.Services))
 	for i, svc := range project.Services {
-		hosts[i] = servicehost.New(th, svc, w, h, nil)
+		hosts[i] = servicehost.New(th, svc, w, h)
 	}
 
 	return Model{

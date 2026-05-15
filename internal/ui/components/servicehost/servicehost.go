@@ -6,9 +6,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
-	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/components/inspector2"
-	"github.com/ma-tf/ogle/internal/ui/components/logpane"
+	"github.com/ma-tf/ogle/internal/ui/components/logpane2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -16,17 +15,16 @@ import (
 type Model struct {
 	def       domain.ServiceDef
 	inspector inspector2.Model
-	logPane   *logpane.LogPane
+	logPane   logpane2.Model
 	theme     *theme.Theme
 }
 
-// New constructs a host for the given service. logPane may be nil; when set,
-// the host wires log output into the inspector display.
-func New(th *theme.Theme, def domain.ServiceDef, w, h int, logPane *logpane.LogPane) Model {
+// New constructs a host for the given service.
+func New(th *theme.Theme, def domain.ServiceDef, w, h int) Model {
 	return Model{
 		def:       def,
 		inspector: inspector2.New(th, def, w, h),
-		logPane:   logPane,
+		logPane:   logpane2.New(),
 		theme:     th,
 	}
 }
@@ -41,25 +39,11 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update routes messages to the correct child.
+// Update routes messages to children.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case msgs.LogLine:
-		if m.logPane != nil {
-			m.logPane, _ = m.logPane.Update(msg)
-		}
-	case msgs.LogStreamError:
-		if m.logPane != nil {
-			m.logPane, _ = m.logPane.Update(msg)
-		}
-	case msgs.LogStreamContainerNotFound:
-		if m.logPane != nil {
-			m.logPane, _ = m.logPane.Update(msg)
-		}
-	}
-
 	var cmd tea.Cmd
 
+	m.logPane, _ = m.logPane.Update(msg)
 	m.inspector, cmd = m.inspector.Update(msg)
 
 	return m, cmd
@@ -68,11 +52,4 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 // View returns the rendered content for this host's position in the compositor.
 func (m Model) View() string {
 	return m.inspector.View()
-}
-
-// Close stops the log stream if one is active.
-func (m Model) Close() {
-	if m.logPane != nil {
-		m.logPane.Close()
-	}
 }
