@@ -42,6 +42,18 @@ type ServiceSelected struct {
 	ServiceName string
 }
 
+// ServiceStop is emitted when the user triggers stop on a service.
+type ServiceStop struct{ ServiceName string }
+
+// ServiceStart is emitted when the user triggers start on a service.
+type ServiceStart struct{ ServiceName string }
+
+// ServiceRestart is emitted when the user triggers restart on a service.
+type ServiceRestart struct{ ServiceName string }
+
+// ServiceRebuild is emitted when the user triggers rebuild on a service.
+type ServiceRebuild struct{ ServiceName string }
+
 // DaemonMsg is a marker interface for messages routed to the daemonstatus
 // component in dashboard2. Types in the msgs package and the daemonstatus
 // package implement it via the unexported daemonMsg method.

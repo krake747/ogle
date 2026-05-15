@@ -5,6 +5,7 @@ package servicelist2
 import (
 	"path/filepath"
 
+	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
@@ -14,6 +15,20 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+//nolint:gochecknoglobals // package-level key bindings
+var (
+	_ help.KeyMap = Model{} //nolint:exhaustruct // compile-time assertion that Model implements help.KeyMap
+
+	// KeyStop is the key binding for stopping a service.
+	KeyStop = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "stop"))
+	// KeyStart is the key binding for starting a service.
+	KeyStart = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))
+	// KeyRestart is the key binding for restarting a service.
+	KeyRestart = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
+	// KeyRebuild is the key binding for rebuilding a service.
+	KeyRebuild = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
 )
 
 const (
@@ -91,18 +106,39 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			break
 		}
 
-		items := m.list.Items()
-		for i, item := range items {
-			it, isItem := item.(serviceItem)
-			if !isItem {
-				continue
-			}
+		m = m.updateAllItems(msg)
 
-			it, _ = it.Update(msg)
-			items[i] = it
+	case msgs.ServiceActionCompleted:
+		m = m.updateItem(msg.ServiceName, msg)
+
+	case tea.KeyPressMsg:
+		if m.list.FilterState() == list.Filtering {
+			break
 		}
 
-		m.list.SetItems(items)
+		name := m.selectedName()
+		if name == "" {
+			break
+		}
+
+		switch {
+		case key.Matches(msg, KeyStop):
+			m = m.updateItem(name, msgs.ServiceStop{ServiceName: name})
+
+			return m, func() tea.Msg { return msgs.ServiceStop{ServiceName: name} }
+		case key.Matches(msg, KeyStart):
+			m = m.updateItem(name, msgs.ServiceStart{ServiceName: name})
+
+			return m, func() tea.Msg { return msgs.ServiceStart{ServiceName: name} }
+		case key.Matches(msg, KeyRestart):
+			m = m.updateItem(name, msgs.ServiceRestart{ServiceName: name})
+
+			return m, func() tea.Msg { return msgs.ServiceRestart{ServiceName: name} }
+		case key.Matches(msg, KeyRebuild):
+			m = m.updateItem(name, msgs.ServiceRebuild{ServiceName: name})
+
+			return m, func() tea.Msg { return msgs.ServiceRebuild{ServiceName: name} }
+		}
 	}
 
 	m.list, cmd = m.list.Update(msg)
@@ -121,6 +157,50 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmd, func() tea.Msg {
 		return msgs.ServiceSelected{ServiceName: selected.def.Name}
 	})
+}
+
+// selectedName returns the name of the currently selected service, or "".
+func (m Model) selectedName() string {
+	selected, ok := m.list.SelectedItem().(serviceItem)
+	if !ok {
+		return ""
+	}
+
+	return selected.ServiceName()
+}
+
+func (m Model) updateItem(name string, msg tea.Msg) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		it, ok := item.(serviceItem)
+		if !ok || it.ServiceName() != name {
+			continue
+		}
+
+		it, _ = it.Update(msg)
+		items[i] = it
+	}
+
+	m.list.SetItems(items)
+
+	return m
+}
+
+func (m Model) updateAllItems(msg tea.Msg) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		it, isItem := item.(serviceItem)
+		if !isItem {
+			continue
+		}
+
+		it, _ = it.Update(msg)
+		items[i] = it
+	}
+
+	m.list.SetItems(items)
+
+	return m
 }
 
 // ShortHelp returns the inner list's short help bindings, excluding the help
@@ -146,11 +226,6 @@ func (m Model) ShortHelp() []key.Binding {
 // FullHelp returns the inner list's full help bindings. Implements help.KeyMap.
 func (m Model) FullHelp() [][]key.Binding {
 	return m.list.FullHelp()
-}
-
-// IsFiltering reports whether the inner list is currently in filter-input mode.
-func (m Model) IsFiltering() bool {
-	return m.list.FilterState() == list.Filtering
 }
 
 // View renders the service list.

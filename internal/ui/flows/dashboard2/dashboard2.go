@@ -72,8 +72,13 @@ func (m Model) Init() tea.Cmd {
 		func() tea.Msg {
 			return msgs.BindingsMsg{
 				Keymap: appKeymap{
-					list:    m.serviceList,
-					actions: []key.Binding{keyStop, keyStart, keyRestart, keyRebuild},
+					list: m.serviceList,
+					actions: []key.Binding{
+						servicelist2.KeyStop,
+						servicelist2.KeyStart,
+						servicelist2.KeyRestart,
+						servicelist2.KeyRebuild,
+					},
 				},
 			}
 		},
@@ -105,15 +110,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tea.KeyPressMsg:
-		if m.serviceList.IsFiltering() {
-			break
-		}
-
 		if key.Matches(msg, keyQuit) {
 			return m, tea.Quit
 		}
 
+	case msgs.ServiceStop:
+		return m, svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceStart:
+		return m, svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceRestart:
+		return m, svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceRebuild:
+		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
 	case msgs.ServiceActionCompleted:
+		m.serviceList, _ = m.serviceList.Update(msg)
+
 		return m, nil
 	}
 

@@ -39,9 +39,82 @@ func (m serviceItem) Init() tea.Cmd {
 	return nil
 }
 
+//nolint:gocognit // type switch routing to many message types is inherently complex
 func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
-	if sp, ok := msg.(msgs.ServicesPolled); ok && sp.Err == nil && m.def.Name != "" {
-		m.runtime = sp.Runtimes[m.def.Name]
+	switch msg := msg.(type) {
+	case msgs.ServicesPolled:
+		if msg.Err == nil && m.def.Name != "" {
+			m.runtime = msg.Runtimes[m.def.Name]
+		}
+
+	case msgs.ServiceStop:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
+		m.inFlight = true
+		m.actionLabel = "stopping…"
+		m.actionError = ""
+
+	case msgs.ServiceStart:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
+		m.inFlight = true
+		m.actionLabel = "starting…"
+		m.actionError = ""
+
+	case msgs.ServiceRestart:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
+		m.inFlight = true
+		m.actionLabel = "restarting…"
+		m.actionError = ""
+
+	case msgs.ServiceRebuild:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
+		m.inFlight = true
+		m.actionLabel = "rebuilding…"
+		m.actionError = ""
+
+	case msgs.ServiceActionCompleted:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
+		m.inFlight = false
+		m.actionLabel = ""
+
+		m.actionError = ""
+		if msg.Err != nil {
+			m.actionError = msg.Err.Error()
+
+			break
+		}
+
+		opt := domain.ServiceStateRunning
+		if msg.Action == domain.ServiceActionStop {
+			opt = domain.ServiceStateExited
+		}
+
+		if m.runtime == nil {
+			m.runtime = &domain.ServiceRuntimeData{
+				State:       opt,
+				ContainerID: "",
+				Health:      "",
+				StateAge:    0,
+			}
+		} else {
+			rt := *m.runtime
+			rt.State = opt
+			m.runtime = &rt
+		}
 	}
 
 	return m, nil
@@ -104,5 +177,9 @@ func (m serviceItem) Description() string {
 }
 
 func (m serviceItem) FilterValue() string {
+	return m.def.Name
+}
+
+func (m serviceItem) ServiceName() string {
 	return m.def.Name
 }

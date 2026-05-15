@@ -7,11 +7,7 @@ import (
 
 //nolint:gochecknoglobals // package-level key bindings are shared across all Model instances
 var (
-	keyQuit    = key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit"))
-	keyStop    = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "stop"))
-	keyStart   = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))
-	keyRestart = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
-	keyRebuild = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
+	keyQuit = key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit"))
 )
 
 // appKeymap merges the service list, action, and quit bindings into one KeyMap.
