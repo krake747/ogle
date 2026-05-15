@@ -1,6 +1,5 @@
-// Package servicepanel manages a set of per-service inspector hosts and their
-// polling lifecycle. It renders all hosts as a vertical stack in the right-pane
-// content area.
+// Package servicepanel manages a set of per-service hosts and their polling
+// lifecycle. It renders all hosts as compositor layers stacked vertically.
 package servicepanel
 
 import (
@@ -11,22 +10,26 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/components/inspector2"
+	"github.com/ma-tf/ogle/internal/ui/components/servicehost"
 	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+const (
+	tileHeight = 8
 )
 
 // Model manages a set of per-service hosts and the state polling lifecycle.
 type Model struct {
-	hosts         []inspector2.Model
+	hosts         []servicehost.Model
 	theme         *theme.Theme
 	pollerStarted bool
 }
 
 // New constructs a Model with one host per project service.
 func New(project *domain.Project, th *theme.Theme, w, h int) Model {
-	hosts := make([]inspector2.Model, len(project.Services))
+	hosts := make([]servicehost.Model, len(project.Services))
 	for i, svc := range project.Services {
-		hosts[i] = inspector2.New(th, svc, w, h)
+		hosts[i] = servicehost.New(th, svc, w, h, nil)
 	}
 
 	return Model{
@@ -60,19 +63,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// View renders all hosts as a vertical stack.
+// View renders all hosts as compositor layers stacked vertically.
 func (m Model) View() string {
 	if len(m.hosts) == 0 {
 		return ""
 	}
 
-	var rows []string
+	lyrs := make([]*lipgloss.Layer, len(m.hosts))
 
-	for _, h := range m.hosts {
-		rows = append(rows, h.View())
+	for i, h := range m.hosts {
+		lyrs[i] = lipgloss.NewLayer(h.View()).X(0).Y(i * tileHeight).Z(0)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Top, rows...)
+	return lipgloss.NewCompositor(lyrs...).Render()
 }
 
 func (m Model) pollStateCmd() tea.Cmd {
