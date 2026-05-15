@@ -41,9 +41,6 @@ func New(th *theme.Theme, w, h int) Model {
 	}
 }
 
-// Selected returns the currently selected service name.
-func (m Model) Selected() string { return m.selected }
-
 // View renders the detail header for the selected service.
 func (m Model) View() string {
 	if m.selected == "" || m.w == 0 {

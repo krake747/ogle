@@ -16,8 +16,8 @@ import (
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
-	"github.com/ma-tf/ogle/internal/ui/components/inspector2"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
+	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -33,7 +33,7 @@ type Model struct {
 	conn        *connection.Machine
 	daemon      daemonstatus.Model
 	serviceList servicelist2.Model
-	inspector   inspector2.Model
+	panel       servicepanel.Model
 	helpbar     helpbar.Model
 	w, h        int
 }
@@ -58,7 +58,7 @@ func New(
 		conn:        conn,
 		daemon:      daemonstatus.New(ctx, conn, th),
 		serviceList: svcList,
-		inspector:   inspector2.New(th, w-listW, contentH),
+		panel:       servicepanel.New(project, th, w-listW, contentH),
 		helpbar:     helpbar.New().WithListKeys(svcList),
 		w:           w,
 		h:           h,
@@ -72,7 +72,7 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages and forwards daemon messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd, inspCmd, helpCmd tea.Cmd
+	var cmd, panCmd, helpCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -81,17 +81,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.DaemonMsg, spinner.TickMsg:
 		m.daemon, cmd = m.daemon.Update(msg)
-		m.inspector, inspCmd = m.inspector.Update(msg)
-		cmd = tea.Batch(cmd, inspCmd)
+		m.panel, panCmd = m.panel.Update(msg)
+		cmd = tea.Batch(cmd, panCmd)
 
 		return m, cmd
 
 	case msgs.StatePollTick:
-		m.inspector, inspCmd = m.inspector.Update(msg)
+		m.panel, panCmd = m.panel.Update(msg)
 
 		return m, tea.Batch(
 			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
-			inspCmd,
+			panCmd,
 		)
 
 	case tea.KeyPressMsg:
@@ -105,10 +105,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	m.serviceList, cmd = m.serviceList.Update(msg)
-	m.inspector, inspCmd = m.inspector.Update(msg)
+	m.panel, panCmd = m.panel.Update(msg)
 	m.helpbar, helpCmd = m.helpbar.Update(msg)
 
-	return m, tea.Batch(cmd, inspCmd, helpCmd)
+	return m, tea.Batch(cmd, panCmd, helpCmd)
 }
 
 // View renders the daemon status header, service list + inspector side by side,
@@ -119,9 +119,9 @@ func (m Model) View() tea.View {
 	contentH := max(m.h-statusHeight-helpbarHeight, 0)
 
 	listContent := m.serviceList.View().Content
-	inspContent := lipgloss.NewStyle().Height(contentH).Render(m.inspector.View())
+	panContent := lipgloss.NewStyle().Height(contentH).Render(m.panel.View())
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, inspContent)
+	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
 
 	return tea.NewView(statusContent + "\n" + body + "\n" + m.helpbar.View())
 }
