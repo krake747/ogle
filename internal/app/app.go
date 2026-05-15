@@ -16,6 +16,7 @@ import (
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/profiling"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
@@ -113,8 +114,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	case tea.KeyPressMsg:
-		if msg.String() == "ctrl+c" {
+		switch msg.String() {
+		case "ctrl+c":
 			return m, tea.Quit
+		case "ctrl+p":
+			return m, profiling.DumpCmd()
 		}
 
 	case msgs.FileAvailabilityChanged:
@@ -127,7 +131,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(watchCmd, subCmd)
 
 	case msgs.ProjectLoaded:
-		m.current = dashboard2.New(m.ctx, msg.Project, m.theme, m.zm, m.width, m.height)
+		m.current = dashboard2.New(
+			m.ctx,
+			msg.Project,
+			m.theme,
+			m.zm,
+			m.width,
+			m.height,
+			m.cfg.PollInterval,
+		)
 
 		return m, m.current.Init()
 
@@ -159,6 +171,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.w.Next(),
 			m.w.Snapshot(),
 		)
+
+	case profiling.ProfilesDumped:
+		if msg.Err != nil {
+			m.logger.Error("profiling dump failed", slog.Any("err", msg.Err))
+		} else {
+			m.logger.Info("profiling dump written",
+				slog.String("goroutine", msg.GoroutinePath),
+				slog.String("heap", msg.HeapPath),
+			)
+		}
+
+		return m, nil
 	}
 
 	next, cmd := m.current.Update(msg)

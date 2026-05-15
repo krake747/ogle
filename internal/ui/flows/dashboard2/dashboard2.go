@@ -30,19 +30,21 @@ const (
 	pctDivisor    = 100
 )
 
-// statePollMsg is delivered by a 1-second tick to trigger a docker compose ps poll.
+// statePollMsg is delivered by a tick to trigger a docker compose ps poll.
 type statePollMsg struct{}
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
-	ctx         context.Context
-	project     *domain.Project
-	conn        *connection.Machine
-	daemon      daemonstatus.Model
-	serviceList servicelist2.Model
-	inspector   inspector2.Model
-	helpbar     helpbar.Model
-	w, h        int
+	ctx           context.Context
+	project       *domain.Project
+	conn          *connection.Machine
+	daemon        daemonstatus.Model
+	serviceList   servicelist2.Model
+	inspector     inspector2.Model
+	helpbar       helpbar.Model
+	w, h          int
+	pollInterval  time.Duration
+	pollerStarted bool
 }
 
 // New returns a Model in the Connecting state.
@@ -52,6 +54,7 @@ func New(
 	th *theme.Theme,
 	zm *zone.Manager,
 	w, h int,
+	pollInterval time.Duration,
 ) tea.Model {
 	conn := connection.New()
 
@@ -60,15 +63,17 @@ func New(
 	svcList := servicelist2.New(project, th, zm, listW, contentH)
 
 	return Model{
-		ctx:         ctx,
-		project:     project,
-		conn:        conn,
-		daemon:      daemonstatus.New(ctx, conn, th),
-		serviceList: svcList,
-		inspector:   inspector2.New(th).SetBounds(w-listW, contentH),
-		helpbar:     helpbar.New().WithListKeys(svcList),
-		w:           w,
-		h:           h,
+		ctx:           ctx,
+		project:       project,
+		conn:          conn,
+		daemon:        daemonstatus.New(ctx, conn, th),
+		serviceList:   svcList,
+		inspector:     inspector2.New(th).SetBounds(w-listW, contentH),
+		helpbar:       helpbar.New().WithListKeys(svcList),
+		w:             w,
+		h:             h,
+		pollInterval:  pollInterval,
+		pollerStarted: false,
 	}
 }
 
@@ -96,8 +101,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.DaemonMsg, spinner.TickMsg:
 		m.daemon, cmd = m.daemon.Update(msg)
-		if _, isConn := msg.(msgs.DaemonConnected); isConn {
-			cmd = tea.Batch(cmd, pollStateCmd())
+		if _, isConn := msg.(msgs.DaemonConnected); isConn && !m.pollerStarted {
+			m.pollerStarted = true
+			cmd = tea.Batch(cmd, m.pollStateCmd())
 		}
 
 		return m, cmd
@@ -105,7 +111,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statePollMsg:
 		return m, tea.Batch(
 			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
-			pollStateCmd(),
+			m.pollStateCmd(),
 		)
 
 	case tea.KeyPressMsg:
@@ -147,8 +153,8 @@ func listWidth(totalW int) int {
 	return w
 }
 
-func pollStateCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+func (m Model) pollStateCmd() tea.Cmd {
+	return tea.Tick(m.pollInterval, func(_ time.Time) tea.Msg {
 		return statePollMsg{}
 	})
 }

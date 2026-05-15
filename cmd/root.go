@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/pprof"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,8 +23,17 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const (
+	defaultPollInterval    time.Duration = 2 * time.Second
+	defaultLogBufferCap                  = 1000
+	pprofReadHeaderTimeout               = 5 * time.Second
+	pprofReadTimeout                     = 60 * time.Second
+	pprofWriteTimeout                    = 60 * time.Second
+)
+
 var (
 	cfgFile      string
+	pprofAddr    string
 	cfg          config.Config
 	logger       *slog.Logger
 	logLevel     = new(slog.LevelVar)
@@ -111,6 +122,31 @@ var (
 				)
 			}
 
+			if pprofAddr != "" {
+				mux := http.NewServeMux()
+				mux.HandleFunc("/debug/pprof/", pprof.Index)
+				mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+				mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+				mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+				mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+
+				srv := &http.Server{
+					Addr:              pprofAddr,
+					Handler:           mux,
+					ReadHeaderTimeout: pprofReadHeaderTimeout,
+					ReadTimeout:       pprofReadTimeout,
+					WriteTimeout:      pprofWriteTimeout,
+				}
+
+				go func() {
+					logger.InfoContext(ctx, "pprof listening", slog.String("addr", pprofAddr))
+
+					if err := srv.ListenAndServe(); err != nil {
+						logger.WarnContext(ctx, "pprof server stopped", slog.Any("err", err))
+					}
+				}()
+			}
+
 			model := app.New(ctx, cfg, configDir, logger, sc, p, th)
 			program := tea.NewProgram(
 				model,
@@ -158,13 +194,11 @@ func init() {
 	rootCmd.PersistentFlags().
 		StringVarP(&cfg.ProjectFile, "project-file", "f", "", "path to docker compose file")
 
+	rootCmd.PersistentFlags().
+		StringVar(&pprofAddr, "pprof-addr", "", "pprof HTTP server address (e.g. localhost:6060)")
+
 	rootCmd.AddCommand(newVersionCommand())
 }
-
-const (
-	defaultPollInterval time.Duration = 2 * time.Second
-	defaultLogBufferCap               = 1000
-)
 
 func initialiseConfig(cmd *cobra.Command) error {
 	viper.SetEnvPrefix("OGLE")

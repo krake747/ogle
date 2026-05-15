@@ -11,6 +11,7 @@ ogle [flags]
 ```
       --config string         config file (default is $HOME/.ogle/config)
   -h, --help                  help for ogle
+      --pprof-addr string     pprof HTTP server address (e.g. localhost:6060)
   -f, --project-file string   path to docker compose file
 ```
 
