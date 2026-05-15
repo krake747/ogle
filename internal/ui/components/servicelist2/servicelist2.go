@@ -1,4 +1,4 @@
-// Package servicelist2 implements a service list component that returns tea.View
+// Package servicelist2 implements a service list component.
 // from its View method.
 package servicelist2
 
@@ -154,8 +154,8 @@ func (m Model) IsFiltering() bool {
 }
 
 // View renders the service list.
-func (m Model) View() tea.View {
+func (m Model) View() string {
 	m.list.Styles.Title = m.theme.ServiceListTitle
 
-	return tea.NewView(m.list.View())
+	return m.list.View()
 }

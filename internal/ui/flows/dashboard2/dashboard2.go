@@ -114,11 +114,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View renders the daemon status header, service list + inspector side by side,
 // and a help bar at the bottom.
 func (m Model) View() tea.View {
-	statusContent := m.daemon.View().Content
+	statusContent := m.daemon.View()
 
 	contentH := max(m.h-statusHeight-helpbarHeight, 0)
 
-	listContent := m.serviceList.View().Content
+	listContent := m.serviceList.View()
 	panContent := lipgloss.NewStyle().Height(contentH).Render(m.panel.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)

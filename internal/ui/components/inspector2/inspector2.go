@@ -43,7 +43,7 @@ func New(th *theme.Theme, def domain.ServiceDef, w, h int) Model {
 }
 
 // ServiceName returns the service this model represents.
-func (m Model) ServiceName() string { return m.def.Name }
+// func (m Model) ServiceName() string { return m.def.Name }
 
 // Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd { return nil }
