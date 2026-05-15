@@ -1,45 +1,23 @@
-// Package helpbar provides a self-contained help bar component that owns its
-// key bindings and delegates rendering to a bubbles help.Model.
+// Package helpbar provides a self-contained help bar component that renders a
+// keymap received via BindingsMsg.
 package helpbar
 
 import (
 	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/ma-tf/ogle/internal/msgs"
 )
 
-// Model is a value-type sub-model that renders a help bar. It owns the
-// dashboard-level key bindings and accepts external keymaps for composition.
+// Model is a value-type sub-model that renders a help bar.
 type Model struct {
-	help help.Model
-	keys dashboardKeys
-	list help.KeyMap
+	help   help.Model
+	keymap help.KeyMap
 }
 
-// New returns a Model with default dashboard key bindings.
+// New returns a Model.
 func New() Model {
-	h := help.New()
-
-	return Model{
-		help: h,
-		keys: dashboardKeys{
-			Quit: key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
-		},
-		list: nil,
-	}
-}
-
-// WithListKeys returns a copy that includes the given keymap in the help bar.
-// Typically the list model from the parent dashboard.
-func (m Model) WithListKeys(l help.KeyMap) Model {
-	m.list = l
-
-	return m
-}
-
-// Quit returns the quit key binding for use in key dispatch.
-func (m Model) Quit() key.Binding {
-	return m.keys.Quit
+	return Model{help: help.New(), keymap: nil}
 }
 
 // Init satisfies tea.Model.
@@ -47,16 +25,21 @@ func (m Model) Init() tea.Cmd { return nil }
 
 // Update satisfies tea.Model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if wm, ok := msg.(tea.WindowSizeMsg); ok {
-		m.help.SetWidth(wm.Width)
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.help.SetWidth(msg.Width)
+	case msgs.BindingsMsg:
+		m.keymap = msg.Keymap
 	}
 
 	return m, nil
 }
 
-// View renders the help bar with all composed bindings.
+// View renders the help bar with the current keymap.
 func (m Model) View() string {
-	km := combinedKeyMap{dash: m.keys, list: m.list}
+	if m.keymap == nil {
+		return ""
+	}
 
-	return m.help.View(km)
+	return m.help.View(m.keymap)
 }

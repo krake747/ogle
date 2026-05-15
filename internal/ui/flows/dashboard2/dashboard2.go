@@ -59,15 +59,25 @@ func New(
 		daemon:      daemonstatus.New(ctx, conn, th),
 		serviceList: svcList,
 		panel:       servicepanel.New(project, th, w-listW, contentH),
-		helpbar:     helpbar.New().WithListKeys(svcList),
+		helpbar:     helpbar.New(),
 		w:           w,
 		h:           h,
 	}
 }
 
-// Init delegates to the daemon status sub-model.
+// Init fires the daemon status init and sends the keymap to the helpbar.
 func (m Model) Init() tea.Cmd {
-	return m.daemon.Init()
+	return tea.Batch(
+		m.daemon.Init(),
+		func() tea.Msg {
+			return msgs.BindingsMsg{
+				Keymap: appKeymap{
+					list:    m.serviceList,
+					actions: []key.Binding{keyStop, keyStart, keyRestart, keyRebuild},
+				},
+			}
+		},
+	)
 }
 
 // Update handles dashboard-level messages and forwards daemon messages.
@@ -99,9 +109,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			break
 		}
 
-		if key.Matches(msg, m.helpbar.Quit()) {
+		if key.Matches(msg, keyQuit) {
 			return m, tea.Quit
 		}
+
+	case msgs.ServiceActionCompleted:
+		return m, nil
 	}
 
 	m.serviceList, cmd = m.serviceList.Update(msg)

@@ -1,6 +1,8 @@
 package msgs
 
 import (
+	"charm.land/bubbles/v2/help"
+
 	"github.com/ma-tf/ogle/internal/domain"
 )
 
@@ -82,6 +84,11 @@ type ServiceActionCompleted struct {
 	ServiceName string
 	Action      domain.ServiceAction
 	Err         error
+}
+
+// BindingsMsg delivers a unified keymap to the helpbar component.
+type BindingsMsg struct {
+	Keymap help.KeyMap
 }
 
 // LogLine carries one demultiplexed log frame from the Docker logs API.
