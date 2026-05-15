@@ -1,5 +1,3 @@
-// Package servicehost wraps a per-service inspector and log stream into a
-// single compositor-hostable unit.
 package servicehost
 
 import (
@@ -11,7 +9,8 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// Model wraps a per-service inspector and log stream.
+// Model wraps a per-service inspector and log pane into a single
+// compositor-hostable unit.
 type Model struct {
 	def       domain.ServiceDef
 	inspector inspector2.Model
@@ -51,5 +50,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the rendered content for this host's position in the compositor.
 func (m Model) View() string {
-	return m.inspector.View()
+	inspView := m.inspector.View()
+	logView := m.logPane.View()
+
+	if logView == "" {
+		return inspView
+	}
+
+	return inspView + "\n" + logView
 }
