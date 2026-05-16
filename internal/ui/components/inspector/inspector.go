@@ -1,4 +1,4 @@
-package inspector2
+package inspector
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -52,7 +52,7 @@ func (m Model) Init() tea.Cmd { return nil }
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.w = msg.Width - servicelist2.ListWidth(msg.Width)
+		m.w = msg.Width - servicelist.ListWidth(msg.Width)
 		m.h = msg.Height
 
 	case msgs.ServicesPolled:

@@ -1,4 +1,4 @@
-package servicelist2
+package servicelist
 
 import (
 	"charm.land/bubbles/v2/list"

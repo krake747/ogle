@@ -1,5 +1,5 @@
-// Package dashboard2 implements the project dashboard flow.
-package dashboard2
+// Package dashboard implements the project dashboard flow.
+package dashboard
 
 import (
 	"context"
@@ -16,7 +16,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist2"
+	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -32,7 +32,7 @@ type Model struct {
 	project     *domain.Project
 	conn        *connection.Machine
 	daemon      daemonstatus.Model
-	serviceList servicelist2.Model
+	serviceList servicelist.Model
 	panel       servicepanel.Model
 	helpbar     helpbar.Model
 	w, h        int
@@ -49,8 +49,8 @@ func New(
 	conn := connection.New()
 
 	contentH := max(h-statusHeight-helpbarHeight, 0)
-	listW := servicelist2.ListWidth(w)
-	svcList := servicelist2.New(project, th, zm, listW, contentH)
+	listW := servicelist.ListWidth(w)
+	svcList := servicelist.New(project, th, zm, listW, contentH)
 
 	return Model{
 		ctx:         ctx,
@@ -74,10 +74,10 @@ func (m Model) Init() tea.Cmd {
 				Keymap: appKeymap{
 					list: m.serviceList,
 					actions: []key.Binding{
-						servicelist2.KeyStop,
-						servicelist2.KeyStart,
-						servicelist2.KeyRestart,
-						servicelist2.KeyRebuild,
+						servicelist.KeyStop,
+						servicelist.KeyStart,
+						servicelist.KeyRestart,
+						servicelist.KeyRebuild,
 					},
 				},
 			}

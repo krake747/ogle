@@ -1,4 +1,4 @@
-package dashboard2
+package dashboard
 
 import (
 	"charm.land/bubbles/v2/help"

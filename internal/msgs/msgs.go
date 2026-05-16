@@ -55,7 +55,7 @@ type ServiceRestart struct{ ServiceName string }
 type ServiceRebuild struct{ ServiceName string }
 
 // DaemonMsg is a marker interface for messages routed to the daemonstatus
-// component in dashboard2. Types in the msgs package and the daemonstatus
+// component in the dashboard flow. Types in the msgs package and the daemonstatus
 // package implement it via the unexported daemonMsg method.
 type DaemonMsg interface {
 	daemonMsg()

@@ -4,8 +4,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
-	"github.com/ma-tf/ogle/internal/ui/components/inspector2"
-	"github.com/ma-tf/ogle/internal/ui/components/logpane2"
+	"github.com/ma-tf/ogle/internal/ui/components/inspector"
+	"github.com/ma-tf/ogle/internal/ui/components/logpane"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -13,8 +13,8 @@ import (
 // compositor-hostable unit.
 type Model struct {
 	def       domain.ServiceDef
-	inspector inspector2.Model
-	logPane   logpane2.Model
+	inspector inspector.Model
+	logPane   logpane.Model
 	theme     *theme.Theme
 }
 
@@ -22,8 +22,8 @@ type Model struct {
 func New(th *theme.Theme, def domain.ServiceDef, w, h int) Model {
 	return Model{
 		def:       def,
-		inspector: inspector2.New(th, def, w, h),
-		logPane:   logpane2.New(),
+		inspector: inspector.New(th, def, w, h),
+		logPane:   logpane.New(),
 		theme:     th,
 	}
 }

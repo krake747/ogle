@@ -146,6 +146,6 @@ func (m Model) View() string {
 		return faded + " " + label + " " + countdown
 
 	default:
-		return "dashboard2"
+		return "dashboard"
 	}
 }

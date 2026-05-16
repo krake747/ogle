@@ -1,6 +1,6 @@
-// Package servicelist2 implements a service list component.
+// Package servicelist implements a service list component.
 // from its View method.
-package servicelist2
+package servicelist
 
 import (
 	"path/filepath"

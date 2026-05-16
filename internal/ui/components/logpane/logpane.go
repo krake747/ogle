@@ -1,4 +1,4 @@
-package logpane2
+package logpane
 
 import (
 	"strings"
