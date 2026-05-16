@@ -103,12 +103,9 @@ type BindingsMsg struct {
 	Keymap help.KeyMap
 }
 
-// LogLine carries one demultiplexed log frame from the Docker logs API.
-type LogLine struct {
-	Text        string
-	IsStderr    bool
-	ServiceName string
-}
+// LogLinesAvailable signals that new log lines are waiting in the streamer's
+// line channel. The logpane drains the channel on receipt.
+type LogLinesAvailable struct{}
 
 // LogStreamError is emitted when the LogStreamer goroutine hits a read error.
 type LogStreamError struct {

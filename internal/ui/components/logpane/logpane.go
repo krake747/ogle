@@ -1,27 +1,26 @@
 package logpane
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 )
 
-const (
-	defaultCap = 1000
-)
+const defaultCap = 1000
 
 // Model stores raw log text lines backed by a viewport for windowed rendering.
+// Lines arrive asynchronously via lineCh and are flushed when a
+// msgs.LogLinesAvailable message is received.
 type Model struct {
 	lines    []string
 	cap      int
 	viewport viewport.Model
+	lineCh   <-chan string
 }
 
-// New returns a Model with the given width. Height is teminal height.
-func New(w, h int) Model {
+// New returns a Model reading from the given line channel.
+func New(w, h int, lineCh <-chan string) Model {
 	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(h))
 	vp.KeyMap = viewport.KeyMap{}
 
@@ -29,6 +28,7 @@ func New(w, h int) Model {
 		lines:    nil,
 		cap:      defaultCap,
 		viewport: vp,
+		lineCh:   lineCh,
 	}
 }
 
@@ -37,20 +37,37 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// Update handles log lines, resize, and delegates to the viewport.
+// Update drains the line channel on availability signals and delegates to the viewport.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case msgs.LogLine:
-		m.lines = append(m.lines, strings.TrimRight(msg.Text, "\n"))
-		if len(m.lines) > m.cap {
-			m.lines = m.lines[len(m.lines)-m.cap:]
+	case msgs.LogLinesAvailable:
+		if m.lineCh == nil {
+			return m, nil
 		}
 
-		wasAtBottom := m.viewport.AtBottom()
-		m.viewport.SetContentLines(m.lines)
+		for {
+			select {
+			case line, ok := <-m.lineCh:
+				if !ok {
+					m.lineCh = nil
 
-		if wasAtBottom {
-			m.viewport.GotoBottom()
+					return m, nil
+				}
+
+				m.lines = append(m.lines, line)
+				if len(m.lines) > m.cap {
+					m.lines = m.lines[len(m.lines)-m.cap:]
+				}
+			default:
+				wasAtBottom := m.viewport.AtBottom()
+				m.viewport.SetContentLines(m.lines)
+
+				if wasAtBottom {
+					m.viewport.GotoBottom()
+				}
+
+				return m, nil
+			}
 		}
 
 	case tea.WindowSizeMsg:

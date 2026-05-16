@@ -69,6 +69,9 @@ func New(
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.daemon.Init(),
+		m.serviceList.Init(),
+		m.panel.Init(),
+		m.helpbar.Init(),
 		func() tea.Msg {
 			return msgs.BindingsMsg{
 				Keymap: appKeymap{

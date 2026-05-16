@@ -71,6 +71,52 @@ func (_c *MockStreamer_Close_Call) RunAndReturn(run func()) *MockStreamer_Close_
 	return _c
 }
 
+// Lines provides a mock function for the type MockStreamer
+func (_mock *MockStreamer) Lines() <-chan string {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for Lines")
+	}
+
+	var r0 <-chan string
+	if returnFunc, ok := ret.Get(0).(func() <-chan string); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(<-chan string)
+		}
+	}
+	return r0
+}
+
+// MockStreamer_Lines_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Lines'
+type MockStreamer_Lines_Call struct {
+	*mock.Call
+}
+
+// Lines is a helper method to define mock.On call
+func (_e *MockStreamer_Expecter) Lines() *MockStreamer_Lines_Call {
+	return &MockStreamer_Lines_Call{Call: _e.mock.On("Lines")}
+}
+
+func (_c *MockStreamer_Lines_Call) Run(run func()) *MockStreamer_Lines_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockStreamer_Lines_Call) Return(stringCh <-chan string) *MockStreamer_Lines_Call {
+	_c.Call.Return(stringCh)
+	return _c
+}
+
+func (_c *MockStreamer_Lines_Call) RunAndReturn(run func() <-chan string) *MockStreamer_Lines_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Next provides a mock function for the type MockStreamer
 func (_mock *MockStreamer) Next() tea.Cmd {
 	ret := _mock.Called()

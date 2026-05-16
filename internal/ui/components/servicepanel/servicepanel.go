@@ -41,8 +41,15 @@ func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	}
 }
 
-// Init satisfies tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+// Init starts all hosts' flush ticks.
+func (m Model) Init() tea.Cmd {
+	cmds := make([]tea.Cmd, len(m.hosts))
+	for i := range m.hosts {
+		cmds[i] = m.hosts[i].Init()
+	}
+
+	return tea.Batch(cmds...)
+}
 
 // Update handles poll lifecycle messages and forwards everything else to hosts.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {

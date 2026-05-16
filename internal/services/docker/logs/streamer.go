@@ -10,6 +10,7 @@ import (
 // set of *LogStreamer and NullLogStreamer exactly.
 type Streamer interface {
 	Start(ctx context.Context, containerName string)
+	Lines() <-chan string
 	Next() tea.Cmd
 	Close()
 }

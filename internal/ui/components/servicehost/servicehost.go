@@ -27,11 +27,13 @@ type Model struct {
 
 // New constructs a host for the given service.
 func New(th *theme.Theme, def domain.ServiceDef, project string, w, h int) Model {
+	s := logs.New(def.Name)
+
 	return Model{
 		def:             def,
 		inspector:       inspector.New(th, def, w, h),
-		logPane:         logpane.New(w, h),
-		streamer:        logs.New(def.Name),
+		logPane:         logpane.New(w, h, s.Lines()),
+		streamer:        s,
 		streamerStarted: false,
 		theme:           th,
 		project:         project,
@@ -43,16 +45,16 @@ func (m Model) ServiceName() string {
 	return m.def.Name
 }
 
-// Init satisfies tea.Model.
+// Init batches the init cmds of all children.
 func (m Model) Init() tea.Cmd {
-	return nil
+	return tea.Batch(m.logPane.Init(), m.inspector.Init())
 }
 
 // Update routes messages to children.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg := msg.(type) {
+	switch msg.(type) {
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
 			m.streamerStarted = true
@@ -61,18 +63,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			cmds = append(cmds, m.streamer.Next())
 		}
 
-	case msgs.LogLine:
-		cmds = append(cmds, m.streamer.Next())
-		if msg.ServiceName == m.def.Name {
-			var logCmd tea.Cmd
-
-			m.logPane, logCmd = m.logPane.Update(msg)
-			if logCmd != nil {
-				cmds = append(cmds, logCmd)
-			}
-		}
-
-	case msgs.LogStreamError, msgs.LogStreamContainerNotFound:
+	case msgs.LogLinesAvailable, msgs.LogStreamError, msgs.LogStreamContainerNotFound:
 		cmds = append(cmds, m.streamer.Next())
 	}
 
@@ -81,6 +72,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	m.inspector, cmd = m.inspector.Update(msg)
 	if cmd != nil {
 		cmds = append(cmds, cmd)
+	}
+
+	var logCmd tea.Cmd
+
+	m.logPane, logCmd = m.logPane.Update(msg)
+	if logCmd != nil {
+		cmds = append(cmds, logCmd)
 	}
 
 	return m, tea.Batch(cmds...)

@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
@@ -21,12 +22,9 @@ import (
 const (
 	socketPath     = "/var/run/docker.sock"
 	channelCap     = 64
+	lineBufferCap  = 5000
 	tailLines      = "1000"
 	errorBodyLimit = 512
-	// stdoutStream and stderrStream are the Docker multiplexed stream type
-	// bytes (header[0]) as defined by the Docker logs API.
-	stdoutStream = 1
-	stderrStream = 2
 )
 
 var errUnexpectedStatus = errors.New("logs: unexpected status")
@@ -44,12 +42,12 @@ func ContainerName(project, service, containerNameOverride string) string {
 	return project + "-" + service + "-1"
 }
 
-// LogStreamer streams Docker container logs over the Unix socket. It exposes a
-// Next/Close contract that mirrors the watcher pattern: the caller re-subscribes
-// after each received message.
+// LogStreamer streams Docker container logs over the Unix socket. Normal log
+// lines flow through lineCh; errors flow through ch.
 type LogStreamer struct {
 	cancel      context.CancelFunc
 	ch          chan tea.Msg
+	lineCh      chan string
 	done        chan struct{}
 	wg          sync.WaitGroup
 	serviceName string
@@ -60,6 +58,7 @@ func New(serviceName string) *LogStreamer {
 	return &LogStreamer{
 		cancel:      nil,
 		ch:          make(chan tea.Msg, channelCap),
+		lineCh:      make(chan string, lineBufferCap),
 		done:        make(chan struct{}),
 		wg:          sync.WaitGroup{},
 		serviceName: serviceName,
@@ -69,9 +68,9 @@ func New(serviceName string) *LogStreamer {
 // Start begins streaming logs for the named container. Close must be called
 // before calling Start again on a reused LogStreamer. It returns immediately;
 // the HTTP connection and all I/O run in a single background goroutine. On
-// 404 or non-200 the goroutine writes a single error message to the channel
-// and exits. On 200 it writes msgs.LogLine values until the stream ends or
-// Close is called.
+// 404 or non-200 the goroutine writes a single error message to ch and exits.
+// On 200 it writes log line strings to lineCh until the stream ends or Close
+// is called.
 func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 	ctx, cancel := context.WithCancel(appCtx)
 	s.cancel = cancel
@@ -181,11 +180,21 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 		}
 
 		select {
-		case s.ch <- msgs.LogLine{Text: string(payload), IsStderr: header[0] == stderrStream, ServiceName: s.serviceName}:
+		case s.lineCh <- strings.TrimRight(string(payload), "\n"):
+			select {
+			case s.ch <- msgs.LogLinesAvailable{}:
+			default:
+			}
 		case <-ctx.Done():
 			return
 		}
 	}
+}
+
+// Lines returns a read-only channel that delivers log line strings. The
+// channel is closed in Close.
+func (s *LogStreamer) Lines() <-chan string {
+	return s.lineCh
 }
 
 // Next returns a tea.Cmd that blocks until the next message arrives on the
@@ -207,13 +216,15 @@ func (s *LogStreamer) Next() tea.Cmd {
 
 // Close cancels the streaming context, waits for the reader goroutine to exit,
 // rotates the done channel to unblock any in-flight Next cmd, then drains any
-// buffered messages. Close is a no-op when no stream is active.
+// buffered error messages. Close is a no-op when no stream is active.
 func (s *LogStreamer) Close() {
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
 
 		s.wg.Wait()
+
+		close(s.lineCh)
 
 		old := s.done
 		s.done = make(chan struct{})
