@@ -280,6 +280,7 @@ linters:
         - ^golang.org/x/tools/go/analysis.Analyzer$
         - ^google.golang.org/protobuf/.+Options$
         - ^gopkg.in/yaml.v3.Node$
+        - ^charm.land/bubbles/v2/viewport.KeyMap$
       # Allows empty structures in return statements.
       # Default: false
       allow-empty-returns: true
