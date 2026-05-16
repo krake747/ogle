@@ -35,7 +35,6 @@ const (
 	listRatio    = 30
 	listMaxWidth = 80
 	pctDivisor   = 100
-	frameChrome  = 2
 )
 
 // ListWidth returns the allocated width for the service list
@@ -51,6 +50,7 @@ type Model struct {
 	delegate     hoverlist.Delegate
 	theme        *theme.Theme
 	lastSelected string
+	w, h         int
 }
 
 // New returns a Model pre-loaded with the given project's services.
@@ -83,6 +83,8 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 		delegate:     hd,
 		theme:        th,
 		lastSelected: "",
+		w:            w,
+		h:            h,
 	}
 }
 
@@ -97,7 +99,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(ListWidth(msg.Width), msg.Height-frameChrome)
+		m.list.SetSize(m.w, m.h)
 
 		return m, nil
 

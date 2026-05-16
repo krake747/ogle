@@ -11,7 +11,6 @@ import (
 
 const (
 	defaultCap = 1000
-	logHeight  = 8
 )
 
 // Model stores raw log text lines backed by a viewport for windowed rendering.
@@ -21,9 +20,9 @@ type Model struct {
 	viewport viewport.Model
 }
 
-// New returns a Model with the given width. Height is fixed at 3 rows.
-func New(w, _ int) Model {
-	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(logHeight))
+// New returns a Model with the given width. Height is teminal height.
+func New(w, h int) Model {
+	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(h))
 	vp.KeyMap = viewport.KeyMap{}
 
 	return Model{

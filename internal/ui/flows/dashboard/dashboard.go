@@ -150,6 +150,11 @@ func (m Model) View() tea.View {
 	panContent := lipgloss.NewStyle().Height(contentH).Render(m.panel.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
+	body = lipgloss.NewStyle().MaxHeight(contentH).Render(body)
 
-	return tea.NewView(statusContent + "\n" + body + "\n" + m.helpbar.View())
+	return tea.NewView(lipgloss.JoinVertical(lipgloss.Top,
+		statusContent,
+		body,
+		m.helpbar.View(),
+	))
 }

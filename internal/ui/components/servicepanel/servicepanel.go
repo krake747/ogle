@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	tileHeight = 8
+	tileHeight = 0
 )
 
 // Model manages a set of per-service hosts and the state polling lifecycle.
