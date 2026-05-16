@@ -48,19 +48,21 @@ func ContainerName(project, service, containerNameOverride string) string {
 // Next/Close contract that mirrors the watcher pattern: the caller re-subscribes
 // after each received message.
 type LogStreamer struct {
-	cancel context.CancelFunc
-	ch     chan tea.Msg
-	done   chan struct{}
-	wg     sync.WaitGroup
+	cancel      context.CancelFunc
+	ch          chan tea.Msg
+	done        chan struct{}
+	wg          sync.WaitGroup
+	serviceName string
 }
 
 // New returns an idle LogStreamer. Call Start before calling Next.
-func New() *LogStreamer {
+func New(serviceName string) *LogStreamer {
 	return &LogStreamer{
-		cancel: nil,
-		ch:     make(chan tea.Msg, channelCap),
-		done:   make(chan struct{}),
-		wg:     sync.WaitGroup{},
+		cancel:      nil,
+		ch:          make(chan tea.Msg, channelCap),
+		done:        make(chan struct{}),
+		wg:          sync.WaitGroup{},
+		serviceName: serviceName,
 	}
 }
 
@@ -95,7 +97,7 @@ func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 		)
 		if err != nil {
 			select {
-			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: ""}:
+			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: s.serviceName}:
 			case <-ctx.Done():
 			}
 
@@ -105,7 +107,7 @@ func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 		resp, err := client.Do(req)
 		if err != nil {
 			select {
-			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: ""}:
+			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: s.serviceName}:
 			case <-ctx.Done():
 			}
 
@@ -118,7 +120,7 @@ func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 			client.CloseIdleConnections()
 
 			select {
-			case s.ch <- msgs.LogStreamContainerNotFound{ServiceName: ""}:
+			case s.ch <- msgs.LogStreamContainerNotFound{ServiceName: s.serviceName}:
 			case <-ctx.Done():
 			}
 
@@ -134,7 +136,7 @@ func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 			select {
 			case s.ch <- msgs.LogStreamError{
 				Err:         fmt.Errorf("%w %d: %s", errUnexpectedStatus, resp.StatusCode, body),
-				ServiceName: "",
+				ServiceName: s.serviceName,
 			}:
 			case <-ctx.Done():
 			}
@@ -160,7 +162,7 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 			select {
 			case <-ctx.Done():
 				// normal shutdown — do not emit an error
-			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: ""}:
+			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: s.serviceName}:
 			}
 
 			return
@@ -172,14 +174,14 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 		if _, readErr := io.ReadFull(body, payload); readErr != nil {
 			select {
 			case <-ctx.Done():
-			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: ""}:
+			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: s.serviceName}:
 			}
 
 			return
 		}
 
 		select {
-		case s.ch <- msgs.LogLine{Text: string(payload), IsStderr: header[0] == stderrStream, ServiceName: ""}:
+		case s.ch <- msgs.LogLine{Text: string(payload), IsStderr: header[0] == stderrStream, ServiceName: s.serviceName}:
 		case <-ctx.Done():
 			return
 		}

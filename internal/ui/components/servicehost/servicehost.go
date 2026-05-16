@@ -31,7 +31,7 @@ func New(th *theme.Theme, def domain.ServiceDef, project string, w, h int) Model
 		def:             def,
 		inspector:       inspector.New(th, def, w, h),
 		logPane:         logpane.New(w, h),
-		streamer:        logs.New(),
+		streamer:        logs.New(def.Name),
 		streamerStarted: false,
 		theme:           th,
 		project:         project,
@@ -52,7 +52,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
 			m.streamerStarted = true
@@ -63,17 +63,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.LogLine:
 		cmds = append(cmds, m.streamer.Next())
+		if msg.ServiceName == m.def.Name {
+			var logCmd tea.Cmd
+
+			m.logPane, logCmd = m.logPane.Update(msg)
+			if logCmd != nil {
+				cmds = append(cmds, logCmd)
+			}
+		}
 
 	case msgs.LogStreamError, msgs.LogStreamContainerNotFound:
 		cmds = append(cmds, m.streamer.Next())
 	}
 
 	var cmd tea.Cmd
-
-	m.logPane, cmd = m.logPane.Update(msg)
-	if cmd != nil {
-		cmds = append(cmds, cmd)
-	}
 
 	m.inspector, cmd = m.inspector.Update(msg)
 	if cmd != nil {
