@@ -30,7 +30,7 @@ type Model struct {
 func New(project *domain.Project, th *theme.Theme, w, h int) Model {
 	hosts := make([]servicehost.Model, len(project.Services))
 	for i, svc := range project.Services {
-		hosts[i] = servicehost.New(th, svc, w, h)
+		hosts[i] = servicehost.New(th, svc, project.Name, w, h)
 	}
 
 	return Model{
@@ -46,6 +46,8 @@ func (m Model) Init() tea.Cmd { return nil }
 
 // Update handles poll lifecycle messages and forwards everything else to hosts.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	cmds := make([]tea.Cmd, 0, len(m.hosts)+1)
+
 	switch msg := msg.(type) {
 	case msgs.ServiceSelected:
 		m.selectedName = msg.ServiceName
@@ -53,19 +55,21 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.DaemonConnected:
 		if !m.pollerStarted {
 			m.pollerStarted = true
-
-			return m, m.pollStateCmd()
+			cmds = append(cmds, m.pollStateCmd())
 		}
 
 	case msgs.StatePollTick:
-		return m, m.pollStateCmd()
+		cmds = append(cmds, m.pollStateCmd())
 	}
 
 	for i := range m.hosts {
-		m.hosts[i], _ = m.hosts[i].Update(msg)
+		var cmd tea.Cmd
+
+		m.hosts[i], cmd = m.hosts[i].Update(msg)
+		cmds = append(cmds, cmd)
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 // View renders all hosts as compositor layers with the selected host at top.
