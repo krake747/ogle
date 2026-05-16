@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -17,11 +18,12 @@ import (
 
 // psLine maps a single JSON line from "docker compose ps --format json".
 type psLine struct {
-	ID      string `json:"id"`
-	Name    string `json:"name"`
-	Service string `json:"service"`
-	State   string `json:"state"`
-	Health  string `json:"health"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Service   string `json:"service"`
+	State     string `json:"state"`
+	Health    string `json:"health"`
+	CreatedAt string `json:"createdat"`
 }
 
 // Ps returns a Cmd that runs docker compose ps and returns a ServicesPolled
@@ -78,11 +80,18 @@ func parsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
 			continue
 		}
 
+		createdAt, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", entry.CreatedAt)
+
+		stateAge := time.Duration(0)
+		if !createdAt.IsZero() {
+			stateAge = time.Since(createdAt)
+		}
+
 		runtimes[name] = &domain.ServiceRuntimeData{
 			ContainerID: entry.ID,
 			State:       parseState(entry.State),
 			Health:      parseHealth(entry.Health),
-			StateAge:    0,
+			StateAge:    stateAge,
 		}
 	}
 

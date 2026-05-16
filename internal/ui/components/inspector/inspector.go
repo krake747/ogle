@@ -88,6 +88,10 @@ func (m Model) View() string {
 		}
 
 		healthStr = string(m.runtime.Health)
+		if m.runtime.Health != "" {
+			healthColour := colourForHealth(m.runtime.Health, m.theme)
+			healthStr = lipgloss.NewStyle().Foreground(healthColour).Render(healthStr)
+		}
 	}
 
 	stateColour := m.theme.StateRunning
@@ -119,6 +123,21 @@ func formatAge(d time.Duration) string {
 	default:
 		return fmt.Sprintf("%dh", secs/secsPerHour)
 	}
+}
+
+func colourForHealth(h domain.ServiceHealth, th *theme.Theme) color.Color {
+	switch h {
+	case domain.ServiceHealthHealthy:
+		return th.StateRunning
+	case domain.ServiceHealthUnhealthy:
+		return th.StateExited
+	case domain.ServiceHealthStarting:
+		return th.StateTransient
+	case domain.ServiceHealthNoHealthcheck, domain.ServiceHealthUnknown:
+		return th.StateMuted
+	}
+
+	return th.StateMuted
 }
 
 func colourForState(s domain.ServiceState, th *theme.Theme) color.Color {

@@ -22,6 +22,7 @@ type Model struct {
 // New returns a Model reading from the given line channel.
 func New(w, h int, lineCh <-chan string) Model {
 	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(h))
+	vp.MouseWheelEnabled = true
 	vp.KeyMap = viewport.KeyMap{}
 
 	return Model{
