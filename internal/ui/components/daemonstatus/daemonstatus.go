@@ -119,18 +119,18 @@ func pollDaemonCmd() tea.Cmd {
 }
 
 // View renders connection status text.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	switch m.conn.ConnectState() {
 	case connection.ConnectStateConnecting:
 		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
 		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
 
-		return faded + " " + label + " " + m.spn.View()
+		return tea.NewView(faded + " " + label + " " + m.spn.View())
 
 	case connection.ConnectStateConnected:
 		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
 
-		return "🐳 " + live
+		return tea.NewView("🐳 " + live)
 
 	case connection.ConnectStateUnavailable:
 		secs := int(math.Ceil(m.conn.Remaining().Seconds()))
@@ -143,9 +143,9 @@ func (m Model) View() string {
 		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
 		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
 
-		return faded + " " + label + " " + countdown
+		return tea.NewView(faded + " " + label + " " + countdown)
 
 	default:
-		return "dashboard"
+		return tea.NewView("dashboard")
 	}
 }

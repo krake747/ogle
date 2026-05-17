@@ -17,11 +17,16 @@ type Model struct {
 
 // New returns a Model.
 func New() Model {
-	return Model{help: help.New(), keymap: nil}
+	return Model{
+		help:   help.New(),
+		keymap: nil,
+	}
 }
 
 // Init satisfies tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
 // Update satisfies tea.Model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -36,10 +41,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the help bar with the current keymap.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if m.keymap == nil {
-		return ""
+		return tea.NewView("")
 	}
 
-	return m.help.View(m.keymap)
+	return tea.NewView(m.help.View(m.keymap))
 }

@@ -99,4 +99,6 @@ func (w Watching) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (w Watching) View() tea.View { return tea.NewView(w.model.View()) }
+func (w Watching) View() tea.View {
+	return w.model.View()
+}

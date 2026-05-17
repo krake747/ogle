@@ -61,9 +61,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the detail header for this service.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	if m.def.Name == "" || m.w == 0 {
-		return ""
+		return tea.NewView("")
 	}
 
 	stateStr := dash
@@ -105,7 +105,7 @@ func (m Model) View() string {
 		"Ports:         " + strings.Join(m.def.Ports, ", "),
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
+	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, lines...))
 }
 
 func formatAge(d time.Duration) string {

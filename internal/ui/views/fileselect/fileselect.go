@@ -218,6 +218,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders the Project Selector screen.
-func (m Model) View() string {
-	return m.list.View()
+func (m Model) View() tea.View {
+	return tea.NewView(m.list.View())
 }

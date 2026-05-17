@@ -120,7 +120,7 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 	return m, nil
 }
 
-func (m serviceItem) View() string {
+func (m serviceItem) View() tea.View {
 	icon := "●"
 	colour := m.theme.StateMuted
 
@@ -161,11 +161,11 @@ func (m serviceItem) View() string {
 		rendered += "  " + lipgloss.NewStyle().Foreground(m.theme.ActionError).Render(m.actionError)
 	}
 
-	return rendered
+	return tea.NewView(rendered)
 }
 
 func (m serviceItem) Title() string {
-	return m.View()
+	return m.View().Content
 }
 
 func (m serviceItem) Description() string {

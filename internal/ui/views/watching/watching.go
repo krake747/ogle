@@ -146,7 +146,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders the watching screen with the title pinned top-left and the
 // body block anchored to the bottom-left.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	w := m.width
 	h := m.height
 
@@ -190,9 +190,9 @@ func (m Model) View() string {
 
 	// Lipgloss owns everything below the title: Height(h-1) with bottom
 	// alignment pins the body+footer block to the last rows of the screen.
-	return "ogle\n" + lipgloss.NewStyle().
+	return tea.NewView("ogle\n" + lipgloss.NewStyle().
 		Width(w).
 		Height(h-1).
 		Align(lipgloss.Left, lipgloss.Bottom).
-		Render(content)
+		Render(content))
 }

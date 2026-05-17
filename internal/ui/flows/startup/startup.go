@@ -74,15 +74,15 @@ func (m Model) Init() tea.Cmd {
 // because the transition is identical for all states and requires no knowledge
 // of the current state's internals.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if sz, ok := msg.(tea.WindowSizeMsg); ok {
-		m.width = sz.Width
-		m.height = sz.Height
-	}
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.width = msg.Width
 
-	if we, ok := msg.(msgs.WatcherError); ok {
+	case msgs.WatcherError:
 		m.current = states.NewWatchingWithError(
 			m.dir,
-			we.Err,
+			msg.Err,
 			m.scanner,
 			m.parser,
 			m.theme,

@@ -85,13 +85,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View returns the rendered content for this host's position in the compositor.
-func (m Model) View() string {
-	inspView := m.inspector.View()
-	logView := m.logPane.View()
+func (m Model) View() tea.View {
+	inspView := m.inspector.View().Content
+	logView := m.logPane.View().Content
 
 	if logView == "" {
-		return inspView
+		return tea.NewView(inspView)
 	}
 
-	return inspView + "\n" + logView
+	return tea.NewView(inspView + "\n" + logView)
 }

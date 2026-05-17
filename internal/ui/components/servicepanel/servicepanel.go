@@ -88,18 +88,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 // View renders all hosts as compositor layers with the selected host at top.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	lyrs := make([]*lipgloss.Layer, len(m.hosts))
 	for i, h := range m.hosts {
 		content := ""
 		if h.ServiceName() == m.selectedName {
-			content = h.View()
+			content = h.View().Content
 		}
 
 		lyrs[i] = lipgloss.NewLayer(content).X(0).Y(0).Z(i)
 	}
 
-	return lipgloss.NewCompositor(lyrs...).Render()
+	return tea.NewView(lipgloss.NewCompositor(lyrs...).Render())
 }
 
 func (m Model) pollStateCmd() tea.Cmd {

@@ -101,6 +101,6 @@ func (m Model) drainLines() (Model, tea.Cmd) {
 }
 
 // View returns the viewport-rendered window of log lines.
-func (m Model) View() string {
-	return m.viewport.View()
+func (m Model) View() tea.View {
+	return tea.NewView(m.viewport.View())
 }

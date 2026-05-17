@@ -245,8 +245,8 @@ func (m Model) FullHelp() [][]key.Binding {
 }
 
 // View renders the service list.
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	m.list.Styles.Title = m.theme.ServiceListTitle
 
-	return m.list.View()
+	return tea.NewView(m.list.View())
 }

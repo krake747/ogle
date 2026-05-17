@@ -54,4 +54,6 @@ func (s Selecting) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (s Selecting) View() tea.View { return tea.NewView(s.model.View()) }
+func (s Selecting) View() tea.View {
+	return s.model.View()
+}
