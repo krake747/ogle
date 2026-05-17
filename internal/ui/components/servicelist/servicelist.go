@@ -32,16 +32,11 @@ var (
 )
 
 const (
+	offsetY      = 2
 	listRatio    = 30
 	listMaxWidth = 80
 	pctDivisor   = 100
 )
-
-// ListWidth returns the allocated width for the service list
-// based on the total window width.
-func ListWidth(totalW int) int {
-	return min(totalW*listRatio/pctDivisor, listMaxWidth)
-}
 
 // Model is the service list component. It is a value type; all mutating
 // methods return a new Model.
@@ -50,11 +45,10 @@ type Model struct {
 	delegate     hoverlist.Delegate
 	theme        *theme.Theme
 	lastSelected string
-	w, h         int
 }
 
 // New returns a Model pre-loaded with the given project's services.
-func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) Model {
+func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Model {
 	base := list.NewDefaultDelegate()
 	base.SetSpacing(0)
 	base.ShowDescription = false
@@ -65,7 +59,8 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 		items[i] = newServiceItem(svc, th)
 	}
 
-	l := list.New(items, hd, w, h)
+	listW := min(w*listRatio/pctDivisor, listMaxWidth)
+	l := list.New(items, hd, listW, len(items)+offsetY)
 	l.DisableQuitKeybindings()
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
 	l.KeyMap.CloseFullHelp.SetEnabled(false)
@@ -83,8 +78,6 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w, h int) M
 		delegate:     hd,
 		theme:        th,
 		lastSelected: "",
-		w:            w,
-		h:            h,
 	}
 }
 
@@ -99,7 +92,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.list.SetSize(m.w, m.h)
+		// availableH := max(msg.Height-helpbarHeight, 0)
+		m.list.SetSize(
+			min(msg.Width*listRatio/pctDivisor, listMaxWidth),
+			len(m.list.Items())+offsetY,
+		)
 
 		return m, nil
 

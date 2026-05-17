@@ -21,11 +21,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const (
-	helpbarHeight = 2
-	statusHeight  = 1
-)
-
 // Model is the dashboard flow orchestrator.
 type Model struct {
 	ctx         context.Context
@@ -48,9 +43,7 @@ func New(
 ) tea.Model {
 	conn := connection.New()
 
-	contentH := max(h-statusHeight-helpbarHeight, 0)
-	listW := servicelist.ListWidth(w)
-	svcList := servicelist.New(project, th, zm, listW, contentH)
+	svcList := servicelist.New(project, th, zm, w)
 
 	return Model{
 		ctx:         ctx,
@@ -58,7 +51,7 @@ func New(
 		conn:        conn,
 		daemon:      daemonstatus.New(ctx, conn, th),
 		serviceList: svcList,
-		panel:       servicepanel.New(project, th, w-listW, contentH),
+		panel:       servicepanel.New(project, th, w, h),
 		helpbar:     helpbar.New(),
 		w:           w,
 		h:           h,
@@ -147,13 +140,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	statusContent := m.daemon.View()
 
-	contentH := max(m.h-statusHeight-helpbarHeight, 0)
-
 	listContent := m.serviceList.View()
-	panContent := lipgloss.NewStyle().Height(contentH).Render(m.panel.View())
+	panContent := lipgloss.NewStyle().Render(m.panel.View())
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
-	body = lipgloss.NewStyle().MaxHeight(contentH).Render(body)
 
 	return tea.NewView(lipgloss.JoinVertical(lipgloss.Top,
 		statusContent,

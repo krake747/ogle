@@ -11,7 +11,6 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -22,23 +21,21 @@ const (
 	secsPerHour   = 3600
 )
 
-// Model renders the detail header for a single service. It is a value type;
-// all mutating methods return a new Model.
+// Model renders the detail header for a single service.
 type Model struct {
 	def     domain.ServiceDef
 	runtime *domain.ServiceRuntimeData
 	theme   *theme.Theme
-	w, h    int
+	w       int
 }
 
 // New returns a Model for the given service.
-func New(th *theme.Theme, def domain.ServiceDef, w, h int) Model {
+func New(th *theme.Theme, def domain.ServiceDef, w, _ int) Model {
 	return Model{
 		def:     def,
 		runtime: nil,
 		theme:   th,
 		w:       w,
-		h:       h,
 	}
 }
 
@@ -52,8 +49,7 @@ func (m Model) Init() tea.Cmd { return nil }
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.w = msg.Width - servicelist.ListWidth(msg.Width)
-		m.h = msg.Height
+		m.w = msg.Width
 
 	case msgs.ServicesPolled:
 		if msg.Err == nil && m.def.Name != "" {

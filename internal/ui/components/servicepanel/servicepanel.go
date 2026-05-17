@@ -14,10 +14,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const (
-	tileHeight = 0
-)
-
 // Model manages a set of per-service hosts and the state polling lifecycle.
 type Model struct {
 	hosts         []servicehost.Model
@@ -56,6 +52,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0, len(m.hosts)+1)
 
 	switch msg := msg.(type) {
+	case tea.KeyReleaseMsg, tea.MouseWheelMsg:
+		for i := range m.hosts {
+			if m.hosts[i].ServiceName() == m.selectedName {
+				var cmd tea.Cmd
+
+				m.hosts[i], cmd = m.hosts[i].Update(msg)
+				cmds = append(cmds, cmd)
+
+				return m, tea.Batch(cmds...)
+			}
+		}
+
 	case msgs.ServiceSelected:
 		m.selectedName = msg.ServiceName
 
@@ -81,35 +89,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View renders all hosts as compositor layers with the selected host at top.
 func (m Model) View() string {
-	if len(m.hosts) == 0 {
-		return ""
-	}
-
-	topIdx := -1
-
+	lyrs := make([]*lipgloss.Layer, len(m.hosts))
 	for i, h := range m.hosts {
+		content := ""
 		if h.ServiceName() == m.selectedName {
-			topIdx = i
-
-			break
-		}
-	}
-
-	lyrs := make([]*lipgloss.Layer, 0, len(m.hosts))
-	y := 0
-
-	if topIdx >= 0 {
-		lyrs = append(lyrs, lipgloss.NewLayer(m.hosts[topIdx].View()).X(0).Y(0).Z(1))
-		y += tileHeight
-	}
-
-	for i, h := range m.hosts {
-		if i == topIdx {
-			continue
+			content = h.View()
 		}
 
-		lyrs = append(lyrs, lipgloss.NewLayer(h.View()).X(0).Y(y).Z(0))
-		y += tileHeight
+		lyrs[i] = lipgloss.NewLayer(content).X(0).Y(0).Z(i)
 	}
 
 	return lipgloss.NewCompositor(lyrs...).Render()
