@@ -6,20 +6,22 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 )
 
-// FileAvailabilityChanged is emitted by the watcher whenever compose file
-// presence in the watched directory changes. Files contains the absolute paths
-// of all compose filenames that currently exist on disk. Consumers are
-// responsible for calling parser.Service.Validate on each path before use;
-// the watcher only performs existence checks.
-type FileAvailabilityChanged struct {
-	Files []string
-}
+type (
+	// FileAvailabilityChanged is emitted by the watcher whenever compose file
+	// presence in the watched directory changes. Files contains the absolute paths
+	// of all compose filenames that currently exist on disk. Consumers are
+	// responsible for calling parser.Service.Validate on each path before use;
+	// the watcher only performs existence checks.
+	FileAvailabilityChanged struct {
+		Files []string
+	}
 
-// FileSelected is emitted by the fileselect view when the user confirms a file
-// choice from the picker.
-type FileSelected struct {
-	Path string
-}
+	// FileSelected is emitted by the fileselect view when the user confirms a file
+	// choice from the picker.
+	FileSelected struct {
+		Path string
+	}
+)
 
 // ProjectLoaded is emitted by the startup flow after a successful
 // parser.Service.Parse call and signals the app root to transition to the dashboard.
@@ -42,81 +44,70 @@ type ServiceSelected struct {
 	ServiceName string
 }
 
-// ServiceStop is emitted when the user triggers stop on a service.
-type ServiceStop struct{ ServiceName string }
+type (
+	// ServiceStop is emitted when the user triggers stop on a service.
+	ServiceStop struct{ ServiceName string }
 
-// ServiceStart is emitted when the user triggers start on a service.
-type ServiceStart struct{ ServiceName string }
+	// ServiceStart is emitted when the user triggers start on a service.
+	ServiceStart struct{ ServiceName string }
 
-// ServiceRestart is emitted when the user triggers restart on a service.
-type ServiceRestart struct{ ServiceName string }
+	// ServiceRestart is emitted when the user triggers restart on a service.
+	ServiceRestart struct{ ServiceName string }
 
-// ServiceRebuild is emitted when the user triggers rebuild on a service.
-type ServiceRebuild struct{ ServiceName string }
+	// ServiceRebuild is emitted when the user triggers rebuild on a service.
+	ServiceRebuild struct{ ServiceName string }
 
-// DaemonMsg is a marker interface for messages routed to the daemonstatus
-// component in the dashboard flow. Types in the msgs package and the daemonstatus
-// package implement it via the unexported daemonMsg method.
-type DaemonMsg interface {
-	daemonMsg()
-}
+	// ServiceActionCompleted is emitted by a docker action cmd when the
+	// docker compose subprocess exits, whether successfully or not.
+	ServiceActionCompleted struct {
+		ServiceName string
+		Action      domain.ServiceAction
+		Err         error
+	}
+)
 
-// DaemonConnected is emitted by the docker service when the Docker daemon ping
-// succeeds. It signals the Dashboard to start State Polling and Log Stream.
-type DaemonConnected struct{}
+type (
+	// DaemonConnected is emitted by the docker service when the Docker daemon ping
+	// succeeds. It signals the Dashboard to start State Polling and Log Stream.
+	DaemonConnected struct{}
 
-func (DaemonConnected) daemonMsg() {}
+	// DaemonUnavailable is emitted by the docker service when the Docker daemon
+	// cannot be reached. The Dashboard shows a retry countdown and freezes Service
+	// States at their last-known values.
+	DaemonUnavailable struct{ Err error }
 
-// DaemonUnavailable is emitted by the docker service when the Docker daemon
-// cannot be reached. The Dashboard shows a retry countdown and freezes Service
-// States at their last-known values.
-type DaemonUnavailable struct{ Err error }
+	// DaemonTick fires every 1 second during the Docker retry countdown loop.
+	DaemonTick struct{}
 
-func (DaemonUnavailable) daemonMsg() {}
+	// DaemonGraceExpired fires once after the initial connection grace period.
+	DaemonGraceExpired struct{}
 
-// DaemonTick fires every 1 second during the Docker retry countdown loop.
-type DaemonTick struct{}
-
-func (DaemonTick) daemonMsg() {}
-
-// DaemonGraceExpired fires once after the initial connection grace period.
-type DaemonGraceExpired struct{}
-
-func (DaemonGraceExpired) daemonMsg() {}
-
-// DaemonPoll fires at a regular interval while connected to detect when Docker
-// becomes unavailable.
-type DaemonPoll struct{}
-
-func (DaemonPoll) daemonMsg() {}
-
-// ServiceActionCompleted is emitted by a docker action cmd when the
-// docker compose subprocess exits, whether successfully or not.
-type ServiceActionCompleted struct {
-	ServiceName string
-	Action      domain.ServiceAction
-	Err         error
-}
+	// DaemonPoll fires at a regular interval while connected to detect when Docker
+	// becomes unavailable.
+	DaemonPoll struct{}
+)
 
 // BindingsMsg delivers a unified keymap to the helpbar component.
 type BindingsMsg struct {
 	Keymap help.KeyMap
 }
 
-// LogLinesAvailable signals that new log lines are waiting in the streamer's
-// line channel. The logpane drains the channel on receipt.
-type LogLinesAvailable struct{}
+type (
+	// LogLinesAvailable signals that new log lines are waiting in the streamer's
+	// line channel. The logpane drains the channel on receipt.
+	LogLinesAvailable struct{}
 
-// LogStreamError is emitted when the LogStreamer goroutine hits a read error.
-type LogStreamError struct {
-	Err         error
-	ServiceName string
-}
+	// LogStreamError is emitted when the LogStreamer goroutine hits a read error.
+	LogStreamError struct {
+		Err         error
+		ServiceName string
+	}
 
-// LogStreamContainerNotFound is emitted when the logs endpoint returns 404.
-type LogStreamContainerNotFound struct {
-	ServiceName string
-}
+	// LogStreamContainerNotFound is emitted when the logs endpoint returns 404.
+	LogStreamContainerNotFound struct {
+		ServiceName string
+	}
+)
 
 // StatePollTick is emitted by the inspector's poll loop to trigger a compose ps poll.
 type StatePollTick struct{}
@@ -133,17 +124,4 @@ type ServicesPolled struct {
 type SettingsApplied struct {
 	Theme        string
 	LogBufferCap int
-}
-
-// OrphanDiscovered is emitted when a running container is found that has no
-// corresponding Service in the current Project. Dashboard creates a Service
-// Layer for it so logs and state are visible.
-type OrphanDiscovered struct {
-	Service domain.ServiceDef
-}
-
-// OrphanGone is emitted when a previously discovered Orphan container stops
-// or disappears. Dashboard closes and removes its Service Layer.
-type OrphanGone struct {
-	ServiceName string
 }

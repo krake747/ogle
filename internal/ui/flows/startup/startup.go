@@ -66,7 +66,9 @@ func New(
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return m.current.Init() }
+func (m Model) Init() tea.Cmd {
+	return m.current.Init()
+}
 
 // Update delegates to the current state. msgs.WatcherError is intercepted here
 // because the transition is identical for all states and requires no knowledge
@@ -99,4 +101,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View implements tea.Model.
-func (m Model) View() tea.View { return m.current.View() }
+func (m Model) View() tea.View {
+	return m.current.View()
+}

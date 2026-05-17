@@ -28,12 +28,18 @@ func NewParsing(
 	display tea.Model,
 	p parser.Parser,
 ) tea.Model {
-	return Parsing{path: path, parse: ParseCmd(path, p), display: setParsing(display, true)}
+	return Parsing{
+		path:    path,
+		parse:   ParseCmd(path, p),
+		display: setParsing(display, true),
+	}
 }
 
 // Init fires the parse command. Only meaningful for the -f startup case;
 // mid-session transitions deliver Parse via Update's return value.
-func (p Parsing) Init() tea.Cmd { return p.parse }
+func (p Parsing) Init() tea.Cmd {
+	return p.parse
+}
 
 // Update handles the parse result. Other messages are forwarded to display
 // to keep the UI responsive during the parse.
@@ -48,7 +54,9 @@ func (p Parsing) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // View keeps the UI unchanged during the parse.
-func (p Parsing) View() tea.View { return p.display.View() }
+func (p Parsing) View() tea.View {
+	return p.display.View()
+}
 
 func (p Parsing) handleParseDone(done parseDoneMsg) (tea.Model, tea.Cmd) {
 	if done.err == nil {

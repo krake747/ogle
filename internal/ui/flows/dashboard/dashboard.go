@@ -5,7 +5,6 @@ import (
 	"context"
 
 	"charm.land/bubbles/v2/key"
-	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -83,19 +82,12 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages and forwards daemon messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd, panCmd, helpCmd tea.Cmd
+	var daemonCmd, svcListCmd, panCmd, helpCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
-
-	case msgs.DaemonMsg, spinner.TickMsg:
-		m.daemon, cmd = m.daemon.Update(msg)
-		m.panel, panCmd = m.panel.Update(msg)
-		cmd = tea.Batch(cmd, panCmd)
-
-		return m, cmd
 
 	case msgs.StatePollTick:
 		m.panel, panCmd = m.panel.Update(msg)
@@ -128,11 +120,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.serviceList, cmd = m.serviceList.Update(msg)
+	m.daemon, daemonCmd = m.daemon.Update(msg)
+	m.serviceList, svcListCmd = m.serviceList.Update(msg)
 	m.panel, panCmd = m.panel.Update(msg)
 	m.helpbar, helpCmd = m.helpbar.Update(msg)
 
-	return m, tea.Batch(cmd, panCmd, helpCmd)
+	return m, tea.Batch(
+		daemonCmd,
+		svcListCmd,
+		panCmd,
+		helpCmd,
+	)
 }
 
 // View renders the daemon status header, service list + inspector side by side,
