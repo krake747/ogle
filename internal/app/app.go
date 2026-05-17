@@ -17,7 +17,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
-	"github.com/ma-tf/ogle/internal/ui/flows/startup2"
+	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -62,7 +62,7 @@ func New(
 
 	zm := zone.New()
 
-	s, err := startup2.New(ctx, log, dir, width, height)
+	s, err := startup.New(ctx, log, dir, width, height)
 	if err != nil {
 		log.WarnContext(
 			ctx,
