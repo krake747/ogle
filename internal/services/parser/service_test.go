@@ -12,63 +12,6 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 )
 
-func TestValidate(t *testing.T) {
-	t.Parallel()
-
-	type testCase struct {
-		name string
-		// arrange
-		yaml  string
-		setup func(tc *testCase, dir string)
-		path  string
-
-		// assert
-		expectedError error
-	}
-
-	cases := []testCase{
-		{
-			name: "valid file",
-			yaml: "name: myproject\nservices:\n  web:\n    image: nginx\n",
-			setup: func(tc *testCase, dir string) {
-				tc.path = filepath.Join(dir, "compose.yaml")
-			},
-			expectedError: nil,
-		},
-		{
-			name: "file does not exist",
-			setup: func(tc *testCase, dir string) {
-				tc.path = filepath.Join(dir, "compose.yaml")
-			},
-			expectedError: parser.ErrReadComposeFile,
-		},
-		{
-			name: "invalid YAML",
-			yaml: "{",
-			setup: func(tc *testCase, dir string) {
-				tc.path = filepath.Join(dir, "compose.yaml")
-			},
-			expectedError: parser.ErrParseComposeFile,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			tc.setup(&tc, t.TempDir())
-
-			if tc.yaml != "" {
-				require.NoError(t, os.WriteFile(tc.path, []byte(tc.yaml), 0o600))
-			}
-
-			svc := parser.New(slog.New(slog.NewTextHandler(os.Stderr, nil)))
-			err := svc.Validate(tc.path)
-			require.ErrorIs(t, err, tc.expectedError)
-		})
-	}
-}
-
 //nolint:funlen
 func TestParse(t *testing.T) {
 	t.Parallel()
@@ -161,7 +104,7 @@ func TestParse(t *testing.T) {
 				require.NoError(t, os.WriteFile(tc.path, []byte(tc.yaml), 0o600))
 			}
 
-			svc := parser.New(slog.New(slog.NewTextHandler(os.Stderr, nil)))
+			svc := parser.New(t.Context(), slog.New(slog.NewTextHandler(os.Stderr, nil)))
 			result, err := svc.Parse(tc.path)
 
 			if tc.expectedError != nil {

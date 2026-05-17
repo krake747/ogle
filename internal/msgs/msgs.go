@@ -23,11 +23,20 @@ type (
 	}
 )
 
-// ProjectLoaded is emitted by the startup flow after a successful
-// parser.Service.Parse call and signals the app root to transition to the dashboard.
-type ProjectLoaded struct {
-	Project *domain.Project
-}
+type (
+	// ProjectLoaded is emitted by the startup flow after a successful
+	// parser.Service.Parse call and signals the app root to transition to the dashboard.
+	ProjectLoaded struct {
+		Project *domain.Project
+	}
+
+	// ProjectLoadFailed is emitted by the startup flow when parser.Service.Parse
+	// returns an error. The startup flow forwards this to the fileselect view to
+	// set an error state on the selected file.
+	ProjectLoadFailed struct {
+		Error error
+	}
+)
 
 // WatcherError is delivered when watcher.New fails — either on initial startup
 // or after a retry attempt. The startup flow forwards this to the watching view

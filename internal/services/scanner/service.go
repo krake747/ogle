@@ -32,18 +32,6 @@ func New(logger *slog.Logger) Service {
 // ogle, from highest to lowest priority. Files are returned as a new slice on
 // each call so callers cannot mutate the canonical list.
 func (s Service) KnownFilenames() []string {
-	return knownFilenames()
-}
-
-// ScanAll returns the absolute paths of all known compose filenames that exist
-// in dir, in priority order. Files that do not exist are silently omitted. No
-// YAML validation is performed; call parser.Service.Validate on each path
-// before use.
-func (s Service) ScanAll(dir string) []string {
-	return scanAll(dir)
-}
-
-func knownFilenames() []string {
 	return []string{
 		"compose.yml",
 		"compose.yaml",
@@ -52,10 +40,14 @@ func knownFilenames() []string {
 	}
 }
 
-func scanAll(dir string) []string {
+// ScanAll returns the absolute paths of all known compose filenames that exist
+// in dir, in priority order. Files that do not exist are silently omitted. No
+// YAML validation is performed; call parser.Service.Validate on each path
+// before use.
+func (s Service) ScanAll(dir string) []string {
 	var found []string
 
-	for _, name := range knownFilenames() {
+	for _, name := range s.KnownFilenames() {
 		path := filepath.Join(dir, name)
 		if _, err := os.Stat(path); err == nil {
 			found = append(found, path)

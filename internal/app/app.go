@@ -5,7 +5,6 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -17,17 +16,10 @@ import (
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
-	"github.com/ma-tf/ogle/internal/services/parser"
-	"github.com/ma-tf/ogle/internal/services/scanner"
-	svcwatcher "github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
-	"github.com/ma-tf/ogle/internal/ui/flows/startup"
+	"github.com/ma-tf/ogle/internal/ui/flows/startup2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
-
-// watcherReadyMsg is delivered when a watcher retry succeeds, carrying the
-// newly-created Watcher.
-type watcherReadyMsg struct{ w svcwatcher.Watcher }
 
 // Model is the root flow orchestrator.
 type Model struct {
@@ -35,12 +27,9 @@ type Model struct {
 	cfg       config.Config
 	configDir string
 	dir       string
-	logger    *slog.Logger
-	scanner   scanner.Scanner
-	parser    parser.Parser
+	log       *slog.Logger
 	theme     *theme.Theme
 	zm        *zone.Manager
-	w         svcwatcher.Watcher
 	current   tea.Model
 	width     int
 	height    int
@@ -53,9 +42,7 @@ func New(
 	ctx context.Context,
 	cfg config.Config,
 	configDir string,
-	logger *slog.Logger,
-	sc scanner.Scanner,
-	p parser.Parser,
+	log *slog.Logger,
 	th *theme.Theme,
 ) Model {
 	var dir string
@@ -68,8 +55,6 @@ func New(
 		}
 	}
 
-	w, watcherErr := svcwatcher.New(dir, sc, logger)
-
 	width, height, err := term.GetSize(os.Stdout.Fd())
 	if err != nil {
 		width, height = 0, 0
@@ -77,18 +62,24 @@ func New(
 
 	zm := zone.New()
 
+	s, err := startup2.New(ctx, log, dir, width, height)
+	if err != nil {
+		log.WarnContext(
+			ctx,
+			"startup: watcher creation failed, continuing with degraded features",
+			slog.Any("error", err),
+		)
+	}
+
 	return Model{
 		ctx:       ctx,
 		cfg:       cfg,
 		configDir: configDir,
 		dir:       dir,
-		logger:    logger,
-		scanner:   sc,
-		parser:    p,
+		log:       log,
 		theme:     th,
 		zm:        zm,
-		w:         w,
-		current:   startup.New(cfg, dir, watcherErr, sc, p, th, zm, width, height),
+		current:   s,
 		width:     width,
 		height:    height,
 	}
@@ -100,7 +91,6 @@ func New(
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		m.current.Init(),
-		m.w.Next(),
 	)
 }
 
@@ -121,15 +111,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, profiling.DumpCmd()
 		}
 
-	case msgs.FileAvailabilityChanged:
-		// Re-subscribe before forwarding so the next snapshot is not missed.
-		watchCmd := m.w.Next()
-
-		next, subCmd := m.current.Update(msg)
-		m.current = next
-
-		return m, tea.Batch(watchCmd, subCmd)
-
 	case msgs.ProjectLoaded:
 		m.current = dashboard.New(m.ctx, msg.Project, m.theme, m.zm, m.width, m.height)
 
@@ -142,7 +123,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Settings.Update returning a new Screen state directly.
 		th, err := theme.Load(msg.Theme, m.configDir)
 		if err != nil {
-			m.logger.Warn("settings: theme load failed, keeping previous", slog.Any("err", err))
+			m.log.Warn("settings: theme load failed, keeping previous", slog.Any("err", err))
 		} else {
 			m.theme = th
 		}
@@ -152,22 +133,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m, nil
 
-	case msgs.RetryWatcher:
-		return m, retryWatcherCmd(m.dir, m.scanner, m.logger)
-
-	case watcherReadyMsg:
-		m.w = msg.w
-
-		return m, tea.Batch(
-			m.w.Next(),
-			m.w.Snapshot(),
-		)
-
 	case profiling.ProfilesDumped:
 		if msg.Err != nil {
-			m.logger.Error("profiling dump failed", slog.Any("err", msg.Err))
+			m.log.Error("profiling dump failed", slog.Any("err", msg.Err))
 		} else {
-			m.logger.Info("profiling dump written",
+			m.log.Info("profiling dump written",
 				slog.String("goroutine", msg.GoroutinePath),
 				slog.String("heap", msg.HeapPath),
 			)
@@ -190,32 +160,4 @@ func (m Model) View() tea.View {
 	v.MouseMode = tea.MouseModeCellMotion
 
 	return v
-}
-
-// Close releases the watcher and unblocks any goroutine blocked in w.Next().
-// Call after the Bubble Tea program returns.
-func (m Model) Close() error {
-	if err := m.w.Close(); err != nil {
-		return fmt.Errorf("close watcher: %w", err)
-	}
-
-	return nil
-}
-
-func retryWatcherCmd(
-	dir string,
-	sc scanner.Scanner,
-	logger *slog.Logger,
-) tea.Cmd {
-	return func() tea.Msg {
-		w, err := svcwatcher.New(dir, sc, logger)
-		if err != nil {
-			// w is a NullWatcher on failure; close it to release the done channel.
-			_ = w.Close()
-
-			return msgs.WatcherError{Err: fmt.Errorf("retry failed: %w", err)}
-		}
-
-		return watcherReadyMsg{w: w}
-	}
 }

@@ -48,7 +48,7 @@ type Service struct {
 // New creates a Watcher that monitors dir and starts the background event
 // loop. On failure, a NullWatcher is returned alongside the error so the
 // caller always receives a valid Watcher.
-func New(dir string, sc scanner.Scanner, logger *slog.Logger) (Watcher, error) {
+func New(dir string, logger *slog.Logger) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return NewNull(), fmt.Errorf("create fsnotify watcher: %w", err)
@@ -59,6 +59,8 @@ func New(dir string, sc scanner.Scanner, logger *slog.Logger) (Watcher, error) {
 
 		return NewNull(), fmt.Errorf("watch directory %s: %w", dir, errors.Join(addErr, closeErr))
 	}
+
+	sc := scanner.New(logger)
 
 	w := &Service{
 		fw:      fw,

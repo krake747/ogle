@@ -3,6 +3,7 @@ package parser
 
 import (
 	"cmp"
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -34,7 +35,6 @@ var _ Parser = Service{}
 //
 //mockery:generate: true
 type Parser interface {
-	Validate(path string) error
 	Parse(path string) (*domain.Project, error)
 }
 
@@ -52,21 +52,16 @@ type composeFile struct {
 
 // Service exposes compose file validation and parsing.
 type Service struct {
+	ctx    context.Context
 	logger *slog.Logger
 }
 
 // New constructs a Service with the given logger.
-func New(logger *slog.Logger) Service {
-	return Service{logger: logger}
-}
-
-// Validate returns nil if path exists on disk and can be parsed as a valid
-// compose YAML file. It returns a wrapped ErrReadComposeFile or
-// ErrParseComposeFile on failure.
-func (s Service) Validate(path string) error {
-	_, err := readAndUnmarshal(path)
-
-	return err
+func New(ctx context.Context, logger *slog.Logger) Service {
+	return Service{
+		ctx:    ctx,
+		logger: logger,
+	}
 }
 
 // Parse reads and parses the compose file at path into a Project. path must

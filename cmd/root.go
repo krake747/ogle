@@ -18,8 +18,6 @@ import (
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/app"
-	"github.com/ma-tf/ogle/internal/services/parser"
-	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -76,11 +74,6 @@ var (
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			var (
-				sc scanner.Scanner = scanner.New(logger)
-				p  parser.Parser   = parser.New(logger)
-			)
-
 			if cfg.ProjectFile != "" {
 				abs, err := filepath.Abs(cfg.ProjectFile)
 				if err != nil {
@@ -88,10 +81,6 @@ var (
 				}
 
 				cfg.ProjectFile = abs
-
-				if err = validateProjectFile(cfg.ProjectFile, p); err != nil {
-					return err
-				}
 			}
 
 			configDir := ""
@@ -146,19 +135,18 @@ var (
 				}()
 			}
 
-			model := app.New(ctx, cfg, configDir, logger, sc, p, th)
+			model := app.New(ctx, cfg, configDir, logger, th)
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
 			)
 
-			final, err := program.Run()
-			if m, ok := final.(app.Model); ok {
-				if closeErr := m.Close(); closeErr != nil {
-					logger.ErrorContext(ctx, "close watcher", "err", closeErr)
-				}
-			}
-
+			_, err := program.Run()
+			// if m, ok := final.(app.Model); ok {
+			// 	if closeErr := m.Close(); closeErr != nil {
+			// 		logger.ErrorContext(ctx, "close watcher", "err", closeErr)
+			// 	}
+			// }
 			if err != nil {
 				return fmt.Errorf("run program: %w", err)
 			}
@@ -249,24 +237,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 	return nil
 }
 
-// validateProjectFile checks that path is a valid, parseable compose file.
-// It is called only when the -f flag is explicitly provided.
-func validateProjectFile(path string, p parser.Parser) error {
-	info, err := os.Stat(path)
-	if err != nil {
-		return fmt.Errorf("project file not found: %w", err)
-	}
-
-	if info.IsDir() {
-		return fmt.Errorf("project file %q is a directory, expected a compose file", path)
-	}
-
-	if validateErr := p.Validate(path); validateErr != nil {
-		return fmt.Errorf("invalid compose file: %w", validateErr)
-	}
-
-	return nil
-}
-
 // Root exposes the root command for tools like doc generators.
-func Root() *cobra.Command { return rootCmd }
+func Root() *cobra.Command {
+	return rootCmd
+}
