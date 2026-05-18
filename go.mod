@@ -9,6 +9,7 @@ require (
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/fsnotify/fsnotify v1.9.0
+	github.com/go-viper/mapstructure/v2 v2.5.0
 	github.com/lmittmann/tint v1.1.3
 	github.com/lrstanley/bubblezone/v2 v2.0.0
 	github.com/spf13/cobra v1.10.2
@@ -29,7 +30,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.6 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fatih/structs v1.1.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/huandu/xstrings v1.5.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.7.8 // indirect

@@ -1,3 +1,4 @@
+theme: default
+logBufferCap: 500
 log:
-  level: debug
-logBufferCap: 1000
+    level: debug

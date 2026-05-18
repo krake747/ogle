@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/term"
 	zone "github.com/lrstanley/bubblezone/v2"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -35,20 +36,20 @@ const (
 
 // Model is the root flow orchestrator.
 type Model struct {
-	ctx       context.Context
-	cfg       config.Config
-	configDir string
-	dir       string
-	log       *slog.Logger
-	theme     *theme.Theme
-	zm        *zone.Manager
-	watcher   watcher.Watcher
-	startup   tea.Model
-	dashboard tea.Model
-	watching  tea.Model
-	phase     phase
-	width     int
-	height    int
+	ctx        context.Context
+	cfg        config.Config
+	configPath string
+	dir        string
+	log        *slog.Logger
+	theme      *theme.Theme
+	zm         *zone.Manager
+	watcher    watcher.Watcher
+	startup    tea.Model
+	dashboard  tea.Model
+	watching   tea.Model
+	phase      phase
+	width      int
+	height     int
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -56,7 +57,7 @@ type Model struct {
 func New(
 	ctx context.Context,
 	cfg config.Config,
-	configDir string,
+	configPath string,
 	projectFile string,
 	log *slog.Logger,
 	th *theme.Theme,
@@ -85,23 +86,23 @@ func New(
 			return Model{}, nil, fmt.Errorf("parse project file: %w", parseErr)
 		}
 
-		dash := dashboard.New(ctx, p, log, th, zm, width, height)
+		dash := dashboard.New(ctx, p, log, th, cfg, zm, width, height)
 
 		return Model{
-			ctx:       ctx,
-			cfg:       cfg,
-			configDir: configDir,
-			dir:       dir,
-			log:       log,
-			theme:     th,
-			zm:        zm,
-			watcher:   wtr,
-			startup:   nil,
-			dashboard: dash,
-			watching:  nil,
-			phase:     phaseDashboard,
-			width:     width,
-			height:    height,
+			ctx:        ctx,
+			cfg:        cfg,
+			configPath: configPath,
+			dir:        dir,
+			log:        log,
+			theme:      th,
+			zm:         zm,
+			watcher:    wtr,
+			startup:    nil,
+			dashboard:  dash,
+			watching:   nil,
+			phase:      phaseDashboard,
+			width:      width,
+			height:     height,
 		}, wtr.Close, nil
 	}
 
@@ -119,20 +120,20 @@ func New(
 	}
 
 	return Model{
-		ctx:       ctx,
-		cfg:       cfg,
-		configDir: configDir,
-		dir:       dir,
-		log:       log,
-		theme:     th,
-		zm:        zm,
-		watcher:   wtr,
-		startup:   startup.New(ctx, log, width, height),
-		dashboard: nil,
-		watching:  nil,
-		phase:     phaseStartup,
-		width:     width,
-		height:    height,
+		ctx:        ctx,
+		cfg:        cfg,
+		configPath: configPath,
+		dir:        dir,
+		log:        log,
+		theme:      th,
+		zm:         zm,
+		watcher:    wtr,
+		startup:    startup.New(ctx, log, width, height),
+		dashboard:  nil,
+		watching:   nil,
+		phase:      phaseStartup,
+		width:      width,
+		height:     height,
 	}, wtr.Close, nil
 }
 
@@ -167,38 +168,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case msgs.ProjectLoaded:
-		m.dashboard = dashboard.New(m.ctx, msg.Project, m.log, m.theme, m.zm, m.width, m.height)
+		m.dashboard = dashboard.New(
+			m.ctx,
+			msg.Project,
+			m.log,
+			m.theme,
+			m.cfg,
+			m.zm,
+			m.width,
+			m.height,
+		)
 		m.phase = phaseDashboard
 
 		return m, m.dashboard.Init()
 
 	case msgs.SettingsApplied:
-		th, err := theme.Load(msg.Theme, m.configDir)
-		if err != nil {
-			m.log.WarnContext(
-				m.ctx,
-				"settings: theme load failed, keeping previous",
-				slog.Any("err", err),
-			)
-		} else {
-			m.theme = th
-		}
-
-		m.cfg.Theme = msg.Theme
-		m.cfg.LogBufferCap = msg.LogBufferCap
-
-		return m, nil
+		return m.handleSettingsApplied(msg)
 
 	case profiling.ProfilesDumped:
 		if msg.Err != nil {
-			m.log.ErrorContext(
-				m.ctx,
+			m.log.ErrorContext(m.ctx,
 				"profiling dump failed",
 				slog.Any("err", msg.Err),
 			)
 		} else {
-			m.log.InfoContext(
-				m.ctx,
+			m.log.InfoContext(m.ctx,
 				"profiling dump written",
 				slog.String("goroutine", msg.GoroutinePath),
 				slog.String("heap", msg.HeapPath),
@@ -240,6 +234,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, cmd
+}
+
+func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.Cmd) {
+	th, err := theme.Load(msg.Theme, filepath.Dir(m.configPath))
+	if err != nil {
+		m.log.WarnContext(
+			m.ctx,
+			"settings: theme load failed, keeping previous",
+			slog.Any("err", err),
+		)
+	} else {
+		m.theme = th
+	}
+
+	m.cfg.Theme = msg.Theme
+	m.cfg.LogBufferCap = msg.LogBufferCap
+
+	data, marshalErr := yaml.Marshal(&m.cfg)
+	if marshalErr != nil {
+		m.log.WarnContext(
+			m.ctx,
+			"settings: failed to marshal config",
+			slog.Any("err", marshalErr),
+		)
+	} else if writeErr := os.WriteFile(m.configPath, data, 0o600); writeErr != nil {
+		m.log.WarnContext(
+			m.ctx,
+			"settings: failed to write config file",
+			slog.Any("err", writeErr),
+		)
+	}
+
+	return m, nil
 }
 
 // View delegates rendering to the active phase model.

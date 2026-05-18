@@ -52,7 +52,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0, len(m.hosts)+1)
 
 	switch msg := msg.(type) {
-	case tea.KeyReleaseMsg, tea.MouseWheelMsg:
+	case tea.KeyPressMsg, tea.MouseWheelMsg:
 		for i := range m.hosts {
 			if m.hosts[i].ServiceName() == m.selectedName {
 				var cmd tea.Cmd

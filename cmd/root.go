@@ -12,6 +12,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/go-viper/mapstructure/v2"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -84,25 +85,23 @@ var (
 				projectFile = abs
 			}
 
-			configDir := ""
+			configPath := ""
 			if cf := viper.ConfigFileUsed(); cf != "" {
-				configDir = filepath.Dir(cf)
-			}
-
-			if configDir == "" || configDir == "." {
+				configPath = cf
+			} else {
 				home, err := os.UserHomeDir()
 				if err != nil {
 					logger.WarnContext(
 						ctx,
-						"could not determine home directory for theme loading",
+						"could not determine home directory for config file",
 						slog.Any("err", err),
 					)
 				} else {
-					configDir = filepath.Join(home, ".ogle")
+					configPath = filepath.Join(home, ".ogle", "config.yaml")
 				}
 			}
 
-			th, themeErr := theme.Load(cfg.Theme, configDir)
+			th, themeErr := theme.Load(cfg.Theme, filepath.Dir(configPath))
 			if themeErr != nil {
 				logger.WarnContext(
 					ctx,
@@ -136,7 +135,7 @@ var (
 				}()
 			}
 
-			model, cleanup, err := app.New(ctx, cfg, configDir, projectFile, logger, th)
+			model, cleanup, err := app.New(ctx, cfg, configPath, projectFile, logger, th)
 			if err != nil {
 				return fmt.Errorf("app init: %w", err)
 			}
@@ -232,7 +231,9 @@ func initialiseConfig(cmd *cobra.Command) error {
 		return fmt.Errorf("failed to bind inherited config flags: %w", err)
 	}
 
-	if err := viper.Unmarshal(&cfg); err != nil {
+	if err := viper.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
+		dc.TagName = "yaml"
+	}); err != nil {
 		return fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 

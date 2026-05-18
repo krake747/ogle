@@ -2,9 +2,9 @@ package config
 
 // Config holds the application configuration loaded from file, environment, or flags.
 type Config struct {
-	Theme        string `mapstructure:"theme"`
-	LogBufferCap int    `mapstructure:"logBufferCap"`
+	Theme        string `yaml:"theme"`
+	LogBufferCap int    `yaml:"logBufferCap"`
 	Log          struct {
-		Level string `mapstructure:"level"`
-	} `mapstructure:"log"`
+		Level string `yaml:"level"`
+	} `yaml:"log"`
 }

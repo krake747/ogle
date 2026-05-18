@@ -11,6 +11,7 @@ import (
 	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
+	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
@@ -40,6 +41,7 @@ type Model struct {
 	helpbar         helpbar.Model
 	settings2       settings2.Model
 	showingSettings bool
+	cfg             config.Config
 	w, h            int
 }
 
@@ -49,6 +51,7 @@ func New(
 	project *domain.Project,
 	log *slog.Logger,
 	th *theme.Theme,
+	cfg config.Config,
 	zm *zone.Manager,
 	w, h int,
 ) tea.Model {
@@ -66,8 +69,9 @@ func New(
 		serviceList:     servicelist.New(project, th, zm, w),
 		panel:           servicepanel.New(project, th, w, h),
 		helpbar:         helpbar.New(),
-		settings2:       settings2.New(th, w, h),
+		settings2:       settings2.New(th, cfg, w, h),
 		showingSettings: false,
+		cfg:             cfg,
 		w:               w,
 		h:               h,
 	}
@@ -116,46 +120,50 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tea.KeyPressMsg:
-		if !m.showingSettings {
-			switch {
-			case key.Matches(msg, keyQuit):
-				return m, tea.Quit
+		if m.showingSettings {
+			m.settings2, settings2Cmd = m.settings2.Update(msg)
 
-			case key.Matches(msg, keySettings):
-				m.showingSettings = true
-
-				return m, nil
-
-			case key.Matches(msg, keyToggleWrap):
-				return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
-
-			case key.Matches(msg, keyScrollLeft):
-				return m, func() tea.Msg { return msgs.LogScrollH{Amount: -8} }
-
-			case key.Matches(msg, keyScrollRight):
-				return m, func() tea.Msg { return msgs.LogScrollH{Amount: +8} }
-			}
+			return m, settings2Cmd
 		}
 
-	case msgs.ServiceStop:
-		return m, svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		switch {
+		case key.Matches(msg, keyQuit):
+			return m, tea.Quit
 
-	case msgs.ServiceStart:
-		return m, svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		case key.Matches(msg, keySettings):
+			m.showingSettings = true
 
-	case msgs.ServiceRestart:
-		return m, svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+			return m, nil
 
-	case msgs.ServiceRebuild:
-		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		case key.Matches(msg, keyToggleWrap):
+			return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
 
-	case msgs.ServiceActionCompleted:
-		m.serviceList, _ = m.serviceList.Update(msg)
+		case key.Matches(msg, keyScrollLeft):
+			return m, func() tea.Msg { return msgs.LogScrollH{Amount: -8} }
 
-		return m, nil
+		case key.Matches(msg, keyScrollRight):
+			return m, func() tea.Msg { return msgs.LogScrollH{Amount: +8} }
+		}
+
+	case msgs.ServiceStop,
+		msgs.ServiceStart,
+		msgs.ServiceRestart,
+		msgs.ServiceRebuild,
+		msgs.ServiceActionCompleted:
+		return m.handleServiceAction(msg)
 
 	case msgs.FileAvailabilityChanged:
 		return m.handleFileAvailabilityChanged(msg.Files)
+
+	case msgs.SettingsApplied:
+		if th, err := theme.Load(msg.Theme, ""); err == nil {
+			m.th = th
+		}
+
+		m.cfg.Theme = msg.Theme
+		m.cfg.LogBufferCap = msg.LogBufferCap
+
+		return m, nil
 
 	case msgs.SettingsVisibilityChanged:
 		m.showingSettings = msg.Visible
@@ -172,13 +180,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settings2, settings2Cmd = m.settings2.Update(msg)
 	}
 
-	return m, tea.Batch(
-		daemonCmd,
-		svcListCmd,
-		panCmd,
-		helpCmd,
-		settings2Cmd,
-	)
+	return m, tea.Batch(daemonCmd, svcListCmd, panCmd, helpCmd, settings2Cmd)
+}
+
+func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case msgs.ServiceStop:
+		return m, svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceStart:
+		return m, svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceRestart:
+		return m, svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceRebuild:
+		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+
+	case msgs.ServiceActionCompleted:
+		m.serviceList, _ = m.serviceList.Update(msg)
+	}
+
+	return m, nil
 }
 
 func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd) {
@@ -198,7 +221,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	newDash := New(m.ctx, p, m.log, m.th, m.zm, m.w, m.h)
+	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.w, m.h)
 
 	return newDash, newDash.Init()
 }
