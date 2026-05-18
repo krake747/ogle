@@ -31,6 +31,7 @@ const (
 var (
 	cfgFile      string
 	pprofAddr    string
+	projectFile  string
 	cfg          config.Config
 	logger       *slog.Logger
 	logLevel     = new(slog.LevelVar)
@@ -74,13 +75,13 @@ var (
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			if cfg.ProjectFile != "" {
-				abs, err := filepath.Abs(cfg.ProjectFile)
+			if projectFile != "" {
+				abs, err := filepath.Abs(projectFile)
 				if err != nil {
 					return fmt.Errorf("resolve project file path: %w", err)
 				}
 
-				cfg.ProjectFile = abs
+				projectFile = abs
 			}
 
 			configDir := ""
@@ -135,7 +136,7 @@ var (
 				}()
 			}
 
-			model, cleanup, err := app.New(ctx, cfg, configDir, logger, th)
+			model, cleanup, err := app.New(ctx, cfg, configDir, projectFile, logger, th)
 			if err != nil {
 				return fmt.Errorf("app init: %w", err)
 			}
@@ -184,7 +185,7 @@ func init() {
 		StringVar(&cfgFile, "config", "", "config file (default is $HOME/.ogle/config)")
 
 	rootCmd.PersistentFlags().
-		StringVarP(&cfg.ProjectFile, "project-file", "f", "", "path to docker compose file")
+		StringVarP(&projectFile, "project-file", "f", "", "path to docker compose file")
 
 	rootCmd.PersistentFlags().
 		StringVar(&pprofAddr, "pprof-addr", "", "pprof HTTP server address (e.g. localhost:6060)")
@@ -229,10 +230,6 @@ func initialiseConfig(cmd *cobra.Command) error {
 
 	if err := viper.BindPFlags(cmd.InheritedFlags()); err != nil {
 		return fmt.Errorf("failed to bind inherited config flags: %w", err)
-	}
-
-	if err := viper.BindPFlag("projectFile", cmd.Flag("project-file")); err != nil {
-		return fmt.Errorf("failed to bind project-file flag: %w", err)
 	}
 
 	if err := viper.Unmarshal(&cfg); err != nil {

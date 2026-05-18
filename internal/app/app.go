@@ -17,6 +17,7 @@ import (
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
+	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
@@ -56,19 +57,10 @@ func New(
 	ctx context.Context,
 	cfg config.Config,
 	configDir string,
+	projectFile string,
 	log *slog.Logger,
 	th *theme.Theme,
 ) (Model, func() error, error) {
-	var dir string
-	if cfg.ProjectFile != "" {
-		dir = filepath.Dir(cfg.ProjectFile)
-	} else {
-		var err error
-		if dir, err = os.Getwd(); err != nil {
-			dir = "."
-		}
-	}
-
 	width, height, err := term.GetSize(os.Stdout.Fd())
 	if err != nil {
 		width, height = 0, 0
@@ -76,13 +68,54 @@ func New(
 
 	zm := zone.New()
 
-	wtr, err := watcher.New(dir, log)
-	if err != nil {
-		return Model{}, nil, fmt.Errorf("create watcher: %w", err)
+	if projectFile != "" {
+		dir := filepath.Dir(projectFile)
+
+		var wtr watcher.Watcher
+
+		wtr, err = watcher.New(dir, log, filepath.Base(projectFile))
+		if err != nil {
+			return Model{}, nil, fmt.Errorf("create watcher: %w", err)
+		}
+
+		p, parseErr := parser.New(ctx, log).Parse(projectFile)
+		if parseErr != nil {
+			_ = wtr.Close()
+
+			return Model{}, nil, fmt.Errorf("parse project file: %w", parseErr)
+		}
+
+		dash := dashboard.New(ctx, p, log, th, zm, width, height)
+
+		return Model{
+			ctx:       ctx,
+			cfg:       cfg,
+			configDir: configDir,
+			dir:       dir,
+			log:       log,
+			theme:     th,
+			zm:        zm,
+			watcher:   wtr,
+			startup:   nil,
+			dashboard: dash,
+			watching:  nil,
+			phase:     phaseDashboard,
+			width:     width,
+			height:    height,
+		}, wtr.Close, nil
 	}
 
-	cleanup := func() error {
-		return wtr.Close()
+	var dir string
+
+	if dir, err = os.Getwd(); err != nil {
+		dir = "."
+	}
+
+	var wtr watcher.Watcher
+
+	wtr, err = watcher.New(dir, log)
+	if err != nil {
+		return Model{}, nil, fmt.Errorf("create watcher: %w", err)
 	}
 
 	return Model{
@@ -100,15 +133,21 @@ func New(
 		phase:     phaseStartup,
 		width:     width,
 		height:    height,
-	}, cleanup, nil
+	}, wtr.Close, nil
 }
 
-// Init fires the initial snapshot and starts the startup flow.
+// Init fires the initial snapshot and starts the active phase.
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(
-		m.watcher.Snapshot(),
-		m.startup.Init(),
-	)
+	switch m.phase {
+	case phaseDashboard:
+		return tea.Batch(m.watcher.Snapshot(), m.dashboard.Init())
+	case phaseStartup:
+		return tea.Batch(m.watcher.Snapshot(), m.startup.Init())
+	case phaseWatching:
+		return tea.Batch(m.watcher.Snapshot())
+	}
+
+	return nil
 }
 
 // Update drives the root state machine. Messages are either handled by app

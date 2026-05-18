@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -37,20 +38,23 @@ type Watcher interface {
 
 // Service monitors a directory for filesystem events on known compose
 // filenames and delivers msgs.FileAvailabilityChanged snapshots to the
-// Bubble Tea runtime.
+// Bubble Tea runtime. extraFiles are additional basenames to track beyond
+// the scanner's known filenames (e.g. a manually specified project file).
 type Service struct {
-	fw      *fsnotify.Watcher
-	dir     string
-	scanner scanner.Scanner
-	logger  *slog.Logger
-	events  chan tea.Msg
-	done    chan struct{}
-	once    sync.Once
+	fw         *fsnotify.Watcher
+	dir        string
+	scanner    scanner.Scanner
+	logger     *slog.Logger
+	extraFiles []string
+	events     chan tea.Msg
+	done       chan struct{}
+	once       sync.Once
 }
 
 // New creates a Watcher that monitors dir and starts the background event
-// loop. On failure, nil is returned alongside the error.
-func New(dir string, logger *slog.Logger) (Watcher, error) {
+// loop. extraFiles are additional basenames to track (e.g. a manually
+// specified project file). On failure, nil is returned alongside the error.
+func New(dir string, logger *slog.Logger, extraFiles ...string) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("%w: fsnotify: %w", ErrCreateWatcher, err)
@@ -65,13 +69,14 @@ func New(dir string, logger *slog.Logger) (Watcher, error) {
 	sc := scanner.New(logger)
 
 	w := &Service{
-		fw:      fw,
-		dir:     dir,
-		scanner: sc,
-		logger:  logger,
-		events:  make(chan tea.Msg, 1),
-		done:    make(chan struct{}),
-		once:    sync.Once{},
+		fw:         fw,
+		dir:        dir,
+		scanner:    sc,
+		logger:     logger,
+		extraFiles: extraFiles,
+		events:     make(chan tea.Msg, 1),
+		done:       make(chan struct{}),
+		once:       sync.Once{},
 	}
 
 	go w.run()
@@ -116,11 +121,28 @@ func (w *Service) Next() tea.Cmd {
 	}
 }
 
+// scan returns all known compose files and extra files that currently exist
+// in the monitored directory.
+func (w *Service) scan() []string {
+	files := w.scanner.ScanAll(w.dir)
+
+	for _, ef := range w.extraFiles {
+		path := filepath.Join(w.dir, ef)
+
+		if _, err := os.Stat(path); err == nil && !slices.Contains(files, path) {
+			files = append(files, path)
+		}
+	}
+
+	return files
+}
+
 // Snapshot returns a tea.Cmd that delivers the current filesystem state as a
-// msgs.FileAvailabilityChanged without waiting for a change event.
+// msgs.FileAvailabilityChanged without waiting for a change event. Extra
+// files passed to New are included in the scan.
 func (w *Service) Snapshot() tea.Cmd {
 	return func() tea.Msg {
-		return msgs.FileAvailabilityChanged{Files: w.scanner.ScanAll(w.dir)}
+		return msgs.FileAvailabilityChanged{Files: w.scan()}
 	}
 }
 
@@ -136,12 +158,13 @@ func (w *Service) run() {
 				return
 			}
 
-			if !slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name)) {
+			if !slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name)) &&
+				!slices.Contains(w.extraFiles, filepath.Base(event.Name)) {
 				continue
 			}
 
 			snapshot := msgs.FileAvailabilityChanged{
-				Files: w.scanner.ScanAll(w.dir),
+				Files: w.scan(),
 			}
 
 			// Drain any stale snapshot before sending the current one so
