@@ -88,6 +88,8 @@ func (m Model) Init() tea.Cmd {
 						servicelist.KeyToggleService,
 						servicelist.KeyRestart,
 						servicelist.KeyRebuild,
+						keyScrollLeft,
+						keyScrollRight,
 						keyToggleWrap,
 					},
 				},
@@ -114,19 +116,24 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tea.KeyPressMsg:
-		if !m.showingSettings && key.Matches(msg, keyQuit) {
-			return m, tea.Quit
-		}
+		if !m.showingSettings {
+			switch {
+			case key.Matches(msg, keyQuit):
+				return m, tea.Quit
 
-		if !m.showingSettings && key.Matches(msg, keySettings) {
-			m.showingSettings = true
+			case key.Matches(msg, keySettings):
+				m.showingSettings = true
 
-			return m, nil
-		}
+				return m, nil
 
-		if key.Matches(msg, keyToggleWrap) && !m.showingSettings {
-			return m, func() tea.Msg {
-				return msgs.ToggleLogWrap{}
+			case key.Matches(msg, keyToggleWrap):
+				return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
+
+			case key.Matches(msg, keyScrollLeft):
+				return m, func() tea.Msg { return msgs.LogScrollH{Amount: -8} }
+
+			case key.Matches(msg, keyScrollRight):
+				return m, func() tea.Msg { return msgs.LogScrollH{Amount: +8} }
 			}
 		}
 
@@ -148,26 +155,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case msgs.FileAvailabilityChanged:
-		if !slices.Contains(msg.Files, m.project.File) {
-			return m, func() tea.Msg {
-				return msgs.FileRemoved{File: m.project.File}
-			}
-		}
-
-		p, err := m.parser.Parse(m.project.File)
-		if err != nil {
-			m.log.WarnContext(
-				m.ctx,
-				"dashboard: re-parse failed, keeping current state",
-				slog.Any("err", err),
-			)
-
-			return m, nil
-		}
-
-		newDash := New(m.ctx, p, m.log, m.th, m.zm, m.w, m.h)
-
-		return newDash, newDash.Init()
+		return m.handleFileAvailabilityChanged(msg.Files)
 
 	case msgs.SettingsVisibilityChanged:
 		m.showingSettings = msg.Visible
@@ -191,6 +179,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		helpCmd,
 		settings2Cmd,
 	)
+}
+
+func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd) {
+	if !slices.Contains(files, m.project.File) {
+		return m, func() tea.Msg {
+			return msgs.FileRemoved{File: m.project.File}
+		}
+	}
+
+	p, err := m.parser.Parse(m.project.File)
+	if err != nil {
+		m.log.WarnContext(m.ctx,
+			"dashboard: re-parse failed, keeping current state",
+			slog.Any("err", err),
+		)
+
+		return m, nil
+	}
+
+	newDash := New(m.ctx, p, m.log, m.th, m.zm, m.w, m.h)
+
+	return newDash, newDash.Init()
 }
 
 // View renders the daemon status header, service list + inspector side by side,

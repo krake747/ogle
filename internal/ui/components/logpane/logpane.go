@@ -51,6 +51,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.LogLinesAvailable:
 		return m.drainLines()
 
+	case msgs.LogScrollH:
+		m.viewport.ScrollRight(msg.Amount)
+
+		return m, nil
+
 	case msgs.ToggleLogWrap:
 		m.wrap = !m.wrap
 		realIdx := m.realLineIndex(m.viewport.YOffset())
