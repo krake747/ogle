@@ -1,6 +1,8 @@
 package servicelist
 
 import (
+	"time"
+
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -107,8 +109,8 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 			m.runtime = &domain.ServiceRuntimeData{
 				State:       opt,
 				ContainerID: "",
-				Health:      "",
-				StateAge:    0,
+				Status:      "",
+				CreatedAt:   time.Time{},
 			}
 		} else {
 			rt := *m.runtime

@@ -24,6 +24,7 @@ type psLine struct {
 	State     string `json:"state"`
 	Health    string `json:"health"`
 	CreatedAt string `json:"createdat"`
+	Status    string `json:"status"`
 }
 
 // Ps returns a Cmd that runs docker compose ps and returns a ServicesPolled
@@ -82,16 +83,11 @@ func parsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
 
 		createdAt, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", entry.CreatedAt)
 
-		stateAge := time.Duration(0)
-		if !createdAt.IsZero() {
-			stateAge = time.Since(createdAt)
-		}
-
 		runtimes[name] = &domain.ServiceRuntimeData{
 			ContainerID: entry.ID,
 			State:       parseState(entry.State),
-			Health:      parseHealth(entry.Health),
-			StateAge:    stateAge,
+			Status:      entry.Status,
+			CreatedAt:   createdAt,
 		}
 	}
 
@@ -112,20 +108,5 @@ func parseState(s string) domain.ServiceState {
 		return domain.ServiceStateDead
 	default:
 		return domain.ServiceStateUnknown
-	}
-}
-
-func parseHealth(s string) domain.ServiceHealth {
-	switch s {
-	case "healthy":
-		return domain.ServiceHealthHealthy
-	case "unhealthy":
-		return domain.ServiceHealthUnhealthy
-	case "starting":
-		return domain.ServiceHealthStarting
-	case "", "none", "no healthcheck":
-		return domain.ServiceHealthNoHealthcheck
-	default:
-		return domain.ServiceHealthUnknown
 	}
 }

@@ -67,26 +67,24 @@ func (m Model) View() tea.View {
 	}
 
 	stateStr := dash
-	healthStr := dash
 	containerID := dash
+	createdAt := dash
 
 	if m.runtime != nil {
-		stateStr = string(m.runtime.State)
-
-		ageStr := formatAge(m.runtime.StateAge)
-		stateStr += " (" + ageStr + " ago)"
+		if m.runtime.Status != "" {
+			stateStr = m.runtime.Status
+		}
 
 		if m.runtime.ContainerID != "" {
 			containerID = m.runtime.ContainerID
-			if len(containerID) > shortIDLen {
-				containerID = containerID[:shortIDLen]
-			}
 		}
 
-		healthStr = string(m.runtime.Health)
-		if m.runtime.Health != "" {
-			healthColour := colourForHealth(m.runtime.Health, m.theme)
-			healthStr = lipgloss.NewStyle().Foreground(healthColour).Render(healthStr)
+		if len(containerID) > shortIDLen {
+			containerID = containerID[:shortIDLen]
+		}
+
+		if !m.runtime.CreatedAt.IsZero() {
+			createdAt = formatAge(time.Since(m.runtime.CreatedAt))
 		}
 	}
 
@@ -100,8 +98,8 @@ func (m Model) View() tea.View {
 	lines := []string{
 		"Image:         " + m.def.Image,
 		"Container ID:  " + containerID,
+		"Created:       " + createdAt,
 		"State:         " + stateLabel,
-		"Health:        " + healthStr,
 		"Ports:         " + strings.Join(m.def.Ports, ", "),
 	}
 
@@ -113,27 +111,12 @@ func formatAge(d time.Duration) string {
 
 	switch {
 	case secs < secsPerMinute:
-		return fmt.Sprintf("%ds", secs)
+		return fmt.Sprintf("%ds ago", secs)
 	case secs < secsPerHour:
-		return fmt.Sprintf("%dm", secs/secsPerMinute)
+		return fmt.Sprintf("%dm ago", secs/secsPerMinute)
 	default:
-		return fmt.Sprintf("%dh", secs/secsPerHour)
+		return fmt.Sprintf("%dh ago", secs/secsPerHour)
 	}
-}
-
-func colourForHealth(h domain.ServiceHealth, th *theme.Theme) color.Color {
-	switch h {
-	case domain.ServiceHealthHealthy:
-		return th.StateRunning
-	case domain.ServiceHealthUnhealthy:
-		return th.StateExited
-	case domain.ServiceHealthStarting:
-		return th.StateTransient
-	case domain.ServiceHealthNoHealthcheck, domain.ServiceHealthUnknown:
-		return th.StateMuted
-	}
-
-	return th.StateMuted
 }
 
 func colourForState(s domain.ServiceState, th *theme.Theme) color.Color {
