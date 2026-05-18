@@ -177,13 +177,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case phaseDashboard:
 			m.dashboard, cmd = m.dashboard.Update(msg)
 		case phaseWatching:
-			// stub — return path deferred
+			m.watching, cmd = m.watching.Update(msg)
 		}
 
 		return m, tea.Batch(cmd, m.watcher.Next())
 
 	case msgs.FileRemoved:
-		m.watching = watching.New(msg.File)
+		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height)
 		m.phase = phaseWatching
 
 		return m, nil

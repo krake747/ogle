@@ -33,7 +33,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if msg.String() == "esc" {
+		if msg.String() == "esc" || msg.String() == "q" || msg.String() == "," {
 			return m, func() tea.Msg {
 				return msgs.SettingsVisibilityChanged{Visible: false}
 			}
@@ -56,6 +56,6 @@ func (m Model) View() tea.View {
 			BorderForeground(m.th.StateMuted).
 			AlignHorizontal(lipgloss.Center).
 			AlignVertical(lipgloss.Center).
-			Render("Settings2\n\nesc to close"),
+			Render("Settings\n\nesc/q/, close"),
 	)
 }

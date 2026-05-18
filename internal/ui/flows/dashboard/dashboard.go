@@ -116,11 +116,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case tea.KeyPressMsg:
-		if key.Matches(msg, keyQuit) {
+		if !m.showingSettings && key.Matches(msg, keyQuit) {
 			return m, tea.Quit
 		}
 
-		if key.Matches(msg, keySettings) {
+		if !m.showingSettings && key.Matches(msg, keySettings) {
 			m.showingSettings = true
 
 			return m, nil
