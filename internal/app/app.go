@@ -5,6 +5,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -16,9 +17,19 @@ import (
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
+	"github.com/ma-tf/ogle/internal/services/watcher"
+	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+type phase int
+
+const (
+	phaseStartup phase = iota
+	phaseDashboard
+	phaseWatching
 )
 
 // Model is the root flow orchestrator.
@@ -30,21 +41,24 @@ type Model struct {
 	log       *slog.Logger
 	theme     *theme.Theme
 	zm        *zone.Manager
-	current   tea.Model
+	watcher   watcher.Watcher
+	startup   tea.Model
+	dashboard tea.Model
+	watching  tea.Model
+	phase     phase
 	width     int
 	height    int
 }
 
-// New constructs the app Model. Watcher creation is synchronous; a
-// failure is surfaced to the startup flow as a WatcherError so the watching
-// view enters its error state with a retry keybinding.
+// New constructs the app Model. Watcher creation is synchronous; if it
+// fails the entire program exits with an error.
 func New(
 	ctx context.Context,
 	cfg config.Config,
 	configDir string,
 	log *slog.Logger,
 	th *theme.Theme,
-) Model {
+) (Model, func() error, error) {
 	var dir string
 	if cfg.ProjectFile != "" {
 		dir = filepath.Dir(cfg.ProjectFile)
@@ -62,13 +76,13 @@ func New(
 
 	zm := zone.New()
 
-	s, err := startup.New(ctx, log, dir, width, height)
+	wtr, err := watcher.New(dir, log)
 	if err != nil {
-		log.WarnContext(
-			ctx,
-			"startup: watcher creation failed, continuing with degraded features",
-			slog.Any("error", err),
-		)
+		return Model{}, nil, fmt.Errorf("create watcher: %w", err)
+	}
+
+	cleanup := func() error {
+		return wtr.Close()
 	}
 
 	return Model{
@@ -79,24 +93,26 @@ func New(
 		log:       log,
 		theme:     th,
 		zm:        zm,
-		current:   s,
+		watcher:   wtr,
+		startup:   startup.New(ctx, log, width, height),
+		dashboard: nil,
+		watching:  nil,
+		phase:     phaseStartup,
 		width:     width,
 		height:    height,
-	}
+	}, cleanup, nil
 }
 
-// Init fires the first batch of commands:
-//   - current.Init() kicks off either a scan or an immediate parse (-f case).
-//   - w.Next() begins the watcher subscription loop.
+// Init fires the initial snapshot and starts the startup flow.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		m.current.Init(),
+		m.watcher.Snapshot(),
+		m.startup.Init(),
 	)
 }
 
-// Update drives the root state machine. msgs.WatcherError is forwarded
-// unhandled to the active state — startup.Model and dashboard.Model each own
-// their own error semantics.
+// Update drives the root state machine. Messages are either handled by app
+// directly or dispatched to the active phase model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -112,18 +128,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case msgs.ProjectLoaded:
-		m.current = dashboard.New(m.ctx, msg.Project, m.theme, m.zm, m.width, m.height)
+		m.dashboard = dashboard.New(m.ctx, msg.Project, m.log, m.theme, m.zm, m.width, m.height)
+		m.phase = phaseDashboard
 
-		return m, m.current.Init()
+		return m, m.dashboard.Init()
 
 	case msgs.SettingsApplied:
-		// m.cfg and m.theme are updated so that the next ProjectLoaded event
-		// (triggered by a compose-file change) constructs the dashboard model
-		// with the new settings. The live UI update is already handled by
-		// Settings.Update returning a new Screen state directly.
 		th, err := theme.Load(msg.Theme, m.configDir)
 		if err != nil {
-			m.log.Warn("settings: theme load failed, keeping previous", slog.Any("err", err))
+			m.log.WarnContext(
+				m.ctx,
+				"settings: theme load failed, keeping previous",
+				slog.Any("err", err),
+			)
 		} else {
 			m.theme = th
 		}
@@ -135,26 +152,70 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case profiling.ProfilesDumped:
 		if msg.Err != nil {
-			m.log.Error("profiling dump failed", slog.Any("err", msg.Err))
+			m.log.ErrorContext(
+				m.ctx,
+				"profiling dump failed",
+				slog.Any("err", msg.Err),
+			)
 		} else {
-			m.log.Info("profiling dump written",
+			m.log.InfoContext(
+				m.ctx,
+				"profiling dump written",
 				slog.String("goroutine", msg.GoroutinePath),
 				slog.String("heap", msg.HeapPath),
 			)
 		}
 
 		return m, nil
+
+	case msgs.FileAvailabilityChanged:
+		var cmd tea.Cmd
+
+		switch m.phase {
+		case phaseStartup:
+			m.startup, cmd = m.startup.Update(msg)
+		case phaseDashboard:
+			m.dashboard, cmd = m.dashboard.Update(msg)
+		case phaseWatching:
+			// stub — return path deferred
+		}
+
+		return m, tea.Batch(cmd, m.watcher.Next())
+
+	case msgs.FileRemoved:
+		m.watching = watching.New(msg.File)
+		m.phase = phaseWatching
+
+		return m, nil
 	}
 
-	next, cmd := m.current.Update(msg)
-	m.current = next
+	var cmd tea.Cmd
+
+	switch m.phase {
+	case phaseStartup:
+		m.startup, cmd = m.startup.Update(msg)
+	case phaseDashboard:
+		m.dashboard, cmd = m.dashboard.Update(msg)
+	case phaseWatching:
+		m.watching, cmd = m.watching.Update(msg)
+	}
 
 	return m, cmd
 }
 
-// View delegates rendering to the active state.
+// View delegates rendering to the active phase model.
 func (m Model) View() tea.View {
-	v := m.current.View()
+	var v tea.View
+
+	switch m.phase {
+	case phaseStartup:
+		v = m.startup.View()
+	case phaseDashboard:
+		v = m.dashboard.View()
+	case phaseWatching:
+		v = m.watching.View()
+	}
+
 	v.Content = m.zm.Scan(v.Content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion

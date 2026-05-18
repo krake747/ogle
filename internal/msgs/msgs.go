@@ -21,6 +21,13 @@ type (
 	FileSelected struct {
 		Path string
 	}
+
+	// FileRemoved is emitted by Dashboard when the project file is no longer
+	// present in a FileAvailabilityChanged snapshot. App catches it and
+	// transitions to phaseWatching.
+	FileRemoved struct {
+		File string
+	}
 )
 
 type (

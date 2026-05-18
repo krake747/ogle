@@ -17,6 +17,9 @@ import (
 	"github.com/ma-tf/ogle/internal/services/scanner"
 )
 
+// ErrCreateWatcher is returned when watcher initialisation fails.
+var ErrCreateWatcher = errors.New("create watcher")
+
 // Watcher monitors a directory for filesystem changes and delivers
 // msgs.FileAvailabilityChanged snapshots to the Bubble Tea runtime.
 type Watcher interface {
@@ -46,18 +49,17 @@ type Service struct {
 }
 
 // New creates a Watcher that monitors dir and starts the background event
-// loop. On failure, a NullWatcher is returned alongside the error so the
-// caller always receives a valid Watcher.
+// loop. On failure, nil is returned alongside the error.
 func New(dir string, logger *slog.Logger) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
-		return NewNull(), fmt.Errorf("create fsnotify watcher: %w", err)
+		return nil, fmt.Errorf("%w: fsnotify: %w", ErrCreateWatcher, err)
 	}
 
 	if addErr := fw.Add(dir); addErr != nil {
 		closeErr := fw.Close()
 
-		return NewNull(), fmt.Errorf("watch directory %s: %w", dir, errors.Join(addErr, closeErr))
+		return nil, fmt.Errorf("%w: add watch: %w", ErrCreateWatcher, errors.Join(addErr, closeErr))
 	}
 
 	sc := scanner.New(logger)

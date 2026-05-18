@@ -19,56 +19,6 @@ func newTestLogger() *slog.Logger {
 	return slog.New(slog.DiscardHandler)
 }
 
-func TestNewNull(t *testing.T) {
-	t.Parallel()
-
-	t.Run("Dir returns empty string", func(t *testing.T) {
-		t.Parallel()
-
-		w := watcher.NewNull()
-		defer w.Close()
-
-		require.Empty(t, w.Dir())
-	})
-
-	t.Run("Snapshot delivers empty FileAvailabilityChanged", func(t *testing.T) {
-		t.Parallel()
-
-		w := watcher.NewNull()
-		defer w.Close()
-
-		msg := w.Snapshot()()
-		require.Equal(t, msgs.FileAvailabilityChanged{}, msg)
-	})
-
-	t.Run("Next blocks until Close then returns nil", func(t *testing.T) {
-		t.Parallel()
-
-		w := watcher.NewNull()
-
-		got := make(chan any, 1)
-		go func() { got <- w.Next()() }()
-
-		require.NoError(t, w.Close())
-
-		select {
-		case msg := <-got:
-			require.Nil(t, msg)
-		case <-time.After(2 * time.Second):
-			t.Fatal("Next did not return after Close")
-		}
-	})
-
-	t.Run("Close is idempotent", func(t *testing.T) {
-		t.Parallel()
-
-		w := watcher.NewNull()
-		require.NoError(t, w.Close())
-		require.NoError(t, w.Close())
-		require.NoError(t, w.Close())
-	})
-}
-
 func TestNew(t *testing.T) {
 	t.Parallel()
 
@@ -84,13 +34,12 @@ func TestNew(t *testing.T) {
 		require.Equal(t, dir, w.Dir())
 	})
 
-	t.Run("non-existent directory returns error and valid Watcher", func(t *testing.T) {
+	t.Run("non-existent directory returns error and nil", func(t *testing.T) {
 		t.Parallel()
 
 		w, err := watcher.New("/nonexistent/path/that/cannot/exist", newTestLogger())
 		require.Error(t, err)
-		require.NotNil(t, w)
-		require.NoError(t, w.Close())
+		require.Nil(t, w)
 	})
 
 	t.Run("Close is idempotent", func(t *testing.T) {

@@ -135,20 +135,25 @@ var (
 				}()
 			}
 
-			model := app.New(ctx, cfg, configDir, logger, th)
+			model, cleanup, err := app.New(ctx, cfg, configDir, logger, th)
+			if err != nil {
+				return fmt.Errorf("app init: %w", err)
+			}
+
+			defer func() {
+				if cleanErr := cleanup(); cleanErr != nil {
+					logger.WarnContext(ctx, "cleanup on exit", slog.Any("err", cleanErr))
+				}
+			}()
+
 			program := tea.NewProgram(
 				model,
 				tea.WithContext(ctx),
 			)
 
-			_, err := program.Run()
-			// if m, ok := final.(app.Model); ok {
-			// 	if closeErr := m.Close(); closeErr != nil {
-			// 		logger.ErrorContext(ctx, "close watcher", "err", closeErr)
-			// 	}
-			// }
-			if err != nil {
-				return fmt.Errorf("run program: %w", err)
+			_, runErr := program.Run()
+			if runErr != nil {
+				return fmt.Errorf("run program: %w", runErr)
 			}
 
 			return nil

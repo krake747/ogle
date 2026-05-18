@@ -3,6 +3,8 @@ package dashboard
 
 import (
 	"context"
+	"log/slog"
+	"slices"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -13,6 +15,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
+	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
@@ -23,7 +26,11 @@ import (
 // Model is the dashboard flow orchestrator.
 type Model struct {
 	ctx         context.Context
+	log         *slog.Logger
+	parser      parser.Parser
 	project     *domain.Project
+	th          *theme.Theme
+	zm          *zone.Manager
 	conn        *connection.Machine
 	daemon      daemonstatus.Model
 	serviceList servicelist.Model
@@ -36,6 +43,7 @@ type Model struct {
 func New(
 	ctx context.Context,
 	project *domain.Project,
+	log *slog.Logger,
 	th *theme.Theme,
 	zm *zone.Manager,
 	w, h int,
@@ -46,7 +54,11 @@ func New(
 
 	return Model{
 		ctx:         ctx,
+		log:         log,
+		parser:      parser.New(ctx, log),
 		project:     project,
+		th:          th,
+		zm:          zm,
 		conn:        conn,
 		daemon:      daemonstatus.New(ctx, conn, th),
 		serviceList: svcList,
@@ -118,6 +130,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.serviceList, _ = m.serviceList.Update(msg)
 
 		return m, nil
+
+	case msgs.FileAvailabilityChanged:
+		if !slices.Contains(msg.Files, m.project.File) {
+			return m, func() tea.Msg {
+				return msgs.FileRemoved{File: m.project.File}
+			}
+		}
+
+		p, err := m.parser.Parse(m.project.File)
+		if err != nil {
+			m.log.WarnContext(
+				m.ctx,
+				"dashboard: re-parse failed, keeping current state",
+				slog.Any("err", err),
+			)
+
+			return m, nil
+		}
+
+		newDash := New(m.ctx, p, m.log, m.th, m.zm, m.w, m.h)
+
+		return newDash, newDash.Init()
 	}
 
 	m.daemon, daemonCmd = m.daemon.Update(msg)

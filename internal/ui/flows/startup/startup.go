@@ -2,22 +2,18 @@ package startup
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
-	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/components/fileselect"
 )
 
 // Model is the startup flow orchestrator.
 type Model struct {
-	watcher watcher.Watcher
-	parser  parser.Parser
-
+	parser     parser.Parser
 	fileSelect tea.Model
 }
 
@@ -25,26 +21,16 @@ type Model struct {
 func New(
 	ctx context.Context,
 	logger *slog.Logger,
-	dir string,
 	w, h int,
-) (Model, error) {
-	watcher, err := watcher.New(dir, logger) // starts goroutine that fires FileAvailabilityChanged
-	if err != nil {
-		return Model{}, fmt.Errorf("watcher: %w", err)
-	}
-
+) Model {
 	return Model{
-		watcher: watcher,
-		parser:  parser.New(ctx, logger),
-
+		parser:     parser.New(ctx, logger),
 		fileSelect: fileselect.New(nil, w, h),
-	}, nil
+	}
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd {
-	return m.watcher.Snapshot()
-}
+func (m Model) Init() tea.Cmd { return nil }
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
