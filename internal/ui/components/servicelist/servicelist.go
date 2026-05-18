@@ -21,10 +21,8 @@ import (
 var (
 	_ help.KeyMap = Model{} //nolint:exhaustruct // compile-time assertion that Model implements help.KeyMap
 
-	// KeyStop is the key binding for stopping a service.
-	KeyStop = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "stop"))
-	// KeyStart is the key binding for starting a service.
-	KeyStart = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start"))
+	// KeyToggleService starts or stops the selected service.
+	KeyToggleService = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "start/stop"))
 	// KeyRestart is the key binding for restarting a service.
 	KeyRestart = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
 	// KeyRebuild is the key binding for rebuilding a service.
@@ -121,7 +119,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		switch {
-		case key.Matches(msg, KeyStop), key.Matches(msg, KeyStart):
+		case key.Matches(msg, KeyToggleService):
 			rt := m.selectedRuntime(name)
 			if rt != nil && rt.State == domain.ServiceStateRunning {
 				m = m.updateItem(name, msgs.ServiceStop{ServiceName: name})

@@ -85,11 +85,9 @@ func (m Model) Init() tea.Cmd {
 				Keymap: appKeymap{
 					list: m.serviceList,
 					actions: []key.Binding{
-						servicelist.KeyStop,
-						servicelist.KeyStart,
+						servicelist.KeyToggleService,
 						servicelist.KeyRestart,
 						servicelist.KeyRebuild,
-						keySettings,
 						keyToggleWrap,
 					},
 				},
