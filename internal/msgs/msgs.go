@@ -150,9 +150,3 @@ type SettingsVisibilityChanged struct {
 
 // ToggleLogWrap toggles soft wrapping of log lines in all log panes.
 type ToggleLogWrap struct{}
-
-// LogScrollH scrolls log lines horizontally. Positive Amount scrolls right,
-// negative scrolls left. No-op when soft wrap is enabled.
-type LogScrollH struct {
-	Amount int
-}

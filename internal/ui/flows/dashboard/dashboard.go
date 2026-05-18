@@ -89,9 +89,13 @@ func (m Model) Init() tea.Cmd {
 				Keymap: appKeymap{
 					list: m.serviceList,
 					actions: []key.Binding{
+						servicelist.KeyPrev,
+						servicelist.KeyNext,
 						servicelist.KeyToggleService,
 						servicelist.KeyRestart,
 						servicelist.KeyRebuild,
+						keyScrollUp,
+						keyScrollDown,
 						keyScrollLeft,
 						keyScrollRight,
 						keyToggleWrap,
@@ -143,11 +147,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keyToggleWrap):
 			return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
 
-		case key.Matches(msg, keyScrollLeft):
-			return m, func() tea.Msg { return msgs.LogScrollH{Amount: -8} }
+		case key.Matches(msg, keyScrollUp), key.Matches(msg, keyScrollDown),
+			key.Matches(msg, keyScrollLeft), key.Matches(msg, keyScrollRight):
+			m.panel, panCmd = m.panel.Update(msg)
 
-		case key.Matches(msg, keyScrollRight):
-			return m, func() tea.Msg { return msgs.LogScrollH{Amount: +8} }
+			return m, panCmd
 		}
 
 	case msgs.ServiceStop,

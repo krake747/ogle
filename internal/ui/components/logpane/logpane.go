@@ -12,6 +12,7 @@ const (
 	servicePanelHeight = 5
 	helpbarHeight      = 2
 	defaultCap         = 1000
+	horizontalStep     = 8
 )
 
 // Model stores raw log text lines backed by a viewport for windowed rendering.
@@ -27,8 +28,14 @@ type Model struct {
 // New returns a Model reading from the given line channel.
 func New(w, h int, lineCh <-chan string) Model {
 	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(0))
+	vp.KeyMap = viewport.KeyMap{
+		Up:    viewport.DefaultKeyMap().Up,
+		Down:  viewport.DefaultKeyMap().Down,
+		Left:  viewport.DefaultKeyMap().Left,
+		Right: viewport.DefaultKeyMap().Right,
+	}
+	vp.SetHorizontalStep(horizontalStep)
 	vp.MouseWheelEnabled = true
-	vp.KeyMap = viewport.KeyMap{}
 
 	return Model{
 		lines:    nil,
@@ -50,11 +57,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.LogLinesAvailable:
 		return m.drainLines()
-
-	case msgs.LogScrollH:
-		m.viewport.ScrollRight(msg.Amount)
-
-		return m, nil
 
 	case msgs.ToggleLogWrap:
 		m.wrap = !m.wrap

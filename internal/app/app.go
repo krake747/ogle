@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/term"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -24,6 +25,12 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
 	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+//nolint:gochecknoglobals // package-level key bindings
+var (
+	keyQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyProfile = key.NewBinding(key.WithKeys("ctrl+p"))
 )
 
 type phase int
@@ -160,10 +167,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c":
+		switch {
+		case key.Matches(msg, keyQuit):
 			return m, tea.Quit
-		case "ctrl+p":
+		case key.Matches(msg, keyProfile):
 			return m, profiling.DumpCmd()
 		}
 

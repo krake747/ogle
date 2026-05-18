@@ -23,13 +23,13 @@ type serviceItem struct {
 	inFlight    bool
 	actionLabel string
 	actionError string
-	theme       *theme.Theme
+	th          *theme.Theme
 }
 
 func newServiceItem(def domain.ServiceDef, th *theme.Theme) serviceItem {
 	return serviceItem{
 		def:         def,
-		theme:       th,
+		th:          th,
 		runtime:     nil,
 		inFlight:    false,
 		actionLabel: "",
@@ -124,43 +124,44 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 
 func (m serviceItem) View() tea.View {
 	icon := "●"
-	colour := m.theme.StateMuted
+	colour := m.th.StateMuted
 
 	switch {
 	case m.inFlight:
 		icon = "◌"
-		colour = m.theme.StateTransient
+		colour = m.th.StateTransient
 	case m.runtime == nil:
 
 	default:
 		switch m.runtime.State {
 		case domain.ServiceStateRunning:
 			icon = "●"
-			colour = m.theme.StateRunning
+			colour = m.th.StateRunning
 		case domain.ServiceStateExited, domain.ServiceStateDead:
 			icon = "●"
-			colour = m.theme.StateExited
+			colour = m.th.StateExited
 		case domain.ServiceStateNotCreated:
 			icon = "○"
 		case domain.ServiceStatePaused:
 			icon = "●"
-			colour = m.theme.StatePaused
+			colour = m.th.StatePaused
 		case domain.ServiceStateRestarting:
 			icon = "●"
-			colour = m.theme.StateTransient
+			colour = m.th.StateTransient
 		case domain.ServiceStateUnknown:
 			icon = "●"
 		}
 	}
 
-	rendered := lipgloss.NewStyle().Foreground(colour).Render(icon) + " " + m.def.Name
+	renderedText := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render(m.def.Name)
+	rendered := lipgloss.NewStyle().Foreground(colour).Render(icon, renderedText)
 
 	if m.inFlight && m.actionLabel != "" {
 		rendered += "  " + m.actionLabel
 	}
 
 	if !m.inFlight && m.actionError != "" {
-		rendered += "  " + lipgloss.NewStyle().Foreground(m.theme.ActionError).Render(m.actionError)
+		rendered += "  " + lipgloss.NewStyle().Foreground(m.th.ActionError).Render(m.actionError)
 	}
 
 	return tea.NewView(rendered)

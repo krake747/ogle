@@ -7,11 +7,15 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 )
+
+//nolint:gochecknoglobals // package-level key binding
+var keyRetry = key.NewBinding(key.WithKeys("r"))
 
 // Mode controls the heading and file-matching behaviour of the watching view.
 type Mode int
@@ -136,7 +140,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		if m.state == stateError && keyMsg.String() == "r" {
+		if m.state == stateError && key.Matches(keyMsg, keyRetry) {
 			return m, func() tea.Msg { return msgs.RetryWatcher{} }
 		}
 	}

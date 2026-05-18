@@ -10,6 +10,8 @@ var (
 	keyQuit        = key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit"))
 	keySettings    = key.NewBinding(key.WithKeys(","), key.WithHelp(",", "settings"))
 	keyToggleWrap  = key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "toggle wrap"))
+	keyScrollUp    = key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "scroll up"))
+	keyScrollDown  = key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "scroll down"))
 	keyScrollLeft  = key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "scroll left"))
 	keyScrollRight = key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "scroll right"))
 )

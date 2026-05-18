@@ -5,6 +5,7 @@ package servicelist
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"time"
 
 	"charm.land/bubbles/v2/help"
@@ -31,6 +32,10 @@ var (
 	KeyRestart = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
 	// KeyRebuild is the key binding for rebuilding a service.
 	KeyRebuild = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
+	// KeyPrev moves selection to the previous service.
+	KeyPrev = key.NewBinding(key.WithKeys("p"), key.WithHelp("p", "previous"))
+	// KeyNext moves selection to the next service.
+	KeyNext = key.NewBinding(key.WithKeys("n"), key.WithHelp("n", "next"))
 )
 
 const (
@@ -231,6 +236,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m = m.updateItem(name, msgs.ServiceRebuild{ServiceName: name})
 
 			return m, func() tea.Msg { return msgs.ServiceRebuild{ServiceName: name} }
+		case key.Matches(msg, KeyPrev), key.Matches(msg, KeyNext):
+			m = m.moveCursor(msg)
 		}
 
 	case tea.MouseMotionMsg:
@@ -256,6 +263,19 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmd, func() tea.Msg {
 		return msgs.ServiceSelected{ServiceName: selected.def.Name}
 	})
+}
+
+// moveCursor moves selection by one service. No-op at list boundaries.
+func (m Model) moveCursor(msg tea.KeyPressMsg) Model {
+	if key.Matches(msg, KeyPrev) && m.list.Index() > 0 {
+		m.list.Select(m.list.Index() - 1)
+	}
+
+	if key.Matches(msg, KeyNext) && m.list.Index() < len(m.list.Items())-1 {
+		m.list.Select(m.list.Index() + 1)
+	}
+
+	return m
 }
 
 // selectedName returns the name of the currently selected service, or "".
@@ -325,6 +345,10 @@ func (m Model) ShortHelp() []key.Binding {
 	for _, b := range all {
 		helpKeys := b.Keys()
 		if len(helpKeys) == 1 && helpKeys[0] == "?" {
+			continue
+		}
+
+		if slices.Contains(helpKeys, "k") || slices.Contains(helpKeys, "j") {
 			continue
 		}
 

@@ -9,11 +9,15 @@ import (
 	"log/slog"
 	"slices"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
 )
+
+//nolint:gochecknoglobals // package-level key binding
+var keyQuit = key.NewBinding(key.WithKeys("q"))
 
 type state int
 
@@ -68,7 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		if msg.String() == "q" {
+		if key.Matches(msg, keyQuit) {
 			return m, tea.Quit
 		}
 

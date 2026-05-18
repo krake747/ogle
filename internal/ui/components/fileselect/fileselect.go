@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -12,6 +13,9 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+//nolint:gochecknoglobals // package-level key binding
+var keySelect = key.NewBinding(key.WithKeys("enter"))
 
 type fileItem struct{ path string }
 
@@ -111,7 +115,7 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if kp := msg.String(); kp == "enter" {
+		if key.Matches(msg, keySelect) {
 			if len(m.list.Items()) == 0 {
 				return m, nil
 			}

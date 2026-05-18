@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -12,6 +13,9 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+//nolint:gochecknoglobals // package-level key binding
+var keySelect = key.NewBinding(key.WithKeys("enter"))
 
 type fileItem struct{ path string }
 
@@ -205,7 +209,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if item, ok := m.list.SelectedItem().(fileItem); ok {
-			if msg.String() == "enter" {
+			if key.Matches(msg, keySelect) {
 				return m, tea.Batch(
 					cmd,
 					func() tea.Msg { return msgs.FileSelected{Path: item.path} },
