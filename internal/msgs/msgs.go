@@ -141,3 +141,9 @@ type SettingsApplied struct {
 	Theme        string
 	LogBufferCap int
 }
+
+// SettingsVisibilityChanged is emitted by settings2 when the user closes the
+// overlay. dashboard.Model tracks the visibility flag.
+type SettingsVisibilityChanged struct {
+	Visible bool
+}

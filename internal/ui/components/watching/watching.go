@@ -12,14 +12,22 @@ type Model struct {
 
 // New returns a Model watching for file to reappear.
 func New(file string) Model {
-	return Model{File: file}
+	return Model{
+		File: file,
+	}
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
 // Update implements tea.Model. Currently a no-op stub.
-func (m Model) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
+func (m Model) Update(tea.Msg) (tea.Model, tea.Cmd) {
+	return m, nil
+}
 
 // View implements tea.Model.
-func (m Model) View() tea.View { return tea.NewView("compose file unavailable — waiting...") }
+func (m Model) View() tea.View {
+	return tea.NewView("compose file unavailable — waiting...")
+}
