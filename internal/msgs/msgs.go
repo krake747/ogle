@@ -147,3 +147,6 @@ type SettingsApplied struct {
 type SettingsVisibilityChanged struct {
 	Visible bool
 }
+
+// ToggleLogWrap toggles soft wrapping of log lines in all log panes.
+type ToggleLogWrap struct{}

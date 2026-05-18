@@ -7,8 +7,9 @@ import (
 
 //nolint:gochecknoglobals // package-level key bindings are shared across all Model instances
 var (
-	keyQuit     = key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit"))
-	keySettings = key.NewBinding(key.WithKeys(","), key.WithHelp(",", "settings"))
+	keyQuit       = key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit"))
+	keySettings   = key.NewBinding(key.WithKeys(","), key.WithHelp(",", "settings"))
+	keyToggleWrap = key.NewBinding(key.WithKeys("w"), key.WithHelp("w", "toggle wrap"))
 )
 
 const extraBindings = 2 // extra short-help entries beyond list and actions

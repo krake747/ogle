@@ -90,6 +90,7 @@ func (m Model) Init() tea.Cmd {
 						servicelist.KeyRestart,
 						servicelist.KeyRebuild,
 						keySettings,
+						keyToggleWrap,
 					},
 				},
 			}
@@ -123,6 +124,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.showingSettings = true
 
 			return m, nil
+		}
+
+		if key.Matches(msg, keyToggleWrap) && !m.showingSettings {
+			return m, func() tea.Msg {
+				return msgs.ToggleLogWrap{}
+			}
 		}
 
 	case msgs.ServiceStop:
