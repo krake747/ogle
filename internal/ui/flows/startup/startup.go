@@ -5,16 +5,20 @@ import (
 	"log/slog"
 
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/ui/components/fileselect"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // Model is the startup flow orchestrator.
 type Model struct {
 	parser     parser.Parser
 	fileSelect tea.Model
+	zm         *zone.Manager
+	th         *theme.Theme
 }
 
 // New constructs a startup Model.
@@ -22,10 +26,14 @@ func New(
 	ctx context.Context,
 	logger *slog.Logger,
 	w, h int,
+	zm *zone.Manager,
+	th *theme.Theme,
 ) Model {
 	return Model{
 		parser:     parser.New(ctx, logger),
-		fileSelect: fileselect.New(nil, w, h),
+		fileSelect: fileselect.New(nil, w, h, zm, th),
+		zm:         zm,
+		th:         th,
 	}
 }
 

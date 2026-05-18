@@ -3,7 +3,9 @@
 package servicelist
 
 import (
+	"fmt"
 	"path/filepath"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -16,6 +18,8 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/hoverlist"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+const doubleClickThreshold = 350 * time.Millisecond
 
 //nolint:gochecknoglobals // package-level key bindings
 var (
@@ -39,10 +43,13 @@ const (
 // Model is the service list component. It is a value type; all mutating
 // methods return a new Model.
 type Model struct {
-	list         list.Model
-	delegate     hoverlist.Delegate
-	theme        *theme.Theme
-	lastSelected string
+	list          list.Model
+	delegate      hoverlist.Delegate
+	theme         *theme.Theme
+	zm            *zone.Manager
+	lastSelected  string
+	lastClickTime time.Time
+	lastClickIdx  int
 }
 
 // New returns a Model pre-loaded with the given project's services.
@@ -72,10 +79,13 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Mode
 	l.Title = filepath.Base(project.File)
 
 	return Model{
-		list:         l,
-		delegate:     hd,
-		theme:        th,
-		lastSelected: "",
+		list:          l,
+		delegate:      hd,
+		theme:         th,
+		zm:            zm,
+		lastSelected:  "",
+		lastClickTime: time.Time{},
+		lastClickIdx:  -1,
 	}
 }
 
@@ -84,13 +94,96 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m Model) hitTest(mouseX, mouseY int) (int, bool) {
+	for i := range m.list.Items() {
+		msg := tea.MouseClickMsg{X: mouseX, Y: mouseY, Button: tea.MouseNone, Mod: 0}
+		if m.zm.Get(fmt.Sprintf("item-%d", i)).InBounds(msg) {
+			return i, true
+		}
+	}
+
+	return 0, false
+}
+
+func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
+	idx, hit := m.hitTest(msg.X, msg.Y)
+	if hit {
+		m.delegate.SetHover(idx)
+	} else {
+		m.delegate.SetHover(-1)
+	}
+
+	return m, nil
+}
+
+func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
+	if msg.Button != tea.MouseLeft {
+		return m, nil
+	}
+
+	idx, hit := m.hitTest(msg.X, msg.Y)
+	if !hit {
+		return m, nil
+	}
+
+	m.list.Select(idx)
+
+	name := m.selectedName()
+	if name == "" {
+		return m, nil
+	}
+
+	var cmds []tea.Cmd
+
+	if name != m.lastSelected {
+		m.lastSelected = name
+
+		cmds = append(cmds, func() tea.Msg {
+			return msgs.ServiceSelected{ServiceName: name}
+		})
+	}
+
+	if msg.Mod.Contains(tea.ModShift) {
+		m = m.updateItem(name, msgs.ServiceRebuild{ServiceName: name})
+
+		return m, tea.Batch(append(cmds, func() tea.Msg {
+			return msgs.ServiceRebuild{ServiceName: name}
+		})...)
+	}
+
+	now := time.Now()
+	if idx == m.lastClickIdx && now.Sub(m.lastClickTime) < doubleClickThreshold {
+		m.lastClickTime = time.Time{}
+		m.lastClickIdx = -1
+
+		rt := m.selectedRuntime(name)
+		if rt != nil && rt.State == domain.ServiceStateRunning {
+			m = m.updateItem(name, msgs.ServiceStop{ServiceName: name})
+
+			return m, tea.Batch(append(cmds, func() tea.Msg {
+				return msgs.ServiceStop{ServiceName: name}
+			})...)
+		}
+
+		m = m.updateItem(name, msgs.ServiceStart{ServiceName: name})
+
+		return m, tea.Batch(append(cmds, func() tea.Msg {
+			return msgs.ServiceStart{ServiceName: name}
+		})...)
+	}
+
+	m.lastClickTime = now
+	m.lastClickIdx = idx
+
+	return m, tea.Batch(cmds...)
+}
+
 // Update delegates to the inner list and tracks the selected service.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// availableH := max(msg.Height-helpbarHeight, 0)
 		m.list.SetSize(
 			min(msg.Width*listRatio/pctDivisor, listMaxWidth),
 			len(m.list.Items())+offsetY,
@@ -139,6 +232,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 			return m, func() tea.Msg { return msgs.ServiceRebuild{ServiceName: name} }
 		}
+
+	case tea.MouseMotionMsg:
+		return m.handleMouseMotion(msg)
+
+	case tea.MouseClickMsg:
+		return m.handleMouseClick(msg)
 	}
 
 	m.list, cmd = m.list.Update(msg)

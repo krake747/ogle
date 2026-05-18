@@ -119,6 +119,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			panCmd,
 		)
 
+	case tea.MouseClickMsg, tea.MouseMotionMsg, tea.MouseReleaseMsg, tea.MouseWheelMsg:
+		if m.showingSettings {
+			return m, nil
+		}
+
 	case tea.KeyPressMsg:
 		if m.showingSettings {
 			m.settings2, settings2Cmd = m.settings2.Update(msg)
