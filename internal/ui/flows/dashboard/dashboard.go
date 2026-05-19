@@ -18,7 +18,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
-	"github.com/ma-tf/ogle/internal/ui/components/settings2"
+	"github.com/ma-tf/ogle/internal/ui/components/settings"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -37,7 +37,7 @@ type Model struct {
 
 	serviceList     servicelist.Model
 	panel           servicepanel.Model
-	settings2       settings2.Model
+	settings        settings.Model
 	showingSettings bool
 	cfg             config.Config
 	w, h            int
@@ -62,7 +62,7 @@ func New(
 		zm:              zm,
 		serviceList:     servicelist.New(project, th, zm, w),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
-		settings2:       settings2.New(th, cfg, w, h),
+		settings:        settings.New(th, cfg, w, h),
 		showingSettings: false,
 		cfg:             cfg,
 		w:               w,
@@ -99,7 +99,7 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var svcListCmd, panCmd, settings2Cmd tea.Cmd
+	var svcListCmd, panCmd, settingsCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -121,9 +121,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		if m.showingSettings {
-			m.settings2, settings2Cmd = m.settings2.Update(msg)
+			m.settings, settingsCmd = m.settings.Update(msg)
 
-			return m, settings2Cmd
+			return m, settingsCmd
 		}
 
 		switch {
@@ -175,10 +175,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.panel, panCmd = m.panel.Update(msg)
 
 	if m.showingSettings {
-		m.settings2, settings2Cmd = m.settings2.Update(msg)
+		m.settings, settingsCmd = m.settings.Update(msg)
 	}
 
-	return m, tea.Batch(svcListCmd, panCmd, settings2Cmd)
+	return m, tea.Batch(svcListCmd, panCmd, settingsCmd)
 }
 
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -234,7 +234,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 	return newDash, newDash.Init()
 }
 
-// View renders the service list and inspector side by side. When settings2 is
+// View renders the service list and inspector side by side. When settings is
 // visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
 	listContent := m.serviceList.View().Content
@@ -243,7 +243,7 @@ func (m Model) View() tea.View {
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
 
 	if m.showingSettings {
-		overContent := m.settings2.View().Content
+		overContent := m.settings.View().Content
 		overW := lipgloss.Width(overContent)
 		overH := lipgloss.Height(overContent)
 		overX := max((m.w-overW)/2, 0) //nolint:mnd // halving to centre overlay

@@ -126,18 +126,20 @@ type ServicesPolled struct {
 	Err      error
 }
 
-// SettingsApplied is emitted by states.Settings when the user confirms changes.
-// dashboard.Model handles it to update the active configuration for the session.
-type SettingsApplied struct {
-	Theme        string
-	LogBufferCap int
-}
+type (
+	// SettingsApplied is emitted by states.Settings when the user confirms changes.
+	// dashboard.Model handles it to update the active configuration for the session.
+	SettingsApplied struct {
+		Theme        string
+		LogBufferCap int
+	}
 
-// SettingsVisibilityChanged is emitted by settings2 when the user closes the
-// overlay. dashboard.Model tracks the visibility flag.
-type SettingsVisibilityChanged struct {
-	Visible bool
-}
+	// SettingsVisibilityChanged is emitted by settings when the user closes the
+	// overlay. dashboard.Model tracks the visibility flag.
+	SettingsVisibilityChanged struct {
+		Visible bool
+	}
+)
 
 // ToggleLogWrap toggles soft wrapping of log lines in all log panes.
 type ToggleLogWrap struct{}

@@ -1,4 +1,4 @@
-package settings2
+package settings
 
 import (
 	"strconv"
@@ -220,14 +220,10 @@ func (m Model) View() tea.View {
 		help,
 	)
 
-	rendered := lipgloss.NewStyle().
+	return tea.NewView(lipgloss.NewStyle().
 		Width(boxWidth).
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(m.th.StateMuted).
 		Padding(0, 1).
-		Render(content)
-
-	return tea.NewView(rendered)
+		Render(content))
 }
 
 func (m Model) renderField(label, value string, focused bool) string {

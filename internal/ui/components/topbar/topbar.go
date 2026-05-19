@@ -149,10 +149,9 @@ func (m Model) contextText() string {
 func (m Model) renderDaemonStatus() string {
 	switch m.conn.ConnectState() {
 	case connection.ConnectStateConnecting:
-		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
 		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
 
-		return faded + " " + label + " " + m.spn.View()
+		return "🐳 " + label + " " + m.spn.View()
 
 	case connection.ConnectStateConnected:
 		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
@@ -167,11 +166,9 @@ func (m Model) renderDaemonStatus() string {
 			countdown = fmt.Sprintf("(%ds)", secs)
 		}
 
-		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
 		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
 
-		return faded + " " + label + " " + countdown
-
+		return "🐳 " + label + " " + countdown
 	default:
 		return ""
 	}
@@ -180,7 +177,7 @@ func (m Model) renderDaemonStatus() string {
 // View renders the top bar: faint "ogle" prefix + phase context on the left,
 // Docker daemon status on the right, right-aligned via padding.
 func (m Model) View() tea.View {
-	left := lipgloss.NewStyle().Faint(true).Render("ogle") + "  " + m.contextText()
+	left := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("ogle") + "  " + m.contextText()
 	right := m.renderDaemonStatus()
 
 	leftW := lipgloss.Width(left)
