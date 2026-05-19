@@ -13,12 +13,17 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+// frameHeight is the number of terminal lines consumed by the app-level chrome
+// (topbar + helpbar) that this phase must subtract from its allocated height.
+const frameHeight = 3
+
 // Model is the startup flow orchestrator.
 type Model struct {
 	parser     parser.Parser
 	fileSelect tea.Model
 	zm         *zone.Manager
 	th         *theme.Theme
+	w, h       int
 }
 
 // New constructs a startup Model.
@@ -34,15 +39,22 @@ func New(
 		fileSelect: fileselect.New(nil, w, h, zm, th),
 		zm:         zm,
 		th:         th,
+		w:          w,
+		h:          h,
 	}
 }
 
 // Init implements tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return func() tea.Msg {
+		return msgs.BindingsMsg{Keymap: startupKeymap{}}
+	}
+}
 
 // Update implements tea.Model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if msg, ok := msg.(msgs.FileSelected); ok {
+	switch msg := msg.(type) {
+	case msgs.FileSelected:
 		p, err := m.parser.Parse(msg.Path)
 		if err != nil {
 			return m, nil
@@ -53,6 +65,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Project: p,
 			}
 		})
+
+	case tea.WindowSizeMsg:
+		m.w = msg.Width
+		m.h = msg.Height - frameHeight
+
+		var cmd tea.Cmd
+
+		bodyMsg := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - frameHeight}
+		m.fileSelect, cmd = m.fileSelect.Update(bodyMsg)
+
+		return m, cmd
 	}
 
 	var cmd tea.Cmd

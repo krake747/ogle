@@ -103,6 +103,13 @@ type (
 	DaemonPoll struct{}
 )
 
+// TopbarContext is delivered by the app on phase transitions. The topbar
+// component updates its displayed context text accordingly.
+type TopbarContext struct {
+	Phase string
+	File  string
+}
+
 // BindingsMsg delivers a unified keymap to the helpbar component.
 type BindingsMsg struct {
 	Keymap help.KeyMap

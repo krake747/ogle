@@ -44,10 +44,12 @@ func New(
 	}
 
 	base := list.NewDefaultDelegate()
+	base.SetSpacing(0)
+	base.ShowDescription = false
 	hd := hoverlist.NewDelegate(base, th, zm)
 
 	l := list.New(items, hd, w, h)
-	l.Title = "ogle"
+	l.SetShowTitle(false)
 	l.SetFilteringEnabled(false)
 	l.KeyMap.ForceQuit.SetEnabled(false)
 	l.InfiniteScrolling = true

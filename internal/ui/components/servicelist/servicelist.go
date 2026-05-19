@@ -4,7 +4,6 @@ package servicelist
 
 import (
 	"fmt"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -78,10 +77,8 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Mode
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
 	l.SetShowStatusBar(false)
-	l.SetShowTitle(true)
+	l.SetShowTitle(false)
 	l.InfiniteScrolling = true
-	l.Styles.TitleBar = l.Styles.TitleBar.PaddingBottom(0).PaddingLeft(0)
-	l.Title = filepath.Base(project.File)
 
 	return Model{
 		list:          l,

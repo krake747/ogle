@@ -1,11 +1,10 @@
-// Package daemonstatus implements a Bubble Tea sub-model that tracks Docker
-// daemon connectivity and renders connection status text.
-package daemonstatus
+package topbar
 
 import (
 	"context"
 	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -23,28 +22,42 @@ const (
 	healthCheckInterval = 2 * time.Second
 )
 
-// Model tracks Docker daemon connectivity and renders status text.
+// Phase identifies the active UI phase for context text rendering.
+type Phase int
+
+// Phase values.
+const (
+	PhaseStartup Phase = iota
+	PhaseDashboard
+	PhaseWatching
+)
+
+// Model holds top bar state: the active phase, project file, daemon connection
+// machine, spinner, theme, and terminal width.
 type Model struct {
-	ctx  context.Context
-	conn *connection.Machine
-	spn  spinner.Model
-	th   *theme.Theme
+	phase       Phase
+	projectFile string
+	conn        *connection.Machine
+	spn         spinner.Model
+	th          *theme.Theme
+	width       int
+	ctx         context.Context
 }
 
-// New returns a Model that shares the given Machine.
+// New returns a Model in PhaseStartup with no project file.
 func New(ctx context.Context, conn *connection.Machine, th *theme.Theme) Model {
 	return Model{
-		ctx:  ctx,
-		conn: conn,
-		spn:  spinner.New(spinner.WithSpinner(spinner.MiniDot)),
-		th:   th,
+		phase:       PhaseStartup,
+		projectFile: "",
+		ctx:         ctx,
+		conn:        conn,
+		spn:         spinner.New(spinner.WithSpinner(spinner.MiniDot)),
+		th:          th,
+		width:       0,
 	}
 }
 
-// Init fires the initial Docker Connect ping, a grace-period tick, and the
-// first spinner tick. The 1-second retry loop is started on-demand when the
-// daemon becomes unavailable (see DaemonUnavailable and DaemonGraceExpired
-// handlers).
+// Init fires the initial Docker connect, grace-period tick, and spinner tick.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
 		svcdocker.Connect(m.ctx),
@@ -55,13 +68,27 @@ func (m Model) Init() tea.Cmd {
 	)
 }
 
-// Update handles connection-related messages and drives the Machine.
-// DaemonTick and spinner.TickMsg handlers chain the next tick via tea.Tick
-// so the loop is self-sustaining.
+// Update handles daemon connectivity messages, spinner ticks, window
+// resize events, and topbar context changes.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+
+	case msgs.TopbarContext:
+		switch msg.Phase {
+		case "startup":
+			m.phase = PhaseStartup
+		case "dashboard":
+			m.phase = PhaseDashboard
+		case "watching":
+			m.phase = PhaseWatching
+		}
+
+		m.projectFile = msg.File
+
 	case msgs.DaemonConnected:
 		m.conn.HandleConnected()
 
@@ -106,6 +133,63 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m Model) contextText() string {
+	switch m.phase {
+	case PhaseStartup:
+		return "scanning for compose files"
+	case PhaseDashboard:
+		return m.projectFile
+	case PhaseWatching:
+		return "disconnected"
+	default:
+		return ""
+	}
+}
+
+func (m Model) renderDaemonStatus() string {
+	switch m.conn.ConnectState() {
+	case connection.ConnectStateConnecting:
+		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
+		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
+
+		return faded + " " + label + " " + m.spn.View()
+
+	case connection.ConnectStateConnected:
+		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
+
+		return "🐳 " + live
+
+	case connection.ConnectStateUnavailable:
+		secs := int(math.Ceil(m.conn.Remaining().Seconds()))
+		countdown := "(now)"
+
+		if secs >= 1 {
+			countdown = fmt.Sprintf("(%ds)", secs)
+		}
+
+		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
+		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
+
+		return faded + " " + label + " " + countdown
+
+	default:
+		return ""
+	}
+}
+
+// View renders the top bar: faint "ogle" prefix + phase context on the left,
+// Docker daemon status on the right, right-aligned via padding.
+func (m Model) View() tea.View {
+	left := lipgloss.NewStyle().Faint(true).Render("ogle") + "  " + m.contextText()
+	right := m.renderDaemonStatus()
+
+	leftW := lipgloss.Width(left)
+	rightW := lipgloss.Width(right)
+	pad := max(m.width-leftW-rightW, 0)
+
+	return tea.NewView(left + strings.Repeat(" ", pad) + right)
+}
+
 func daemonTickCmd() tea.Cmd {
 	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 		return msgs.DaemonTick{}
@@ -116,36 +200,4 @@ func pollDaemonCmd() tea.Cmd {
 	return tea.Tick(healthCheckInterval, func(_ time.Time) tea.Msg {
 		return msgs.DaemonPoll{}
 	})
-}
-
-// View renders connection status text.
-func (m Model) View() tea.View {
-	switch m.conn.ConnectState() {
-	case connection.ConnectStateConnecting:
-		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
-		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
-
-		return tea.NewView(faded + " " + label + " " + m.spn.View())
-
-	case connection.ConnectStateConnected:
-		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
-
-		return tea.NewView("🐳 " + live)
-
-	case connection.ConnectStateUnavailable:
-		secs := int(math.Ceil(m.conn.Remaining().Seconds()))
-
-		countdown := "(now)"
-		if secs >= 1 {
-			countdown = fmt.Sprintf("(%ds)", secs)
-		}
-
-		faded := lipgloss.NewStyle().Faint(true).Render("🐳")
-		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
-
-		return tea.NewView(faded + " " + label + " " + countdown)
-
-	default:
-		return tea.NewView("dashboard")
-	}
 }

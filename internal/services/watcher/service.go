@@ -38,23 +38,25 @@ type Watcher interface {
 
 // Service monitors a directory for filesystem events on known compose
 // filenames and delivers msgs.FileAvailabilityChanged snapshots to the
-// Bubble Tea runtime. extraFiles are additional basenames to track beyond
+// Bubble Tea runtime. extraFile is an additional basename to track beyond
 // the scanner's known filenames (e.g. a manually specified project file).
+// When empty, only the scanner's known filenames are tracked.
 type Service struct {
-	fw         *fsnotify.Watcher
-	dir        string
-	scanner    scanner.Scanner
-	logger     *slog.Logger
-	extraFiles []string
-	events     chan tea.Msg
-	done       chan struct{}
-	once       sync.Once
+	fw        *fsnotify.Watcher
+	dir       string
+	scanner   scanner.Scanner
+	logger    *slog.Logger
+	extraFile string
+	events    chan tea.Msg
+	done      chan struct{}
+	once      sync.Once
 }
 
 // New creates a Watcher that monitors dir and starts the background event
-// loop. extraFiles are additional basenames to track (e.g. a manually
-// specified project file). On failure, nil is returned alongside the error.
-func New(dir string, logger *slog.Logger, extraFiles ...string) (Watcher, error) {
+// loop. extraFile is an additional basename to track (e.g. a manually
+// specified project file). Pass "" to only track the scanner's known filenames.
+// On failure, nil is returned alongside the error.
+func New(dir string, logger *slog.Logger, extraFile string) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("%w: fsnotify: %w", ErrCreateWatcher, err)
@@ -69,14 +71,20 @@ func New(dir string, logger *slog.Logger, extraFiles ...string) (Watcher, error)
 	sc := scanner.New(logger)
 
 	w := &Service{
-		fw:         fw,
-		dir:        dir,
-		scanner:    sc,
-		logger:     logger,
-		extraFiles: extraFiles,
-		events:     make(chan tea.Msg, 1),
-		done:       make(chan struct{}),
-		once:       sync.Once{},
+		fw:      fw,
+		dir:     dir,
+		scanner: sc,
+		logger:  logger,
+		extraFile: func() string {
+			if extraFile == "" {
+				return ""
+			}
+
+			return filepath.Base(extraFile)
+		}(),
+		events: make(chan tea.Msg, 1),
+		done:   make(chan struct{}),
+		once:   sync.Once{},
 	}
 
 	go w.run()
@@ -121,13 +129,13 @@ func (w *Service) Next() tea.Cmd {
 	}
 }
 
-// scan returns all known compose files and extra files that currently exist
-// in the monitored directory.
+// scan returns all known compose files and the extra file (if set) that
+// currently exist in the monitored directory.
 func (w *Service) scan() []string {
 	files := w.scanner.ScanAll(w.dir)
 
-	for _, ef := range w.extraFiles {
-		path := filepath.Join(w.dir, ef)
+	if w.extraFile != "" {
+		path := filepath.Join(w.dir, w.extraFile)
 
 		if _, err := os.Stat(path); err == nil && !slices.Contains(files, path) {
 			files = append(files, path)
@@ -158,8 +166,8 @@ func (w *Service) run() {
 				return
 			}
 
-			if !slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name)) &&
-				!slices.Contains(w.extraFiles, filepath.Base(event.Name)) {
+			known := slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name))
+			if !known && filepath.Base(event.Name) != w.extraFile {
 				continue
 			}
 

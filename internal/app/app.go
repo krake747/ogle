@@ -12,15 +12,20 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/term"
 	zone "github.com/lrstanley/bubblezone/v2"
 	"go.yaml.in/yaml/v3"
 
 	"github.com/ma-tf/ogle/config"
+	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
+	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/watcher"
+	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
+	"github.com/ma-tf/ogle/internal/ui/components/topbar"
 	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
@@ -35,6 +40,8 @@ var (
 
 type phase int
 
+const frameHeight = 3
+
 const (
 	phaseStartup phase = iota
 	phaseDashboard
@@ -43,20 +50,23 @@ const (
 
 // Model is the root flow orchestrator.
 type Model struct {
-	ctx        context.Context
-	cfg        config.Config
-	configPath string
-	dir        string
-	log        *slog.Logger
-	theme      *theme.Theme
-	zm         *zone.Manager
-	watcher    watcher.Watcher
-	startup    tea.Model
-	dashboard  tea.Model
-	watching   tea.Model
-	phase      phase
-	width      int
-	height     int
+	ctx         context.Context
+	cfg         config.Config
+	configPath  string
+	projectFile string
+	log         *slog.Logger
+	theme       *theme.Theme
+	zm          *zone.Manager
+	watcher     watcher.Watcher
+
+	topbar    topbar.Model
+	helpbar   helpbar.Model
+	startup   tea.Model
+	dashboard tea.Model
+	watching  tea.Model
+	phase     phase
+	width     int
+	height    int
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -69,93 +79,75 @@ func New(
 	log *slog.Logger,
 	th *theme.Theme,
 ) (Model, func() error, error) {
-	width, height, err := term.GetSize(os.Stdout.Fd())
-	if err != nil {
+	width, height, errSize := term.GetSize(os.Stdout.Fd())
+	if errSize != nil {
 		width, height = 0, 0
 	}
 
+	wtr, errWatch := watcher.New(filepath.Dir(projectFile), log, projectFile)
+	if errWatch != nil {
+		return Model{}, nil, fmt.Errorf("create watcher: %w", errWatch)
+	}
+
+	var (
+		project *domain.Project
+		dash    tea.Model
+	)
+
+	currentPhase := phaseStartup
 	zm := zone.New()
+	pf := ""
 
 	if projectFile != "" {
-		dir := filepath.Dir(projectFile)
-
-		var wtr watcher.Watcher
-
-		wtr, err = watcher.New(dir, log, filepath.Base(projectFile))
-		if err != nil {
-			return Model{}, nil, fmt.Errorf("create watcher: %w", err)
-		}
-
-		p, parseErr := parser.New(ctx, log).Parse(projectFile)
-		if parseErr != nil {
+		var errParse error
+		if project, errParse = parser.New(ctx, log).Parse(projectFile); errParse != nil {
 			_ = wtr.Close()
 
-			return Model{}, nil, fmt.Errorf("parse project file: %w", parseErr)
+			return Model{}, nil, fmt.Errorf("parse project file: %w", errParse)
 		}
 
-		dash := dashboard.New(ctx, p, log, th, cfg, zm, width, height)
+		currentPhase = phaseDashboard
+		pf = filepath.Base(projectFile)
 
-		return Model{
-			ctx:        ctx,
-			cfg:        cfg,
-			configPath: configPath,
-			dir:        dir,
-			log:        log,
-			theme:      th,
-			zm:         zm,
-			watcher:    wtr,
-			startup:    nil,
-			dashboard:  dash,
-			watching:   nil,
-			phase:      phaseDashboard,
-			width:      width,
-			height:     height,
-		}, wtr.Close, nil
-	}
-
-	var dir string
-
-	if dir, err = os.Getwd(); err != nil {
-		dir = "."
-	}
-
-	var wtr watcher.Watcher
-
-	wtr, err = watcher.New(dir, log)
-	if err != nil {
-		return Model{}, nil, fmt.Errorf("create watcher: %w", err)
+		dash = dashboard.New(ctx, project, log, th, cfg, zm, width, height)
 	}
 
 	return Model{
-		ctx:        ctx,
-		cfg:        cfg,
-		configPath: configPath,
-		dir:        dir,
-		log:        log,
-		theme:      th,
-		zm:         zm,
-		watcher:    wtr,
-		startup:    startup.New(ctx, log, width, height, zm, th),
-		dashboard:  nil,
-		watching:   nil,
-		phase:      phaseStartup,
-		width:      width,
-		height:     height,
+		ctx:         ctx,
+		cfg:         cfg,
+		configPath:  configPath,
+		projectFile: pf,
+		log:         log,
+		theme:       th,
+		zm:          zm,
+		watcher:     wtr,
+		topbar:      topbar.New(ctx, connection.New(), th),
+		helpbar:     helpbar.New(),
+		startup:     startup.New(ctx, log, width, height, zm, th),
+		dashboard:   dash,
+		watching:    nil,
+		phase:       currentPhase,
+		width:       width,
+		height:      height,
 	}, wtr.Close, nil
 }
 
 // Init fires the initial snapshot and starts the active phase.
 func (m Model) Init() tea.Cmd {
+	cmds := []tea.Cmd{m.watcher.Snapshot(), m.topbar.Init(), m.helpbar.Init()}
+
 	switch m.phase {
 	case phaseDashboard:
-		return tea.Batch(m.watcher.Snapshot(), m.dashboard.Init())
+		cmds = append(cmds, m.dashboard.Init())
+		cmds = append(cmds, func() tea.Msg {
+			return msgs.TopbarContext{Phase: "dashboard", File: m.projectFile}
+		})
 	case phaseStartup:
-		return tea.Batch(m.watcher.Snapshot(), m.startup.Init())
+		cmds = append(cmds, m.startup.Init())
 	case phaseWatching:
-		return tea.Batch(m.watcher.Snapshot())
 	}
 
-	return nil
+	return tea.Batch(cmds...)
 }
 
 // Update drives the root state machine. Messages are either handled by app
@@ -187,7 +179,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 		m.phase = phaseDashboard
 
-		return m, m.dashboard.Init()
+		return m, tea.Batch(
+			m.dashboard.Init(),
+			func() tea.Msg {
+				return msgs.TopbarContext{Phase: "dashboard", File: filepath.Base(msg.Project.File)}
+			},
+		)
 
 	case msgs.SettingsApplied:
 		return m.handleSettingsApplied(msg)
@@ -226,8 +223,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height)
 		m.phase = phaseWatching
 
-		return m, nil
+		return m, tea.Batch(
+			func() tea.Msg { return msgs.TopbarContext{Phase: "watching", File: ""} },
+			func() tea.Msg { return msgs.BindingsMsg{Keymap: watchingKeymap{}} },
+		)
 	}
+
+	var topbarCmd, helpbarCmd tea.Cmd
+
+	m.topbar, topbarCmd = m.topbar.Update(msg)
+	m.helpbar, helpbarCmd = m.helpbar.Update(msg)
 
 	var cmd tea.Cmd
 
@@ -240,7 +245,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.watching, cmd = m.watching.Update(msg)
 	}
 
-	return m, cmd
+	return m, tea.Batch(cmd, topbarCmd, helpbarCmd)
 }
 
 func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.Cmd) {
@@ -276,19 +281,26 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 	return m, nil
 }
 
-// View delegates rendering to the active phase model.
+// View composes the top bar, active phase body, and help bar into a unified frame.
 func (m Model) View() tea.View {
-	var v tea.View
+	var body tea.View
 
 	switch m.phase {
 	case phaseStartup:
-		v = m.startup.View()
+		body = m.startup.View()
 	case phaseDashboard:
-		v = m.dashboard.View()
+		body = m.dashboard.View()
 	case phaseWatching:
-		v = m.watching.View()
+		body = m.watching.View()
 	}
 
+	content := lipgloss.JoinVertical(lipgloss.Top,
+		m.topbar.View().Content,
+		lipgloss.NewStyle().Height(m.height-frameHeight).Render(body.Content),
+		m.helpbar.View().Content,
+	)
+
+	v := tea.NewView(content)
 	v.Content = m.zm.Scan(v.Content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion

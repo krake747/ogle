@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		defer w.Close()
@@ -37,7 +37,7 @@ func TestNew(t *testing.T) {
 	t.Run("non-existent directory returns error and nil", func(t *testing.T) {
 		t.Parallel()
 
-		w, err := watcher.New("/nonexistent/path/that/cannot/exist", newTestLogger())
+		w, err := watcher.New("/nonexistent/path/that/cannot/exist", newTestLogger(), "")
 		require.Error(t, err)
 		require.Nil(t, w)
 	})
@@ -46,7 +46,7 @@ func TestNew(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		require.NoError(t, w.Close())
@@ -64,7 +64,7 @@ func TestSnapshot(t *testing.T) {
 		composePath := filepath.Join(dir, composeYML)
 		require.NoError(t, os.WriteFile(composePath, []byte{}, 0o600))
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		defer w.Close()
@@ -84,7 +84,7 @@ func TestNext(t *testing.T) {
 		dir := t.TempDir()
 		composePath := filepath.Join(dir, composeYML)
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		defer w.Close()
@@ -106,7 +106,7 @@ func TestNext(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "unknown.txt"), []byte{}, 0o600))
@@ -133,7 +133,7 @@ func TestNext(t *testing.T) {
 		// Pre-create so the watcher sees a REMOVE event.
 		require.NoError(t, os.WriteFile(composePath, []byte{}, 0o600))
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		defer w.Close()
@@ -161,7 +161,7 @@ func TestNext(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(composePath1, []byte("v1"), 0o600))
 
-		w, err := watcher.New(dir, newTestLogger())
+		w, err := watcher.New(dir, newTestLogger(), "")
 		require.NoError(t, err)
 
 		defer w.Close()

@@ -10,7 +10,6 @@ import (
 
 const (
 	servicePanelHeight = 5
-	helpbarHeight      = 2
 	defaultCap         = 1000
 	horizontalStep     = 8
 )
@@ -82,7 +81,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		wasAtBottom := m.viewport.AtBottom()
 		m.h = msg.Height
 		m.viewport.SetWidth(msg.Width)
-		h := min(len(m.lines), max(m.h-servicePanelHeight-helpbarHeight, 0))
+		h := min(len(m.lines), max(m.h-servicePanelHeight, 0))
 		m.viewport.SetHeight(h)
 
 		if wasAtBottom || m.viewport.PastBottom() {
@@ -118,7 +117,7 @@ func (m Model) drainLines() (Model, tea.Cmd) {
 		default:
 			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetContentLines(m.lines)
-			h := min(len(m.lines), max(m.h-servicePanelHeight-helpbarHeight, 0))
+			h := min(len(m.lines), max(m.h-servicePanelHeight, 0))
 			m.viewport.SetHeight(h)
 
 			if wasAtBottom {

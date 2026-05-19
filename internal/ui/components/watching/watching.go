@@ -16,6 +16,10 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 )
 
+// frameHeight is the number of terminal lines consumed by the app-level chrome
+// (topbar + helpbar) that this phase must subtract from its allocated height.
+const frameHeight = 3
+
 //nolint:gochecknoglobals // package-level key binding
 var keyQuit = key.NewBinding(key.WithKeys("q"))
 
@@ -67,7 +71,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
-		m.h = msg.Height
+		m.h = msg.Height - frameHeight
 
 		return m, nil
 

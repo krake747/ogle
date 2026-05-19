@@ -15,15 +15,16 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
-	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/services/parser"
-	"github.com/ma-tf/ogle/internal/ui/components/daemonstatus"
-	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/components/settings2"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+// frameHeight is the number of terminal lines consumed by the app-level chrome
+// (topbar + helpbar) that each phase must subtract from its allocated height.
+const frameHeight = 3
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
@@ -33,19 +34,16 @@ type Model struct {
 	project *domain.Project
 	th      *theme.Theme
 	zm      *zone.Manager
-	conn    *connection.Machine
 
-	daemon          daemonstatus.Model
 	serviceList     servicelist.Model
 	panel           servicepanel.Model
-	helpbar         helpbar.Model
 	settings2       settings2.Model
 	showingSettings bool
 	cfg             config.Config
 	w, h            int
 }
 
-// New returns a Model in the Connecting state.
+// New returns a Model.
 func New(
 	ctx context.Context,
 	project *domain.Project,
@@ -55,8 +53,6 @@ func New(
 	zm *zone.Manager,
 	w, h int,
 ) tea.Model {
-	conn := connection.New()
-
 	return Model{
 		ctx:             ctx,
 		log:             log,
@@ -64,11 +60,8 @@ func New(
 		project:         project,
 		th:              th,
 		zm:              zm,
-		conn:            conn,
-		daemon:          daemonstatus.New(ctx, conn, th),
 		serviceList:     servicelist.New(project, th, zm, w),
 		panel:           servicepanel.New(project, th, w, h),
-		helpbar:         helpbar.New(),
 		settings2:       settings2.New(th, cfg, w, h),
 		showingSettings: false,
 		cfg:             cfg,
@@ -77,13 +70,11 @@ func New(
 	}
 }
 
-// Init fires the daemon status init and sends the keymap to the helpbar.
+// Init fires sub-model initialisation and sends the keymap to the helpbar.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		m.daemon.Init(),
 		m.serviceList.Init(),
 		m.panel.Init(),
-		m.helpbar.Init(),
 		func() tea.Msg {
 			return msgs.BindingsMsg{
 				Keymap: appKeymap{
@@ -106,14 +97,14 @@ func (m Model) Init() tea.Cmd {
 	)
 }
 
-// Update handles dashboard-level messages and forwards daemon messages.
+// Update handles dashboard-level messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var daemonCmd, svcListCmd, panCmd, helpCmd, settings2Cmd tea.Cmd
+	var svcListCmd, panCmd, settings2Cmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
-		m.h = msg.Height
+		m.h = msg.Height - frameHeight
 
 	case msgs.StatePollTick:
 		m.panel, panCmd = m.panel.Update(msg)
@@ -180,16 +171,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.daemon, daemonCmd = m.daemon.Update(msg)
 	m.serviceList, svcListCmd = m.serviceList.Update(msg)
 	m.panel, panCmd = m.panel.Update(msg)
-	m.helpbar, helpCmd = m.helpbar.Update(msg)
 
 	if m.showingSettings {
 		m.settings2, settings2Cmd = m.settings2.Update(msg)
 	}
 
-	return m, tea.Batch(daemonCmd, svcListCmd, panCmd, helpCmd, settings2Cmd)
+	return m, tea.Batch(svcListCmd, panCmd, settings2Cmd)
 }
 
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -235,27 +224,13 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 	return newDash, newDash.Init()
 }
 
-// View renders the daemon status header, service list + inspector side by side,
-// and a help bar at the bottom. When settings2 is visible it renders as an
-// overlay on top of the normal dashboard.
+// View renders the service list and inspector side by side. When settings2 is
+// visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
-	statusContent := m.daemon.View().Content
-
 	listContent := m.serviceList.View().Content
 	panContent := m.panel.View().Content
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
-
-	const helpbarHeight = 2
-
-	bodyHeight := max(m.h-helpbarHeight, 0)
-	body = lipgloss.NewStyle().Height(bodyHeight).Render(body)
-
-	content := lipgloss.JoinVertical(lipgloss.Top,
-		statusContent,
-		body,
-		m.helpbar.View().Content,
-	)
 
 	if m.showingSettings {
 		overContent := m.settings2.View().Content
@@ -265,10 +240,10 @@ func (m Model) View() tea.View {
 		overY := max((m.h-overH)/2, 0) //nolint:mnd // halving to centre overlay
 
 		return tea.NewView(lipgloss.NewCompositor(
-			lipgloss.NewLayer(content).X(0).Y(0).Z(0),
+			lipgloss.NewLayer(body).X(0).Y(0).Z(0),
 			lipgloss.NewLayer(overContent).X(overX).Y(overY).Z(1),
 		).Render())
 	}
 
-	return tea.NewView(content)
+	return tea.NewView(body)
 }
