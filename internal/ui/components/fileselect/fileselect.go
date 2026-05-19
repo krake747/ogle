@@ -50,6 +50,8 @@ func New(
 
 	l := list.New(items, hd, w, h)
 	l.SetShowTitle(false)
+	l.SetStatusBarItemName("file", "files")
+	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0)
 	l.SetFilteringEnabled(false)
 	l.KeyMap.ForceQuit.SetEnabled(false)
 	l.InfiniteScrolling = true

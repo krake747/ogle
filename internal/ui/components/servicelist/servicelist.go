@@ -76,7 +76,9 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Mode
 	l.SetFilteringEnabled(false)
 	l.SetShowHelp(false)
 	l.SetShowPagination(false)
-	l.SetShowStatusBar(false)
+	l.SetShowStatusBar(true)
+	l.SetStatusBarItemName("service", "services")
+	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0)
 	l.SetShowTitle(false)
 	l.InfiniteScrolling = true
 
