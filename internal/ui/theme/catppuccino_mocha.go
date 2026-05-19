@@ -39,18 +39,18 @@ func CatppuccinoMocha() *Theme {
 	return &Theme{
 		BorderFocused: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
-			BorderForeground(mochaMauve),
+			BorderForeground(mochaLavender),
 		BorderBlurred: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(mochaOverlay0),
-		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(mochaOverlay0),
-		ServiceListBackground: mochaOverlay0,
+		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(mochaSubtext1),
+		ServiceListBackground: mochaCrust,
 		HoverBackground:       mochaSurface0,
 		StateRunning:          mochaGreen,
 		StateExited:           mochaRed,
 		StatePaused:           mochaYellow,
 		StateTransient:        mochaPeach,
-		StateMuted:            mochaOverlay0,
+		StateMuted:            mochaOverlay1,
 		ActionError:           mochaRed,
 	}
 }
