@@ -26,6 +26,7 @@ type Theme struct {
 	BorderBlurred         lipgloss.Style
 	ServiceListTitle      lipgloss.Style
 	ServiceListBackground color.Color
+	SelectedBackground    color.Color
 	HoverBackground       color.Color
 	StateRunning          color.Color // running
 	StateExited           color.Color // exited / dead
@@ -42,6 +43,7 @@ type userThemeFile struct {
 	BorderBlurredColor         string `yaml:"borderBlurredColor"`
 	ServiceListTitleColor      string `yaml:"serviceListTitleColor"`
 	ServiceListBackgroundColor string `yaml:"serviceListBackgroundColor"`
+	SelectedBackgroundColor    string `yaml:"selectedBackgroundColor"`
 	HoverBackgroundColor       string `yaml:"hoverBackgroundColor"`
 	StateRunningColor          string `yaml:"stateRunningColor"`
 	StateExitedColor           string `yaml:"stateExitedColor"`
@@ -120,6 +122,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.ServiceListBackgroundColor != "" {
 		result.ServiceListBackground = lipgloss.Color(f.ServiceListBackgroundColor)
+	}
+
+	if f.SelectedBackgroundColor != "" {
+		result.SelectedBackground = lipgloss.Color(f.SelectedBackgroundColor)
 	}
 
 	if f.HoverBackgroundColor != "" {

@@ -39,7 +39,7 @@ var (
 )
 
 const (
-	offsetY          = 2
+	offsetY          = 1
 	listRatio        = 30
 	listMinTermWidth = 80
 	pctDivisor       = 100
@@ -79,7 +79,7 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Mode
 	l.SetShowPagination(false)
 	l.SetShowStatusBar(true)
 	l.SetStatusBarItemName("service", "services")
-	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0)
+	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0).Background(th.ServiceListBackground)
 	l.SetShowTitle(false)
 	l.InfiniteScrolling = true
 
@@ -396,11 +396,11 @@ func (m Model) FullHelp() [][]key.Binding {
 // View renders the service list.
 func (m Model) View() tea.View {
 	m.list.Styles.Title = m.theme.ServiceListTitle
+	m.list.Styles.StatusBar = m.list.Styles.StatusBar.Width(m.list.Width())
 
 	return tea.NewView(
 		lipgloss.NewStyle().
 			Width(m.list.Width()).
-			Background(m.theme.ServiceListBackground).
 			Render(m.list.View()),
 	)
 }

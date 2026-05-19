@@ -27,6 +27,7 @@ var (
 	defaultBrightMagenta = lipgloss.Color("#ff87d7")
 	defaultBrightCyan    = lipgloss.Color("#5fafd7")
 	defaultBrightWhite   = lipgloss.Color("#ffffff")
+	defaultDarkGrey      = lipgloss.Color("#262626")
 )
 
 // Default returns the default built-in theme.
@@ -40,7 +41,8 @@ func Default() *Theme {
 			BorderForeground(defaultBrightBlack),
 		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(defaultBrightBlack),
 		ServiceListBackground: defaultBlack,
-		HoverBackground:       defaultBlack,
+		SelectedBackground:    lipgloss.Color("#1c1c1c"),
+		HoverBackground:       defaultDarkGrey,
 		StateRunning:          defaultGreen,
 		StateExited:           defaultBrightRed,
 		StatePaused:           defaultYellow,

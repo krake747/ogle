@@ -14,13 +14,18 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+// listItemLeftPad matches the left padding applied by list.DefaultDelegate's
+// NormalTitle style. Width is set on the content area, so the full item width
+// equals Width + listItemLeftPad.
+const listItemLeftPad = 2
+
 // Delegate extends list.ItemDelegate with hover state management.
 // The concrete implementation is unexported; obtain one via NewDelegate.
 type Delegate interface {
 	list.ItemDelegate
 	// SetHover updates the hovered VisibleItems index (-1 = none).
 	SetHover(index int)
-	// SetTheme replaces the theme used to render hover highlights.
+	// SetTheme updates the theme used for all item background colours.
 	SetTheme(th *theme.Theme)
 }
 
@@ -47,20 +52,32 @@ func (d *delegate) SetTheme(th *theme.Theme) {
 	d.theme = th
 }
 
-// Render implements list.ItemDelegate. It applies a background tint to the
-// hovered item and delegates rendering to DefaultDelegate for all others.
+// Render implements list.ItemDelegate. Background and Width are applied at the
+// style level so that inner backgrounds (hover, selected) correctly layer, and
+// each row is padded to the full list width without gaps.
 func (d *delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	var buf strings.Builder
 
+	contentW := m.Width() - listItemLeftPad
+	dd := d.DefaultDelegate
+
+	itemBg := d.theme.ServiceListBackground
+	dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(itemBg).Width(contentW)
+	dd.Styles.NormalDesc = dd.Styles.NormalDesc.Background(itemBg).Width(contentW)
+	dd.Styles.SelectedTitle = dd.Styles.SelectedTitle.Background(d.theme.SelectedBackground).
+		Width(contentW)
+	dd.Styles.SelectedDesc = dd.Styles.SelectedDesc.Background(d.theme.SelectedBackground).
+		Width(contentW)
+
 	if index == d.hoverIndex {
-		dd := d.DefaultDelegate
 		bg := d.theme.HoverBackground
 		dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(bg)
 		dd.Styles.NormalDesc = dd.Styles.NormalDesc.Background(bg)
-		dd.Render(&buf, m, index, item)
-	} else {
-		d.DefaultDelegate.Render(&buf, m, index, item)
+		dd.Styles.SelectedTitle = dd.Styles.SelectedTitle.Background(bg)
+		dd.Styles.SelectedDesc = dd.Styles.SelectedDesc.Background(bg)
 	}
+
+	dd.Render(&buf, m, index, item)
 
 	_, _ = io.WriteString(w, d.zm.Mark(fmt.Sprintf("item-%d", index), buf.String()))
 }
