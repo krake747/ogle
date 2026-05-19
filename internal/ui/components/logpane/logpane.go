@@ -9,6 +9,7 @@ import (
 )
 
 const (
+	appFrameHeight    = 3
 	servicePanelHeight = 5
 	defaultCap         = 1000
 	horizontalStep     = 8
@@ -84,7 +85,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		wasAtBottom := m.viewport.AtBottom()
-		m.h = msg.Height
+		m.h = msg.Height - appFrameHeight
 		m.viewport.SetWidth(msg.Width)
 		h := min(len(m.lines), max(m.h-servicePanelHeight, 0))
 		m.viewport.SetHeight(h)
