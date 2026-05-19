@@ -1,0 +1,53 @@
+package theme
+
+import "charm.land/lipgloss/v2"
+
+// Catppuccin Mocha palette — https://catppuccin.com/palette
+var (
+	mochaRosewater = lipgloss.Color("#f5e0dc")
+	mochaFlamingo  = lipgloss.Color("#f2cdcd")
+	mochaPink      = lipgloss.Color("#f5c2e7")
+	mochaMauve     = lipgloss.Color("#cba6f7")
+	mochaRed       = lipgloss.Color("#f38ba8")
+	mochaMaroon    = lipgloss.Color("#eba0ac")
+	mochaPeach     = lipgloss.Color("#fab387")
+	mochaYellow    = lipgloss.Color("#f9e2af")
+	mochaGreen     = lipgloss.Color("#a6e3a1")
+	mochaTeal      = lipgloss.Color("#94e2d5")
+	mochaSky       = lipgloss.Color("#89dceb")
+	mochaSapphire  = lipgloss.Color("#74c7ec")
+	mochaBlue      = lipgloss.Color("#89b4fa")
+	mochaLavender  = lipgloss.Color("#b4befe")
+	mochaText      = lipgloss.Color("#cdd6f4")
+	mochaSubtext1  = lipgloss.Color("#bac2de")
+	mochaSubtext0  = lipgloss.Color("#a6adc8")
+	mochaOverlay2  = lipgloss.Color("#9399b2")
+	mochaOverlay1  = lipgloss.Color("#7f849c")
+	mochaOverlay0  = lipgloss.Color("#6c7086")
+	mochaSurface2  = lipgloss.Color("#585b70")
+	mochaSurface1  = lipgloss.Color("#45475a")
+	mochaSurface0  = lipgloss.Color("#313244")
+	mochaBase      = lipgloss.Color("#1e1e2e")
+	mochaMantle    = lipgloss.Color("#181825")
+	mochaCrust     = lipgloss.Color("#11111b")
+)
+
+// CatppuccinoMocha returns a theme based on the Catppuccin Mocha palette.
+func CatppuccinoMocha() *Theme {
+	return &Theme{
+		BorderFocused: lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(mochaMauve),
+		BorderBlurred: lipgloss.NewStyle().
+			Border(lipgloss.NormalBorder()).
+			BorderForeground(mochaOverlay0),
+		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(mochaOverlay0),
+		HoverBackground:  mochaSurface0,
+		StateRunning:     mochaGreen,
+		StateExited:      mochaRed,
+		StatePaused:      mochaYellow,
+		StateTransient:   mochaPeach,
+		StateMuted:       mochaOverlay0,
+		ActionError:      mochaRed,
+	}
+}

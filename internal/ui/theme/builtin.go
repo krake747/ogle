@@ -30,26 +30,3 @@ func Default() *Theme {
 	}
 }
 
-// CatppuccinoMocha returns a theme based on the Catppuccin Mocha palette.
-func CatppuccinoMocha() *Theme {
-	mauve := lipgloss.Color("#cba6f7")
-	overlay0 := lipgloss.Color("#6c7086")
-	surface0 := lipgloss.Color("#313244")
-
-	return &Theme{
-		BorderFocused: lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(mauve),
-		BorderBlurred: lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			BorderForeground(overlay0),
-		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(overlay0),
-		HoverBackground:  surface0,
-		StateRunning:     lipgloss.Color("#a6e3a1"),
-		StateExited:      lipgloss.Color("#f38ba8"),
-		StatePaused:      lipgloss.Color("#f9e2af"),
-		StateTransient:   lipgloss.Color("#fab387"),
-		StateMuted:       lipgloss.Color("#6c7086"),
-		ActionError:      lipgloss.Color("#f38ba8"),
-	}
-}
