@@ -14,11 +14,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// listItemLeftPad matches the left padding applied by list.DefaultDelegate's
-// NormalTitle style. Width is set on the content area, so the full item width
-// equals Width + listItemLeftPad.
-const listItemLeftPad = 2
-
 // Delegate extends list.ItemDelegate with hover state management.
 // The concrete implementation is unexported; obtain one via NewDelegate.
 type Delegate interface {
@@ -58,7 +53,7 @@ func (d *delegate) SetTheme(th *theme.Theme) {
 func (d *delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	var buf strings.Builder
 
-	contentW := m.Width() - listItemLeftPad
+	contentW := m.Width()
 	dd := d.DefaultDelegate
 
 	itemBg := d.theme.ServiceListBackground

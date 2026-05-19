@@ -91,19 +91,27 @@ func (m Model) View() tea.View {
 		}
 	}
 
-	stateColour := m.theme.StateRunning
+	stateColour := m.theme.StateMuted
 	if m.runtime != nil {
 		stateColour = colourForState(m.runtime.State, m.theme)
 	}
 
-	stateLabel := lipgloss.NewStyle().Foreground(stateColour).Render(stateStr)
+	lbl := lipgloss.NewStyle().Foreground(m.theme.Subtext).Render
+	val := lipgloss.NewStyle().Foreground(m.theme.Text).Render
+
+	var stateVal string
+	if stateStr == dash {
+		stateVal = val(dash)
+	} else {
+		stateVal = lipgloss.NewStyle().Foreground(stateColour).Render(stateStr)
+	}
 
 	lines := []string{
-		"Image:         " + m.def.Image,
-		"Container ID:  " + containerID,
-		"Created:       " + createdAt,
-		"State:         " + stateLabel,
-		"Ports:         " + strings.Join(m.def.Ports, ", "),
+		lbl("Image:        ") + val(m.def.Image),
+		lbl("Container ID: ") + val(containerID),
+		lbl("Created:      ") + val(createdAt),
+		lbl("State:        ") + stateVal,
+		lbl("Ports:        ") + val(strings.Join(m.def.Ports, ", ")),
 	}
 
 	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, lines...))

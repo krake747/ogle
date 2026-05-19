@@ -117,11 +117,13 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 func (m serviceItem) View() tea.View {
 	icon := "●"
 	colour := m.th.StateMuted
+	textColour := m.th.StateMuted
 
 	switch {
 	case m.inFlight:
 		icon = "◌"
 		colour = m.th.StateTransient
+		textColour = m.th.Text
 	case m.runtime == nil:
 
 	default:
@@ -129,23 +131,27 @@ func (m serviceItem) View() tea.View {
 		case domain.ServiceStateRunning:
 			icon = "●"
 			colour = m.th.StateRunning
+			textColour = m.th.Text
 		case domain.ServiceStateExited, domain.ServiceStateDead:
 			icon = "●"
 			colour = m.th.StateExited
+			textColour = m.th.Text
 		case domain.ServiceStateNotCreated:
 			icon = "○"
 		case domain.ServiceStatePaused:
 			icon = "●"
 			colour = m.th.StatePaused
+			textColour = m.th.Text
 		case domain.ServiceStateRestarting:
 			icon = "●"
 			colour = m.th.StateTransient
+			textColour = m.th.Text
 		case domain.ServiceStateUnknown:
 			icon = "●"
 		}
 	}
 
-	renderedText := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render(m.def.Name)
+	renderedText := lipgloss.NewStyle().Foreground(textColour).Render(m.def.Name)
 	rendered := lipgloss.NewStyle().Foreground(colour).Render(icon, renderedText)
 
 	return tea.NewView(rendered)

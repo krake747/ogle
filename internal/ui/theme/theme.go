@@ -26,8 +26,10 @@ type Theme struct {
 	BorderBlurred         lipgloss.Style
 	ServiceListTitle      lipgloss.Style
 	ServiceListBackground color.Color
-	SelectedBackground    color.Color
 	HoverBackground       color.Color
+	SelectedBackground    color.Color
+	Text                  color.Color // body copy / primary foreground
+	Subtext               color.Color // labels, secondary text
 	StateRunning          color.Color // running
 	StateExited           color.Color // exited / dead
 	StatePaused           color.Color // paused
@@ -43,8 +45,10 @@ type userThemeFile struct {
 	BorderBlurredColor         string `yaml:"borderBlurredColor"`
 	ServiceListTitleColor      string `yaml:"serviceListTitleColor"`
 	ServiceListBackgroundColor string `yaml:"serviceListBackgroundColor"`
-	SelectedBackgroundColor    string `yaml:"selectedBackgroundColor"`
 	HoverBackgroundColor       string `yaml:"hoverBackgroundColor"`
+	SelectedBackgroundColor    string `yaml:"selectedBackgroundColor"`
+	TextColor                  string `yaml:"textColor"`
+	SubtextColor               string `yaml:"subtextColor"`
 	StateRunningColor          string `yaml:"stateRunningColor"`
 	StateExitedColor           string `yaml:"stateExitedColor"`
 	StatePausedColor           string `yaml:"statePausedColor"`
@@ -124,12 +128,20 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 		result.ServiceListBackground = lipgloss.Color(f.ServiceListBackgroundColor)
 	}
 
+	if f.HoverBackgroundColor != "" {
+		result.HoverBackground = lipgloss.Color(f.HoverBackgroundColor)
+	}
+
 	if f.SelectedBackgroundColor != "" {
 		result.SelectedBackground = lipgloss.Color(f.SelectedBackgroundColor)
 	}
 
-	if f.HoverBackgroundColor != "" {
-		result.HoverBackground = lipgloss.Color(f.HoverBackgroundColor)
+	if f.TextColor != "" {
+		result.Text = lipgloss.Color(f.TextColor)
+	}
+
+	if f.SubtextColor != "" {
+		result.Subtext = lipgloss.Color(f.SubtextColor)
 	}
 
 	if f.StateRunningColor != "" {
