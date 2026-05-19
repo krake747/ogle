@@ -121,7 +121,17 @@ func New(
 		currentPhase = phaseDashboard
 		pf = filepath.Base(projectFile)
 
-		dash = dashboard.New(ctx, project, log, th, cfg, zm, width, height-frameHeight)
+		dash = dashboard.New(
+			ctx,
+			project,
+			log,
+			th,
+			cfg,
+			zm,
+			filepath.Dir(configPath),
+			width,
+			height-frameHeight,
+		)
 	}
 
 	return Model{
@@ -189,6 +199,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.theme,
 			m.cfg,
 			m.zm,
+			filepath.Dir(m.configPath),
 			m.width,
 			m.height-frameHeight,
 		)

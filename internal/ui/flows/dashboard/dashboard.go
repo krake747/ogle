@@ -28,12 +28,13 @@ const frameHeight = 3
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
-	ctx     context.Context
-	log     *slog.Logger
-	parser  parser.Parser
-	project *domain.Project
-	th      *theme.Theme
-	zm      *zone.Manager
+	ctx       context.Context
+	log       *slog.Logger
+	parser    parser.Parser
+	project   *domain.Project
+	th        *theme.Theme
+	zm        *zone.Manager
+	configDir string
 
 	serviceList     servicelist.Model
 	panel           servicepanel.Model
@@ -51,6 +52,7 @@ func New(
 	th *theme.Theme,
 	cfg config.Config,
 	zm *zone.Manager,
+	configDir string,
 	w, h int,
 ) tea.Model {
 	return Model{
@@ -60,6 +62,7 @@ func New(
 		project:         project,
 		th:              th,
 		zm:              zm,
+		configDir:       configDir,
 		serviceList:     servicelist.New(project, th, zm, w),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
@@ -156,6 +159,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFileAvailabilityChanged(msg.Files)
 
 	case msgs.SettingsApplied:
+		if th, err := theme.Load(msg.Theme, m.configDir); err == nil {
+			m.th = th
+		}
+
 		m.cfg.Theme = msg.Theme
 		m.cfg.LogBufferCap = msg.LogBufferCap
 
@@ -228,7 +235,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.w, m.h)
+	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.configDir, m.w, m.h)
 
 	return newDash, newDash.Init()
 }
@@ -237,11 +244,18 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 // visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
 	listContent := m.serviceList.View().Content
-	listContent = lipgloss.NewStyle().
-		Width(lipgloss.Width(listContent)).
-		Height(m.h).
-		Background(m.th.ServiceListBackground).
-		Render(listContent)
+	listH := lipgloss.Height(listContent)
+	listW := lipgloss.Width(listContent)
+
+	if listH < m.h {
+		filler := lipgloss.NewStyle().
+			Width(listW).
+			Height(m.h - listH).
+			Background(m.th.ServiceListBackground).
+			Render("")
+		listContent = lipgloss.JoinVertical(lipgloss.Top, listContent, filler)
+	}
+
 	panContent := m.panel.View().Content
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
