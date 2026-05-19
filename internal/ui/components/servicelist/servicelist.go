@@ -11,6 +11,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
@@ -38,10 +39,10 @@ var (
 )
 
 const (
-	offsetY      = 2
-	listRatio    = 30
-	listMaxWidth = 80
-	pctDivisor   = 100
+	offsetY          = 2
+	listRatio        = 30
+	listMinTermWidth = 80
+	pctDivisor       = 100
 )
 
 // Model is the service list component. It is a value type; all mutating
@@ -68,7 +69,7 @@ func New(project *domain.Project, th *theme.Theme, zm *zone.Manager, w int) Mode
 		items[i] = newServiceItem(svc, th)
 	}
 
-	listW := min(w*listRatio/pctDivisor, listMaxWidth)
+	listW := max(w, listMinTermWidth) * listRatio / pctDivisor
 	l := list.New(items, hd, listW, len(items)+offsetY)
 	l.DisableQuitKeybindings()
 	l.KeyMap.ShowFullHelp.SetEnabled(false)
@@ -189,7 +190,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.list.SetSize(
-			min(msg.Width*listRatio/pctDivisor, listMaxWidth),
+			max(msg.Width, listMinTermWidth)*listRatio/pctDivisor,
 			len(m.list.Items())+offsetY,
 		)
 
@@ -368,5 +369,5 @@ func (m Model) FullHelp() [][]key.Binding {
 func (m Model) View() tea.View {
 	m.list.Styles.Title = m.theme.ServiceListTitle
 
-	return tea.NewView(m.list.View())
+	return tea.NewView(lipgloss.NewStyle().Width(m.list.Width()).Render(m.list.View()))
 }
