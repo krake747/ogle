@@ -36,23 +36,7 @@ type (
 	ProjectLoaded struct {
 		Project *domain.Project
 	}
-
-	// ProjectLoadFailed is emitted by the startup flow when parser.Service.Parse
-	// returns an error. The startup flow forwards this to the fileselect view to
-	// set an error state on the selected file.
-	ProjectLoadFailed struct {
-		Error error
-	}
 )
-
-// WatcherError is delivered when watcher.New fails — either on initial startup
-// or after a retry attempt. The startup flow forwards this to the watching view
-// to enter watchingError state.
-type WatcherError struct{ Err error }
-
-// RetryWatcher is emitted by the watching view when the user presses 'r' in
-// the watchingError state. app.go handles it by retrying watcher.New.
-type RetryWatcher struct{}
 
 // ServiceSelected is emitted by the service list component when the cursor
 // moves to a new service. ServiceName identifies the selected service.

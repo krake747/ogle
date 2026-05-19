@@ -22,7 +22,6 @@ type serviceItem struct {
 	runtime     *domain.ServiceRuntimeData
 	inFlight    bool
 	actionLabel string
-	actionError string
 	th          *theme.Theme
 }
 
@@ -33,7 +32,6 @@ func newServiceItem(def domain.ServiceDef, th *theme.Theme) serviceItem {
 		runtime:     nil,
 		inFlight:    false,
 		actionLabel: "",
-		actionError: "",
 	}
 }
 
@@ -56,7 +54,6 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 
 		m.inFlight = true
 		m.actionLabel = "stopping…"
-		m.actionError = ""
 
 	case msgs.ServiceStart:
 		if m.def.Name != msg.ServiceName {
@@ -65,7 +62,6 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 
 		m.inFlight = true
 		m.actionLabel = "starting…"
-		m.actionError = ""
 
 	case msgs.ServiceRestart:
 		if m.def.Name != msg.ServiceName {
@@ -74,7 +70,6 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 
 		m.inFlight = true
 		m.actionLabel = "restarting…"
-		m.actionError = ""
 
 	case msgs.ServiceRebuild:
 		if m.def.Name != msg.ServiceName {
@@ -83,7 +78,6 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 
 		m.inFlight = true
 		m.actionLabel = "rebuilding…"
-		m.actionError = ""
 
 	case msgs.ServiceActionCompleted:
 		if m.def.Name != msg.ServiceName {
@@ -93,10 +87,7 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		m.inFlight = false
 		m.actionLabel = ""
 
-		m.actionError = ""
 		if msg.Err != nil {
-			m.actionError = msg.Err.Error()
-
 			break
 		}
 
@@ -158,10 +149,6 @@ func (m serviceItem) View() tea.View {
 
 	if m.inFlight && m.actionLabel != "" {
 		rendered += "  " + m.actionLabel
-	}
-
-	if !m.inFlight && m.actionError != "" {
-		rendered += "  " + lipgloss.NewStyle().Foreground(m.th.ActionError).Render(m.actionError)
 	}
 
 	return tea.NewView(rendered)

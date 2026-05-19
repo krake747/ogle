@@ -87,11 +87,6 @@ func (cm *Machine) ConnectState() ConnectState {
 	return cm.state
 }
 
-// RetryAt returns the UTC retry deadline, or nil if not unavailable.
-func (cm *Machine) RetryAt() *time.Time {
-	return cm.retryAt
-}
-
 // Remaining returns the duration until the next retry, or 0 if not Unavailable.
 func (cm *Machine) Remaining() time.Duration {
 	if cm.retryAt == nil {

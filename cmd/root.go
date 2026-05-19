@@ -240,7 +240,7 @@ func initialiseConfig(cmd *cobra.Command) error {
 	return nil
 }
 
-// Root exposes the root command for tools like doc generators.
+// Root exposes the root command for the docgen tool.
 func Root() *cobra.Command {
 	return rootCmd
 }

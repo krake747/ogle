@@ -2,9 +2,9 @@ package docker
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -12,35 +12,39 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 )
 
+func runAction(
+	cmd *exec.Cmd,
+	action domain.ServiceAction,
+	serviceName string,
+) msgs.ServiceActionCompleted {
+	var stderrBuf strings.Builder
+
+	cmd.Stderr = &stderrBuf
+
+	if err := cmd.Run(); err != nil {
+		return msgs.ServiceActionCompleted{
+			ServiceName: serviceName,
+			Action:      action,
+			Err:         err,
+		}
+	}
+
+	return msgs.ServiceActionCompleted{
+		ServiceName: serviceName,
+		Action:      action,
+		Err:         nil,
+	}
+}
+
 // Stop returns a Cmd that runs `docker compose -f <file> -p <project> stop <service>`.
 func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
-			ctx,
-			"docker",
-			"compose",
-			"-f",
-			file,
-			"-p",
-			projectName,
-			"stop",
-			serviceName,
+			ctx, "docker", "compose", "-f", file, "-p", projectName, "stop", serviceName,
 		)
-
 		cmd.Dir = filepath.Dir(file)
-		if err := cmd.Run(); err != nil {
-			return msgs.ServiceActionCompleted{
-				ServiceName: serviceName,
-				Action:      domain.ServiceActionStop,
-				Err:         fmt.Errorf("docker compose stop: %w", err),
-			}
-		}
 
-		return msgs.ServiceActionCompleted{
-			ServiceName: serviceName,
-			Action:      domain.ServiceActionStop,
-			Err:         nil,
-		}
+		return runAction(cmd, domain.ServiceActionStop, serviceName)
 	}
 }
 
@@ -49,32 +53,11 @@ func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 func Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
-			ctx,
-			"docker",
-			"compose",
-			"-f",
-			file,
-			"-p",
-			projectName,
-			"up",
-			"-d",
-			serviceName,
+			ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "-d", serviceName,
 		)
-
 		cmd.Dir = filepath.Dir(file)
-		if err := cmd.Run(); err != nil {
-			return msgs.ServiceActionCompleted{
-				ServiceName: serviceName,
-				Action:      domain.ServiceActionStart,
-				Err:         fmt.Errorf("docker compose up -d: %w", err),
-			}
-		}
 
-		return msgs.ServiceActionCompleted{
-			ServiceName: serviceName,
-			Action:      domain.ServiceActionStart,
-			Err:         nil,
-		}
+		return runAction(cmd, domain.ServiceActionStart, serviceName)
 	}
 }
 
@@ -84,21 +67,9 @@ func Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "restart", serviceName,
 		)
-
 		cmd.Dir = filepath.Dir(file)
-		if err := cmd.Run(); err != nil {
-			return msgs.ServiceActionCompleted{
-				ServiceName: serviceName,
-				Action:      domain.ServiceActionRestart,
-				Err:         fmt.Errorf("docker compose restart: %w", err),
-			}
-		}
 
-		return msgs.ServiceActionCompleted{
-			ServiceName: serviceName,
-			Action:      domain.ServiceActionRestart,
-			Err:         nil,
-		}
+		return runAction(cmd, domain.ServiceActionRestart, serviceName)
 	}
 }
 
@@ -108,31 +79,14 @@ func Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx,
-			"docker",
-			"compose",
-			"-f",
-			file,
-			"-p",
-			projectName,
-			"up",
-			"--build",
-			"-d",
+			"docker", "compose",
+			"-f", file,
+			"-p", projectName,
+			"up", "--build", "-d",
 			serviceName,
 		)
-
 		cmd.Dir = filepath.Dir(file)
-		if err := cmd.Run(); err != nil {
-			return msgs.ServiceActionCompleted{
-				ServiceName: serviceName,
-				Action:      domain.ServiceActionRebuild,
-				Err:         fmt.Errorf("docker compose up --build -d: %w", err),
-			}
-		}
 
-		return msgs.ServiceActionCompleted{
-			ServiceName: serviceName,
-			Action:      domain.ServiceActionRebuild,
-			Err:         nil,
-		}
+		return runAction(cmd, domain.ServiceActionRebuild, serviceName)
 	}
 }

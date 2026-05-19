@@ -41,6 +41,7 @@ type Model struct {
 	showingSettings bool
 	cfg             config.Config
 	w, h            int
+	actionError     string
 }
 
 // New returns a Model.
@@ -64,6 +65,7 @@ func New(
 		panel:           servicepanel.New(project, th, w, h),
 		settings2:       settings2.New(th, cfg, w, h),
 		showingSettings: false,
+		actionError:     "",
 		cfg:             cfg,
 		w:               w,
 		h:               h,
@@ -197,6 +199,18 @@ func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case msgs.ServiceActionCompleted:
 		m.serviceList, _ = m.serviceList.Update(msg)
+
+		if msg.Err != nil {
+			m.actionError = msg.Err.Error()
+			m.log.ErrorContext(m.ctx,
+				"service action failed",
+				slog.String("service", msg.ServiceName),
+				slog.String("action", string(msg.Action)),
+				slog.String("err", msg.Err.Error()),
+			)
+		} else {
+			m.actionError = ""
+		}
 	}
 
 	return m, nil
@@ -231,6 +245,13 @@ func (m Model) View() tea.View {
 	panContent := m.panel.View().Content
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
+
+	if m.actionError != "" {
+		errLine := lipgloss.NewStyle().
+			Foreground(m.th.ActionError).
+			Render(m.actionError)
+		body = lipgloss.JoinVertical(lipgloss.Top, body, errLine)
+	}
 
 	if m.showingSettings {
 		overContent := m.settings2.View().Content

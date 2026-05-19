@@ -19,10 +19,8 @@ import (
 // psLine maps a single JSON line from "docker compose ps --format json".
 type psLine struct {
 	ID        string `json:"id"`
-	Name      string `json:"name"`
 	Service   string `json:"service"`
 	State     string `json:"state"`
-	Health    string `json:"health"`
 	CreatedAt string `json:"createdat"`
 	Status    string `json:"status"`
 }
