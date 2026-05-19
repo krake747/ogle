@@ -3,6 +3,8 @@ package theme
 import "charm.land/lipgloss/v2"
 
 // Catppuccin Mocha palette — https://catppuccin.com/palette
+//
+//nolint:unused,gochecknoglobals // package-level colour definitions for Catppuccino Mocha theme
 var (
 	mochaRosewater = lipgloss.Color("#f5e0dc")
 	mochaFlamingo  = lipgloss.Color("#f2cdcd")

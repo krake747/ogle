@@ -189,6 +189,12 @@ func init() {
 	rootCmd.PersistentFlags().
 		StringVar(&pprofAddr, "pprof-addr", "", "pprof HTTP server address (e.g. localhost:6060)")
 
+	rootCmd.Flags().
+		String("theme", "", `theme name; built-ins: "default", "catppuccino_mocha" (env: OGLE_THEME)`)
+
+	rootCmd.Flags().
+		Int("log-buffer-cap", 0, "maximum log lines buffered per service (env: OGLE_LOG_BUFFER_CAP; default 1000)")
+
 	rootCmd.AddCommand(newVersionCommand())
 }
 
@@ -229,6 +235,21 @@ func initialiseConfig(cmd *cobra.Command) error {
 
 	if err := viper.BindPFlags(cmd.InheritedFlags()); err != nil {
 		return fmt.Errorf("failed to bind inherited config flags: %w", err)
+	}
+
+	// BindPFlags maps --log-buffer-cap to Viper key "log-buffer-cap", which
+	// mapstructure cannot match against the yaml tag "logBufferCap". Bind the
+	// flag explicitly to the correct key.
+	if f := cmd.Flags().Lookup("log-buffer-cap"); f != nil {
+		if err := viper.BindPFlag("logBufferCap", f); err != nil {
+			return fmt.Errorf("bind log-buffer-cap flag: %w", err)
+		}
+	}
+
+	// AutomaticEnv generates OGLE_LOGBUFFERCAP from the camelCase key. Also
+	// accept the more readable OGLE_LOG_BUFFER_CAP.
+	if err := viper.BindEnv("logBufferCap", "OGLE_LOG_BUFFER_CAP"); err != nil {
+		return fmt.Errorf("bind OGLE_LOG_BUFFER_CAP env: %w", err)
 	}
 
 	if err := viper.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {

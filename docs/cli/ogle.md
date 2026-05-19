@@ -11,8 +11,10 @@ ogle [flags]
 ```
       --config string         config file (default is $HOME/.ogle/config)
   -h, --help                  help for ogle
+      --log-buffer-cap int    maximum log lines buffered per service (env: OGLE_LOG_BUFFER_CAP; default 1000)
       --pprof-addr string     pprof HTTP server address (e.g. localhost:6060)
   -f, --project-file string   path to docker compose file
+      --theme string          theme name; built-ins: "default", "catppuccino_mocha" (env: OGLE_THEME)
 ```
 
 ### SEE ALSO

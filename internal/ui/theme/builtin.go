@@ -29,4 +29,3 @@ func Default() *Theme {
 		ActionError:      lipgloss.Color("1"),
 	}
 }
-
