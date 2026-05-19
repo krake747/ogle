@@ -90,7 +90,12 @@ func New(
 		width, height = 0, 0
 	}
 
-	wtr, errWatch := watcher.New(filepath.Dir(projectFile), log, projectFile)
+	watchDir, err := filepath.Abs(filepath.Dir(projectFile))
+	if err != nil {
+		return Model{}, nil, fmt.Errorf("resolve watch directory: %w", err)
+	}
+
+	wtr, errWatch := watcher.New(watchDir, log, projectFile)
 	if errWatch != nil {
 		return Model{}, nil, fmt.Errorf("create watcher: %w", errWatch)
 	}

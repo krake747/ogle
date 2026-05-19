@@ -75,7 +75,12 @@ func (s Service) Parse(path string) (*domain.Project, error) {
 
 	name := cf.Name
 	if name == "" {
-		name = filepath.Base(filepath.Dir(path))
+		absPath, errPath := filepath.Abs(path)
+		if errPath != nil {
+			return nil, fmt.Errorf("resolve absolute path: %w", errPath)
+		}
+
+		name = filepath.Base(filepath.Dir(absPath))
 	}
 
 	services := make([]domain.ServiceDef, 0, len(cf.Services))
