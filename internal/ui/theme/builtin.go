@@ -7,26 +7,45 @@ func BuiltinNames() []string {
 	return []string{"default", "catppuccino_mocha"}
 }
 
-// Default returns the default built-in theme using ANSI-256 palette colours.
-func Default() *Theme {
-	focused := lipgloss.Color("62")
-	blurred := lipgloss.Color("240")
+// ANSI 16-colour palette for the Default theme
+//
+//nolint:unused,gochecknoglobals // package-level colour definitions for Default theme
+var (
+	defaultBlack         = lipgloss.Color("#0B0B0B")
+	defaultRed           = lipgloss.Color("#cc0000")
+	defaultGreen         = lipgloss.Color("#87d700")
+	defaultYellow        = lipgloss.Color("#ffd75f")
+	defaultBlue          = lipgloss.Color("#5f87ff")
+	defaultMagenta       = lipgloss.Color("#af87ff")
+	defaultCyan          = lipgloss.Color("#5fafaf")
+	defaultWhite         = lipgloss.Color("#e4e4e4")
+	defaultBrightBlack   = lipgloss.Color("#585858")
+	defaultBrightRed     = lipgloss.Color("#ff5f5f")
+	defaultBrightGreen   = lipgloss.Color("#a8ff60")
+	defaultBrightYellow  = lipgloss.Color("#ffaf5f")
+	defaultBrightBlue    = lipgloss.Color("#5fd7ff")
+	defaultBrightMagenta = lipgloss.Color("#ff87d7")
+	defaultBrightCyan    = lipgloss.Color("#5fafd7")
+	defaultBrightWhite   = lipgloss.Color("#ffffff")
+)
 
+// Default returns the default built-in theme.
+func Default() *Theme {
 	return &Theme{
 		BorderFocused: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
-			BorderForeground(focused),
+			BorderForeground(defaultMagenta),
 		BorderBlurred: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
-			BorderForeground(blurred),
-		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(blurred),
-		ServiceListBackground: lipgloss.Color("237"),
-		HoverBackground:       lipgloss.Color("237"),
-		StateRunning:          lipgloss.Color("2"),
-		StateExited:           lipgloss.Color("1"),
-		StatePaused:           lipgloss.Color("3"),
-		StateTransient:        lipgloss.Color("214"),
-		StateMuted:            lipgloss.Color("240"),
-		ActionError:           lipgloss.Color("1"),
+			BorderForeground(defaultBrightBlack),
+		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(defaultBrightBlack),
+		ServiceListBackground: defaultBlack,
+		HoverBackground:       defaultBlack,
+		StateRunning:          defaultGreen,
+		StateExited:           defaultBrightRed,
+		StatePaused:           defaultYellow,
+		StateTransient:        defaultBrightYellow,
+		StateMuted:            defaultBrightBlack,
+		ActionError:           defaultBrightRed,
 	}
 }

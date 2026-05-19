@@ -238,6 +238,11 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 // visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
 	listContent := m.serviceList.View().Content
+	listContent = lipgloss.NewStyle().
+		Width(lipgloss.Width(listContent)).
+		Height(m.h).
+		Background(m.th.ServiceListBackground).
+		Render(listContent)
 	panContent := m.panel.View().Content
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top, listContent, panContent)
