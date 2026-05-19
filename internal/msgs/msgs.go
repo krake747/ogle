@@ -141,3 +141,13 @@ type SettingsVisibilityChanged struct {
 
 // ToggleLogWrap toggles soft wrapping of log lines in all log panes.
 type ToggleLogWrap struct{}
+
+type (
+	// DisplayError asks the app chrome to show err above the helpbar for 3 seconds.
+	DisplayError struct {
+		Err string
+	}
+
+	// ClearDisplayError dismisses the display error bar.
+	ClearDisplayError struct{}
+)

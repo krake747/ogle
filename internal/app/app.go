@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -40,7 +41,10 @@ var (
 
 type phase int
 
-const frameHeight = 3
+const (
+	frameHeight          = 3
+	errorDisplayDuration = 3 * time.Second
+)
 
 const (
 	phaseStartup phase = iota
@@ -59,14 +63,16 @@ type Model struct {
 	zm          *zone.Manager
 	watcher     watcher.Watcher
 
-	topbar    topbar.Model
-	helpbar   helpbar.Model
-	startup   tea.Model
-	dashboard tea.Model
-	watching  tea.Model
-	phase     phase
-	width     int
-	height    int
+	topbar          topbar.Model
+	helpbar         helpbar.Model
+	startup         tea.Model
+	dashboard       tea.Model
+	watching        tea.Model
+	phase           phase
+	width           int
+	height          int
+	displayError    string
+	displayErrorEnd time.Time
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -113,22 +119,24 @@ func New(
 	}
 
 	return Model{
-		ctx:         ctx,
-		cfg:         cfg,
-		configPath:  configPath,
-		projectFile: pf,
-		log:         log,
-		theme:       th,
-		zm:          zm,
-		watcher:     wtr,
-		topbar:      topbar.New(ctx, connection.New(), th),
-		helpbar:     helpbar.New(),
-		startup:     startup.New(ctx, log, width, height, zm, th),
-		dashboard:   dash,
-		watching:    nil,
-		phase:       currentPhase,
-		width:       width,
-		height:      height,
+		ctx:             ctx,
+		cfg:             cfg,
+		configPath:      configPath,
+		projectFile:     pf,
+		log:             log,
+		theme:           th,
+		zm:              zm,
+		watcher:         wtr,
+		topbar:          topbar.New(ctx, connection.New(), th),
+		helpbar:         helpbar.New(),
+		startup:         startup.New(ctx, log, width, height, zm, th),
+		dashboard:       dash,
+		watching:        nil,
+		phase:           currentPhase,
+		width:           width,
+		height:          height,
+		displayError:    "",
+		displayErrorEnd: time.Time{},
 	}, wtr.Close, nil
 }
 
@@ -206,18 +214,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case msgs.FileAvailabilityChanged:
-		var cmd tea.Cmd
-
-		switch m.phase {
-		case phaseStartup:
-			m.startup, cmd = m.startup.Update(msg)
-		case phaseDashboard:
-			m.dashboard, cmd = m.dashboard.Update(msg)
-		case phaseWatching:
-			m.watching, cmd = m.watching.Update(msg)
-		}
-
-		return m, tea.Batch(cmd, m.watcher.Next())
+		return m.handleFileAvailabilityChanged(msg)
 
 	case msgs.FileRemoved:
 		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height)
@@ -227,6 +224,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			func() tea.Msg { return msgs.TopbarContext{Phase: "watching", File: ""} },
 			func() tea.Msg { return msgs.BindingsMsg{Keymap: watchingKeymap{}} },
 		)
+
+	case msgs.DisplayError:
+		m.displayError = msg.Err
+		m.displayErrorEnd = time.Now().Add(errorDisplayDuration)
+
+		return m, tea.Tick(errorDisplayDuration, func(time.Time) tea.Msg {
+			return msgs.ClearDisplayError{}
+		})
+
+	case msgs.ClearDisplayError:
+		if time.Now().After(m.displayErrorEnd) {
+			m.displayError = ""
+		}
+
+		return m, nil
 	}
 
 	var topbarCmd, helpbarCmd tea.Cmd
@@ -281,6 +293,21 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 	return m, nil
 }
 
+func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch m.phase {
+	case phaseStartup:
+		m.startup, cmd = m.startup.Update(msg)
+	case phaseDashboard:
+		m.dashboard, cmd = m.dashboard.Update(msg)
+	case phaseWatching:
+		m.watching, cmd = m.watching.Update(msg)
+	}
+
+	return m, tea.Batch(cmd, m.watcher.Next())
+}
+
 // View composes the top bar, active phase body, and help bar into a unified frame.
 func (m Model) View() tea.View {
 	var body tea.View
@@ -294,9 +321,24 @@ func (m Model) View() tea.View {
 		body = m.watching.View()
 	}
 
+	avail := m.height - frameHeight
+
+	if m.displayError != "" {
+		avail--
+	}
+
+	bodyPadded := lipgloss.NewStyle().Height(avail).Render(body.Content)
+
+	if m.displayError != "" {
+		bodyPadded = lipgloss.JoinVertical(lipgloss.Top,
+			bodyPadded,
+			lipgloss.NewStyle().Foreground(m.theme.ActionError).Render(m.displayError),
+		)
+	}
+
 	content := lipgloss.JoinVertical(lipgloss.Top,
 		m.topbar.View().Content,
-		lipgloss.NewStyle().Height(m.height-frameHeight).Render(body.Content),
+		bodyPadded,
 		m.helpbar.View().Content,
 	)
 

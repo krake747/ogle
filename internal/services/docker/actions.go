@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -22,6 +23,11 @@ func runAction(
 	cmd.Stderr = &stderrBuf
 
 	if err := cmd.Run(); err != nil {
+		stderr := strings.TrimSpace(strings.ReplaceAll(stderrBuf.String(), "\n", " "))
+		if stderr != "" {
+			err = fmt.Errorf("%w: %s", err, stderr)
+		}
+
 		return msgs.ServiceActionCompleted{
 			ServiceName: serviceName,
 			Action:      action,
