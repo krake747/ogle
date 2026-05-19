@@ -19,7 +19,7 @@ func newTestModel(t *testing.T) servicehost.Model {
 	th := theme.Default()
 	def := domain.ServiceDef{Name: testServiceName}
 
-	return servicehost.New(th, def, "myproject", 80, 24)
+	return servicehost.New(th, def, "myproject", 80, 24, 1000)
 }
 
 func TestModel_DaemonConnected_ReturnsNextCmd(t *testing.T) {

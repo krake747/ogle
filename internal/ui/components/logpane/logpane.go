@@ -24,8 +24,13 @@ type Model struct {
 	wrap     bool
 }
 
-// New returns a Model reading from the given line channel.
-func New(w, h int, lineCh <-chan string) Model {
+// New returns a Model reading from the given line channel. lineCap sets the
+// maximum number of lines retained; values <= 0 fall back to defaultCap.
+func New(w, h, lineCap int, lineCh <-chan string) Model {
+	if lineCap <= 0 {
+		lineCap = defaultCap
+	}
+
 	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(0))
 	vp.KeyMap = viewport.KeyMap{
 		Up:    viewport.DefaultKeyMap().Up,
@@ -38,7 +43,7 @@ func New(w, h int, lineCh <-chan string) Model {
 
 	return Model{
 		lines:    nil,
-		cap:      defaultCap,
+		cap:      lineCap,
 		viewport: vp,
 		lineCh:   lineCh,
 		h:        h,

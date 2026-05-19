@@ -61,7 +61,7 @@ func New(
 		th:              th,
 		zm:              zm,
 		serviceList:     servicelist.New(project, th, zm, w),
-		panel:           servicepanel.New(project, th, w, h),
+		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings2:       settings2.New(th, cfg, w, h),
 		showingSettings: false,
 		cfg:             cfg,
@@ -199,13 +199,6 @@ func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.serviceList, _ = m.serviceList.Update(msg)
 
 		if msg.Err != nil {
-			m.log.ErrorContext(m.ctx,
-				"service action failed",
-				slog.String("service", msg.ServiceName),
-				slog.String("action", string(msg.Action)),
-				slog.String("err", msg.Err.Error()),
-			)
-
 			return m, func() tea.Msg {
 				return msgs.DisplayError{Err: msg.Err.Error()}
 			}

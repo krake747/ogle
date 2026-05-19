@@ -23,10 +23,10 @@ type Model struct {
 }
 
 // New constructs a Model with one host per project service.
-func New(project *domain.Project, th *theme.Theme, w, h int) Model {
+func New(project *domain.Project, th *theme.Theme, w, h, logBufferCap int) Model {
 	hosts := make([]servicehost.Model, len(project.Services))
 	for i, svc := range project.Services {
-		hosts[i] = servicehost.New(th, svc, project.Name, w, h)
+		hosts[i] = servicehost.New(th, svc, project.Name, w, h, logBufferCap)
 	}
 
 	return Model{
