@@ -265,14 +265,20 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	})
 }
 
-// moveCursor moves selection by one service. No-op at list boundaries.
+// moveCursor moves selection by one service, wrapping at list boundaries.
 func (m Model) moveCursor(msg tea.KeyPressMsg) Model {
-	if key.Matches(msg, KeyPrev) && m.list.Index() > 0 {
-		m.list.Select(m.list.Index() - 1)
+	n := len(m.list.Items())
+	if n == 0 {
+		return m
 	}
 
-	if key.Matches(msg, KeyNext) && m.list.Index() < len(m.list.Items())-1 {
-		m.list.Select(m.list.Index() + 1)
+	idx := m.list.Index()
+
+	switch {
+	case key.Matches(msg, KeyPrev):
+		m.list.Select((idx - 1 + n) % n)
+	case key.Matches(msg, KeyNext):
+		m.list.Select((idx + 1) % n)
 	}
 
 	return m
