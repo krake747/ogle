@@ -19,8 +19,9 @@ func Default() *Theme {
 		BorderBlurred: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(blurred),
-		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(blurred),
-		HoverBackground:  lipgloss.Color("237"),
+		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(blurred),
+		ServiceListBackground: lipgloss.Color("237"),
+		HoverBackground:       lipgloss.Color("237"),
 		StateRunning:     lipgloss.Color("2"),
 		StateExited:      lipgloss.Color("1"),
 		StatePaused:      lipgloss.Color("3"),

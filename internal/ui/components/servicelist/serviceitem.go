@@ -15,23 +15,21 @@ import (
 //nolint:exhaustruct // satisfies bubbles list.DefaultItem
 var _ list.DefaultItem = serviceItem{}
 
-// serviceItem is a per-service list item that renders a coloured state icon,
-// service name, and optional action label.
+// serviceItem is a per-service list item that renders a coloured state icon
+// and service name.
 type serviceItem struct {
-	def         domain.ServiceDef
-	runtime     *domain.ServiceRuntimeData
-	inFlight    bool
-	actionLabel string
-	th          *theme.Theme
+	def      domain.ServiceDef
+	runtime  *domain.ServiceRuntimeData
+	inFlight bool
+	th       *theme.Theme
 }
 
 func newServiceItem(def domain.ServiceDef, th *theme.Theme) serviceItem {
 	return serviceItem{
-		def:         def,
-		th:          th,
-		runtime:     nil,
-		inFlight:    false,
-		actionLabel: "",
+		def:      def,
+		th:       th,
+		runtime:  nil,
+		inFlight: false,
 	}
 }
 
@@ -53,7 +51,8 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		}
 
 		m.inFlight = true
-		m.actionLabel = "stopping…"
+
+		return m, func() tea.Msg { return msgs.DisplayStatus{Msg: m.def.Name + ": stopping…"} }
 
 	case msgs.ServiceStart:
 		if m.def.Name != msg.ServiceName {
@@ -61,7 +60,8 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		}
 
 		m.inFlight = true
-		m.actionLabel = "starting…"
+
+		return m, func() tea.Msg { return msgs.DisplayStatus{Msg: m.def.Name + ": starting…"} }
 
 	case msgs.ServiceRestart:
 		if m.def.Name != msg.ServiceName {
@@ -69,7 +69,8 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		}
 
 		m.inFlight = true
-		m.actionLabel = "restarting…"
+
+		return m, func() tea.Msg { return msgs.DisplayStatus{Msg: m.def.Name + ": restarting…"} }
 
 	case msgs.ServiceRebuild:
 		if m.def.Name != msg.ServiceName {
@@ -77,7 +78,8 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		}
 
 		m.inFlight = true
-		m.actionLabel = "rebuilding…"
+
+		return m, func() tea.Msg { return msgs.DisplayStatus{Msg: m.def.Name + ": rebuilding…"} }
 
 	case msgs.ServiceActionCompleted:
 		if m.def.Name != msg.ServiceName {
@@ -85,7 +87,6 @@ func (m serviceItem) Update(msg tea.Msg) (serviceItem, tea.Cmd) {
 		}
 
 		m.inFlight = false
-		m.actionLabel = ""
 
 		if msg.Err != nil {
 			break
@@ -146,10 +147,6 @@ func (m serviceItem) View() tea.View {
 
 	renderedText := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render(m.def.Name)
 	rendered := lipgloss.NewStyle().Foreground(colour).Render(icon, renderedText)
-
-	if m.inFlight && m.actionLabel != "" {
-		rendered += "  " + m.actionLabel
-	}
 
 	return tea.NewView(rendered)
 }

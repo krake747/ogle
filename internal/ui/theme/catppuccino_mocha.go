@@ -43,8 +43,9 @@ func CatppuccinoMocha() *Theme {
 		BorderBlurred: lipgloss.NewStyle().
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(mochaOverlay0),
-		ServiceListTitle: lipgloss.NewStyle().Bold(true).Foreground(mochaOverlay0),
-		HoverBackground:  mochaSurface0,
+		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(mochaOverlay0),
+		ServiceListBackground: mochaOverlay0,
+		HoverBackground:       mochaSurface0,
 		StateRunning:     mochaGreen,
 		StateExited:      mochaRed,
 		StatePaused:      mochaYellow,

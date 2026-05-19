@@ -22,10 +22,11 @@ var ErrUnknownTheme = errors.New("unknown theme")
 // BorderFocused and BorderBlurred pre-compose lipgloss.NormalBorder(); call
 // sites extend with Width/Height only.
 type Theme struct {
-	BorderFocused    lipgloss.Style
-	BorderBlurred    lipgloss.Style
-	ServiceListTitle lipgloss.Style
-	HoverBackground  color.Color
+	BorderFocused        lipgloss.Style
+	BorderBlurred        lipgloss.Style
+	ServiceListTitle     lipgloss.Style
+	ServiceListBackground color.Color
+	HoverBackground      color.Color
 	StateRunning     color.Color // running
 	StateExited      color.Color // exited / dead
 	StatePaused      color.Color // paused
@@ -36,11 +37,12 @@ type Theme struct {
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
 type userThemeFile struct {
-	Base                  string `yaml:"base"`
-	BorderFocusedColor    string `yaml:"borderFocusedColor"`
-	BorderBlurredColor    string `yaml:"borderBlurredColor"`
-	ServiceListTitleColor string `yaml:"serviceListTitleColor"`
-	HoverBackgroundColor  string `yaml:"hoverBackgroundColor"`
+	Base                         string `yaml:"base"`
+	BorderFocusedColor           string `yaml:"borderFocusedColor"`
+	BorderBlurredColor           string `yaml:"borderBlurredColor"`
+	ServiceListTitleColor        string `yaml:"serviceListTitleColor"`
+	ServiceListBackgroundColor   string `yaml:"serviceListBackgroundColor"`
+	HoverBackgroundColor         string `yaml:"hoverBackgroundColor"`
 	StateRunningColor     string `yaml:"stateRunningColor"`
 	StateExitedColor      string `yaml:"stateExitedColor"`
 	StatePausedColor      string `yaml:"statePausedColor"`
@@ -114,6 +116,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 		result.ServiceListTitle = result.ServiceListTitle.Foreground(
 			lipgloss.Color(f.ServiceListTitleColor),
 		)
+	}
+
+	if f.ServiceListBackgroundColor != "" {
+		result.ServiceListBackground = lipgloss.Color(f.ServiceListBackgroundColor)
 	}
 
 	if f.HoverBackgroundColor != "" {

@@ -369,5 +369,10 @@ func (m Model) FullHelp() [][]key.Binding {
 func (m Model) View() tea.View {
 	m.list.Styles.Title = m.theme.ServiceListTitle
 
-	return tea.NewView(lipgloss.NewStyle().Width(m.list.Width()).Render(m.list.View()))
+	return tea.NewView(
+		lipgloss.NewStyle().
+			Width(m.list.Width()).
+			Background(m.theme.ServiceListBackground).
+			Render(m.list.View()),
+	)
 }

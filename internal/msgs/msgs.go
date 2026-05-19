@@ -145,11 +145,16 @@ type (
 type ToggleLogWrap struct{}
 
 type (
-	// DisplayError asks the app chrome to show err above the helpbar for 3 seconds.
+	// DisplayError asks the app chrome to show err in the status bar for 3 seconds.
 	DisplayError struct {
 		Err string
 	}
 
-	// ClearDisplayError dismisses the display error bar.
-	ClearDisplayError struct{}
+	// DisplayStatus asks the app chrome to show msg in the status bar for 3 seconds.
+	DisplayStatus struct {
+		Msg string
+	}
+
+	// ClearStatusMsg dismisses the status bar message.
+	ClearStatusMsg struct{}
 )

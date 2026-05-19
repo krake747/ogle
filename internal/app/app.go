@@ -42,8 +42,8 @@ var (
 type phase int
 
 const (
-	frameHeight          = 3
-	errorDisplayDuration = 3 * time.Second
+	frameHeight       = 3
+	statusMsgDuration = 3 * time.Second
 )
 
 const (
@@ -63,16 +63,17 @@ type Model struct {
 	zm          *zone.Manager
 	watcher     watcher.Watcher
 
-	topbar          topbar.Model
-	helpbar         helpbar.Model
-	startup         tea.Model
-	dashboard       tea.Model
-	watching        tea.Model
-	phase           phase
-	width           int
-	height          int
-	displayError    string
-	displayErrorEnd time.Time
+	topbar         topbar.Model
+	helpbar        helpbar.Model
+	startup        tea.Model
+	dashboard      tea.Model
+	watching       tea.Model
+	phase          phase
+	width          int
+	height         int
+	statusMsg      string
+	statusMsgEnd   time.Time
+	statusMsgError bool
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -120,28 +121,29 @@ func New(
 		currentPhase = phaseDashboard
 		pf = filepath.Base(projectFile)
 
-		dash = dashboard.New(ctx, project, log, th, cfg, zm, width, height)
+		dash = dashboard.New(ctx, project, log, th, cfg, zm, width, height-frameHeight)
 	}
 
 	return Model{
-		ctx:             ctx,
-		cfg:             cfg,
-		configPath:      configPath,
-		projectFile:     pf,
-		log:             log,
-		theme:           th,
-		zm:              zm,
-		watcher:         wtr,
-		topbar:          topbar.New(ctx, connection.New(), th),
-		helpbar:         helpbar.New(),
-		startup:         startup.New(ctx, log, width, height, zm, th),
-		dashboard:       dash,
-		watching:        nil,
-		phase:           currentPhase,
-		width:           width,
-		height:          height,
-		displayError:    "",
-		displayErrorEnd: time.Time{},
+		ctx:            ctx,
+		cfg:            cfg,
+		configPath:     configPath,
+		projectFile:    pf,
+		log:            log,
+		theme:          th,
+		zm:             zm,
+		watcher:        wtr,
+		topbar:         topbar.New(ctx, connection.New(), th),
+		helpbar:        helpbar.New(),
+		startup:        startup.New(ctx, log, width, height, zm, th),
+		dashboard:      dash,
+		watching:       nil,
+		phase:          currentPhase,
+		width:          width,
+		height:         height,
+		statusMsg:      "",
+		statusMsgEnd:   time.Time{},
+		statusMsgError: false,
 	}, wtr.Close, nil
 }
 
@@ -188,7 +190,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.cfg,
 			m.zm,
 			m.width,
-			m.height,
+			m.height-frameHeight,
 		)
 		m.phase = phaseDashboard
 
@@ -231,16 +233,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		)
 
 	case msgs.DisplayError:
-		m.displayError = msg.Err
-		m.displayErrorEnd = time.Now().Add(errorDisplayDuration)
+		return m.handleStatusMsg(msg.Err, true)
 
-		return m, tea.Tick(errorDisplayDuration, func(time.Time) tea.Msg {
-			return msgs.ClearDisplayError{}
-		})
+	case msgs.DisplayStatus:
+		return m.handleStatusMsg(msg.Msg, false)
 
-	case msgs.ClearDisplayError:
-		if time.Now().After(m.displayErrorEnd) {
-			m.displayError = ""
+	case msgs.ClearStatusMsg:
+		if time.Now().After(m.statusMsgEnd) {
+			m.statusMsg = ""
 		}
 
 		return m, nil
@@ -313,6 +313,16 @@ func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (
 	return m, tea.Batch(cmd, m.watcher.Next())
 }
 
+func (m Model) handleStatusMsg(msg string, isError bool) (Model, tea.Cmd) {
+	m.statusMsg = msg
+	m.statusMsgEnd = time.Now().Add(statusMsgDuration)
+	m.statusMsgError = isError
+
+	return m, tea.Tick(statusMsgDuration, func(time.Time) tea.Msg {
+		return msgs.ClearStatusMsg{}
+	})
+}
+
 // View composes the top bar, active phase body, and help bar into a unified frame.
 func (m Model) View() tea.View {
 	var body tea.View
@@ -328,16 +338,21 @@ func (m Model) View() tea.View {
 
 	avail := m.height - frameHeight
 
-	if m.displayError != "" {
+	if m.statusMsg != "" {
 		avail--
 	}
 
 	bodyPadded := lipgloss.NewStyle().Height(avail).Render(body.Content)
 
-	if m.displayError != "" {
+	if m.statusMsg != "" {
+		var statusStyle lipgloss.Style
+		if m.statusMsgError {
+			statusStyle = lipgloss.NewStyle().Foreground(m.theme.ActionError)
+		}
+
 		bodyPadded = lipgloss.JoinVertical(lipgloss.Top,
 			bodyPadded,
-			lipgloss.NewStyle().Foreground(m.theme.ActionError).Render(m.displayError),
+			statusStyle.Render(m.statusMsg),
 		)
 	}
 
