@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	appFrameHeight    = 3
+	appFrameHeight     = 3
 	servicePanelHeight = 5
 	defaultCap         = 1000
 	horizontalStep     = 8

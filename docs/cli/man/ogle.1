@@ -22,12 +22,20 @@ A TUI for monitoring Docker Compose projects.
 	help for ogle
 
 .PP
+\fB--log-buffer-cap\fP=0
+	maximum log lines buffered per service (env: OGLE_LOG_BUFFER_CAP; default 1000)
+
+.PP
 \fB--pprof-addr\fP=""
 	pprof HTTP server address (e.g. localhost:6060)
 
 .PP
 \fB-f\fP, \fB--project-file\fP=""
 	path to docker compose file
+
+.PP
+\fB--theme\fP=""
+	theme name; built-ins: "default", "catppuccino_mocha" (env: OGLE_THEME)
 
 
 .SH SEE ALSO

@@ -22,33 +22,33 @@ var ErrUnknownTheme = errors.New("unknown theme")
 // BorderFocused and BorderBlurred pre-compose lipgloss.NormalBorder(); call
 // sites extend with Width/Height only.
 type Theme struct {
-	BorderFocused        lipgloss.Style
-	BorderBlurred        lipgloss.Style
-	ServiceListTitle     lipgloss.Style
+	BorderFocused         lipgloss.Style
+	BorderBlurred         lipgloss.Style
+	ServiceListTitle      lipgloss.Style
 	ServiceListBackground color.Color
-	HoverBackground      color.Color
-	StateRunning     color.Color // running
-	StateExited      color.Color // exited / dead
-	StatePaused      color.Color // paused
-	StateTransient   color.Color // restarting, action in-flight
-	StateMuted       color.Color // not created, unknown, nil runtime
-	ActionError      color.Color // error suffix text
+	HoverBackground       color.Color
+	StateRunning          color.Color // running
+	StateExited           color.Color // exited / dead
+	StatePaused           color.Color // paused
+	StateTransient        color.Color // restarting, action in-flight
+	StateMuted            color.Color // not created, unknown, nil runtime
+	ActionError           color.Color // error suffix text
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
 type userThemeFile struct {
-	Base                         string `yaml:"base"`
-	BorderFocusedColor           string `yaml:"borderFocusedColor"`
-	BorderBlurredColor           string `yaml:"borderBlurredColor"`
-	ServiceListTitleColor        string `yaml:"serviceListTitleColor"`
-	ServiceListBackgroundColor   string `yaml:"serviceListBackgroundColor"`
-	HoverBackgroundColor         string `yaml:"hoverBackgroundColor"`
-	StateRunningColor     string `yaml:"stateRunningColor"`
-	StateExitedColor      string `yaml:"stateExitedColor"`
-	StatePausedColor      string `yaml:"statePausedColor"`
-	StateTransientColor   string `yaml:"stateTransientColor"`
-	StateMutedColor       string `yaml:"stateMutedColor"`
-	ActionErrorColor      string `yaml:"actionErrorColor"`
+	Base                       string `yaml:"base"`
+	BorderFocusedColor         string `yaml:"borderFocusedColor"`
+	BorderBlurredColor         string `yaml:"borderBlurredColor"`
+	ServiceListTitleColor      string `yaml:"serviceListTitleColor"`
+	ServiceListBackgroundColor string `yaml:"serviceListBackgroundColor"`
+	HoverBackgroundColor       string `yaml:"hoverBackgroundColor"`
+	StateRunningColor          string `yaml:"stateRunningColor"`
+	StateExitedColor           string `yaml:"stateExitedColor"`
+	StatePausedColor           string `yaml:"statePausedColor"`
+	StateTransientColor        string `yaml:"stateTransientColor"`
+	StateMutedColor            string `yaml:"stateMutedColor"`
+	ActionErrorColor           string `yaml:"actionErrorColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing

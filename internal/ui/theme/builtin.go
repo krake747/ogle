@@ -22,11 +22,11 @@ func Default() *Theme {
 		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(blurred),
 		ServiceListBackground: lipgloss.Color("237"),
 		HoverBackground:       lipgloss.Color("237"),
-		StateRunning:     lipgloss.Color("2"),
-		StateExited:      lipgloss.Color("1"),
-		StatePaused:      lipgloss.Color("3"),
-		StateTransient:   lipgloss.Color("214"),
-		StateMuted:       lipgloss.Color("240"),
-		ActionError:      lipgloss.Color("1"),
+		StateRunning:          lipgloss.Color("2"),
+		StateExited:           lipgloss.Color("1"),
+		StatePaused:           lipgloss.Color("3"),
+		StateTransient:        lipgloss.Color("214"),
+		StateMuted:            lipgloss.Color("240"),
+		ActionError:           lipgloss.Color("1"),
 	}
 }

@@ -46,11 +46,11 @@ func CatppuccinoMocha() *Theme {
 		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(mochaOverlay0),
 		ServiceListBackground: mochaOverlay0,
 		HoverBackground:       mochaSurface0,
-		StateRunning:     mochaGreen,
-		StateExited:      mochaRed,
-		StatePaused:      mochaYellow,
-		StateTransient:   mochaPeach,
-		StateMuted:       mochaOverlay0,
-		ActionError:      mochaRed,
+		StateRunning:          mochaGreen,
+		StateExited:           mochaRed,
+		StatePaused:           mochaYellow,
+		StateTransient:        mochaPeach,
+		StateMuted:            mochaOverlay0,
+		ActionError:           mochaRed,
 	}
 }
