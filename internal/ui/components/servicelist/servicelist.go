@@ -206,6 +206,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.ServiceActionCompleted:
 		m = m.updateItem(msg.ServiceName, msg)
 
+	case msgs.ThemeChanged:
+		m.theme = msg.Theme
+		m.delegate.SetTheme(msg.Theme)
+		m = m.applyThemeToItems(msg.Theme)
+
 	case tea.KeyPressMsg:
 		if m.list.FilterState() == list.Filtering {
 			break
@@ -334,6 +339,23 @@ func (m Model) updateAllItems(msg tea.Msg) Model {
 		}
 
 		it, _ = it.Update(msg)
+		items[i] = it
+	}
+
+	m.list.SetItems(items)
+
+	return m
+}
+
+func (m Model) applyThemeToItems(th *theme.Theme) Model {
+	items := m.list.Items()
+	for i, item := range items {
+		it, ok := item.(serviceItem)
+		if !ok {
+			continue
+		}
+
+		it.th = th
 		items[i] = it
 	}
 

@@ -204,6 +204,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.SettingsApplied:
 		return m.handleSettingsApplied(msg)
 
+	case msgs.ThemeChanged:
+		m.theme = msg.Theme
+
 	case profiling.ProfilesDumped:
 		if msg.Err != nil {
 			m.log.ErrorContext(m.ctx,
@@ -295,7 +298,7 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 		)
 	}
 
-	return m, nil
+	return m, func() tea.Msg { return msgs.ThemeChanged{Theme: m.theme} }
 }
 
 func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (Model, tea.Cmd) {

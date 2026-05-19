@@ -99,6 +99,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		return m, nil
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
 	}
 
 	return m, nil

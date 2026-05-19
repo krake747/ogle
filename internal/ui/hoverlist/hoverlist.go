@@ -20,6 +20,8 @@ type Delegate interface {
 	list.ItemDelegate
 	// SetHover updates the hovered VisibleItems index (-1 = none).
 	SetHover(index int)
+	// SetTheme replaces the theme used to render hover highlights.
+	SetTheme(th *theme.Theme)
 }
 
 // delegate is the single unexported implementation of Delegate.
@@ -39,6 +41,10 @@ func NewDelegate(base list.DefaultDelegate, th *theme.Theme, zm *zone.Manager) D
 
 func (d *delegate) SetHover(index int) {
 	d.hoverIndex = index
+}
+
+func (d *delegate) SetTheme(th *theme.Theme) {
+	d.theme = th
 }
 
 // Render implements list.ItemDelegate. It applies a background tint to the

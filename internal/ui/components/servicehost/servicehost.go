@@ -54,7 +54,7 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
 			m.streamerStarted = true
@@ -65,6 +65,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.LogLinesAvailable, msgs.LogStreamError, msgs.LogStreamContainerNotFound:
 		cmds = append(cmds, m.streamer.Next())
+
+	case msgs.ThemeChanged:
+		m.theme = msg.Theme
 	}
 
 	var cmd tea.Cmd

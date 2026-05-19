@@ -156,14 +156,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFileAvailabilityChanged(msg.Files)
 
 	case msgs.SettingsApplied:
-		if th, err := theme.Load(msg.Theme, ""); err == nil {
-			m.th = th
-		}
-
 		m.cfg.Theme = msg.Theme
 		m.cfg.LogBufferCap = msg.LogBufferCap
 
 		return m, nil
+
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
 
 	case msgs.SettingsVisibilityChanged:
 		m.showingSettings = msg.Visible

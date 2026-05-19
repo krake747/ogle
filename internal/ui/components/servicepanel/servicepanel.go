@@ -67,6 +67,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.ServiceSelected:
 		m.selectedName = msg.ServiceName
 
+	case msgs.ThemeChanged:
+		m.theme = msg.Theme
+
 	case msgs.DaemonConnected:
 		if !m.pollerStarted {
 			m.pollerStarted = true

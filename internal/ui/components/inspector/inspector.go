@@ -55,6 +55,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		if msg.Err == nil && m.def.Name != "" {
 			m.runtime = msg.Runtimes[m.def.Name]
 		}
+
+	case msgs.ThemeChanged:
+		m.theme = msg.Theme
 	}
 
 	return m, nil

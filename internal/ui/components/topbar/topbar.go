@@ -89,6 +89,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		m.projectFile = msg.File
 
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
+
 	case msgs.DaemonConnected:
 		m.conn.HandleConnected()
 
