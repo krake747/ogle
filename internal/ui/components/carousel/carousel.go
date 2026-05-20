@@ -59,8 +59,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 	}
 
 	focus := 0
-	if n > 0 {
-		focus = 1
+
+	if n > 0 && p.TotalPages <= 1 {
 		cards[0], _ = cards[0].Update(card.FocusMsg{})
 	}
 
@@ -131,20 +131,20 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	if key.Matches(msg, keyEnter) {
 		switch m.focus {
 		case 0:
-			if m.paginator.OnFirstPage() {
-				return m, nil
-			}
-
-			m.paginator.PrevPage()
-
-			return m.rebuildCards()
-
-		case m.totalSlots() - 1:
 			if m.paginator.OnLastPage() {
 				return m, nil
 			}
 
 			m.paginator.NextPage()
+
+			return m.rebuildCards()
+
+		case m.totalSlots() - 1:
+			if m.paginator.OnFirstPage() {
+				return m, nil
+			}
+
+			m.paginator.PrevPage()
 
 			return m.rebuildCards()
 		}
@@ -202,27 +202,27 @@ func (m Model) View() tea.View {
 	if m.paginator.TotalPages > 1 {
 		focusedFg := m.th.CarouselFocused
 		unfocusedFg := m.th.CarouselBlurred
-
-		leftChevronColour := unfocusedFg
-		if m.focus == 0 {
-			leftChevronColour = focusedFg
-		}
+		navBg := m.th.CarouselNavBackground
 
 		rightChevronColour := unfocusedFg
-		if m.focus == m.totalSlots()-1 {
+		if m.focus == 0 {
 			rightChevronColour = focusedFg
 		}
 
+		leftChevronColour := unfocusedFg
+		if m.focus == m.totalSlots()-1 {
+			leftChevronColour = focusedFg
+		}
+
 		navContent := lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Foreground(leftChevronColour).Render("◀"),
-			m.paginator.View(),
-			lipgloss.NewStyle().Foreground(rightChevronColour).Render("▶"),
+			lipgloss.NewStyle().Foreground(leftChevronColour).Background(navBg).Render("◀"),
+			lipgloss.NewStyle().Background(navBg).Render(m.paginator.View()),
+			lipgloss.NewStyle().Foreground(rightChevronColour).Background(navBg).Render("▶"),
 		)
 
 		navBar = lipgloss.NewStyle().
 			Width(carouselW).
 			Align(lipgloss.Center).
-			Background(m.th.CarouselNavBackground).
 			Render(navContent)
 	}
 
@@ -244,13 +244,17 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.focus = 1
+	m.focus = 0
 
-	var cmd tea.Cmd
+	if m.paginator.TotalPages <= 1 && len(m.cards) > 0 {
+		var cmd tea.Cmd
 
-	m.cards[0], cmd = m.cards[0].Update(card.FocusMsg{})
+		m.cards[0], cmd = m.cards[0].Update(card.FocusMsg{})
 
-	return m, cmd
+		return m, cmd
+	}
+
+	return m, nil
 }
 
 func (m Model) totalSlots() int {
