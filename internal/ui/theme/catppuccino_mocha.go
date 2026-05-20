@@ -35,6 +35,8 @@ var (
 )
 
 // CatppuccinoMocha returns a theme based on the Catppuccin Mocha palette.
+//
+//nolint:dupl // theme initialisers are structurally identical by design
 func CatppuccinoMocha() *Theme {
 	return &Theme{
 		BorderFocused: lipgloss.NewStyle().
@@ -62,9 +64,10 @@ func CatppuccinoMocha() *Theme {
 		StatusInfo:            mochaSubtext1,
 		StatusBarBackground:   mochaMantle,
 		TopbarBackground:      mochaCrust,
-		CarouselFocused:       mochaText,
+		CarouselFocused:       mochaSubtext0,
 		CarouselBlurred:       mochaOverlay0,
 		CarouselBackground:    mochaCrust,
 		CarouselNavBackground: mochaCrust,
+		CarouselHover:         mochaText,
 	}
 }

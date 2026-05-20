@@ -30,6 +30,8 @@ var (
 )
 
 // Default returns the default built-in theme.
+//
+//nolint:dupl // theme initialisers are structurally identical by design
 func Default() *Theme {
 	return &Theme{
 		BorderFocused: lipgloss.NewStyle().
@@ -57,9 +59,10 @@ func Default() *Theme {
 		StatusInfo:            defaultWhite,
 		StatusBarBackground:   defaultBlack,
 		TopbarBackground:      defaultBlack,
-		CarouselFocused:       defaultBrightWhite,
+		CarouselFocused:       defaultWhite,
 		CarouselBlurred:       defaultBrightBlack,
 		CarouselBackground:    defaultBlack,
 		CarouselNavBackground: defaultBlack,
+		CarouselHover:         defaultBrightWhite,
 	}
 }

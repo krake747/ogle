@@ -39,6 +39,7 @@ type Model struct {
 	cards     []card.Model
 	w, h      int
 	focus     int
+	hovered   int
 	paginator paginator.Model
 	th        *theme.Theme
 	zm        *zone.Manager
@@ -75,6 +76,7 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		w:         w,
 		h:         h,
 		focus:     focus,
+		hovered:   -1,
 		paginator: p,
 		th:        th,
 		zm:        zm,
@@ -103,6 +105,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case tea.MouseClickMsg:
 		return m.handleMouseClick(msg)
+
+	case tea.MouseMotionMsg:
+		return m.handleMouseMotion(msg)
 	}
 
 	for i := range m.cards {
@@ -221,6 +226,49 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
+	hit := -1
+
+	switch {
+	case m.zm.Get("carousel-prev").InBounds(msg):
+		hit = m.totalSlots() - 1
+
+	case m.zm.Get("carousel-next").InBounds(msg):
+		hit = 0
+
+	default:
+		for i := range m.cards {
+			if m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
+				hit = i + 1
+
+				break
+			}
+		}
+	}
+
+	if hit == m.hovered {
+		return m, nil
+	}
+
+	if m.hovered >= 1 && m.hovered <= pageSize {
+		idx := m.hovered - 1
+		updated, _ := m.cards[idx].Update(card.UnhoverMsg{})
+		m.cards[idx] = updated
+	}
+
+	m.hovered = hit
+
+	if m.hovered >= 1 && m.hovered <= pageSize {
+		idx := m.hovered - 1
+		updated, cmd := m.cards[idx].Update(card.HoverMsg{})
+		m.cards[idx] = updated
+
+		return m, cmd
+	}
+
+	return m, nil
+}
+
 // View renders the carousel with card grid, and nav bar below.
 func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
@@ -270,16 +318,21 @@ func (m Model) View() tea.View {
 	if m.paginator.TotalPages > 1 {
 		focusedFg := m.th.CarouselFocused
 		unfocusedFg := m.th.CarouselBlurred
+		hoverFg := m.th.CarouselHover
 		navBg := m.th.CarouselNavBackground
 
 		rightChevronColour := unfocusedFg
 		if m.focus == 0 {
 			rightChevronColour = focusedFg
+		} else if m.hovered == 0 {
+			rightChevronColour = hoverFg
 		}
 
 		leftChevronColour := unfocusedFg
 		if m.focus == m.totalSlots()-1 {
 			leftChevronColour = focusedFg
+		} else if m.hovered == m.totalSlots()-1 {
+			leftChevronColour = hoverFg
 		}
 
 		leftChevron := lipgloss.NewStyle().
@@ -324,11 +377,13 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 
 	if n == 0 {
 		m.focus = 0
+		m.hovered = -1
 
 		return m, nil
 	}
 
 	m.focus = 1
+	m.hovered = -1
 
 	if len(m.cards) > 0 {
 		updated, cmd := m.cards[0].Update(card.FocusMsg{})

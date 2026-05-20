@@ -18,6 +18,12 @@ type FocusMsg struct{}
 // BlurMsg tells a card it is no longer focused.
 type BlurMsg struct{}
 
+// HoverMsg tells a card the mouse is hovering over it.
+type HoverMsg struct{}
+
+// UnhoverMsg tells a card the mouse is no longer hovering over it.
+type UnhoverMsg struct{}
+
 // ScrollTick advances the scrolling text window for a truncated service name.
 type ScrollTick struct {
 	gen int
@@ -40,6 +46,7 @@ type Model struct {
 	def            domain.ServiceDef
 	w, h           int
 	focused        bool
+	hovered        bool
 	th             *theme.Theme
 	scrollOffset   int
 	scrollDir      int
@@ -54,6 +61,7 @@ func New(def domain.ServiceDef, w, h int, th *theme.Theme) Model {
 		w:              w,
 		h:              h,
 		focused:        false,
+		hovered:        false,
 		th:             th,
 		scrollDir:      1,
 		scrollOffset:   0,
@@ -99,6 +107,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.focused = false
 		m.scrollOffset = 0
 		m.scrollDir = 1
+
+	case HoverMsg:
+		m.hovered = true
+
+	case UnhoverMsg:
+		m.hovered = false
 
 	case ScrollTick:
 		if !m.focused || !m.needsScroll() || msg.gen != m.focusGen {
@@ -174,6 +188,8 @@ func (m Model) View() tea.View {
 	borderFg := m.th.CarouselBlurred
 	if m.focused {
 		borderFg = m.th.CarouselFocused
+	} else if m.hovered {
+		borderFg = m.th.CarouselHover
 	}
 
 	return tea.NewView(lipgloss.NewStyle().
