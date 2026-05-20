@@ -102,6 +102,7 @@ func (m Model) View() tea.View {
 		Height(cardH).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderFg).
+		Background(m.th.CarouselBackground).
 		Render(padded))
 }
 

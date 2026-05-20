@@ -183,6 +183,7 @@ func (m Model) View() tea.View {
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
 					Height(cardH).
+					Background(m.th.CarouselBackground).
 					Render("")
 			}
 		}
