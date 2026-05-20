@@ -1,10 +1,13 @@
 package carousel
 
 import (
+	"fmt"
+
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/paginator"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -38,10 +41,11 @@ type Model struct {
 	focus     int
 	paginator paginator.Model
 	th        *theme.Theme
+	zm        *zone.Manager
 }
 
 // New returns a Model for the given project.
-func New(project *domain.Project, w, h int, th *theme.Theme) Model {
+func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) Model {
 	p := paginator.New(paginator.WithPerPage(pageSize))
 	p.Type = paginator.Dots
 	p.SetTotalPages(len(project.Services))
@@ -73,6 +77,7 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 		focus:     focus,
 		paginator: p,
 		th:        th,
+		zm:        zm,
 	}
 }
 
@@ -95,6 +100,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.ThemeChanged:
 		m.th = msg.Theme
+
+	case tea.MouseClickMsg:
+		return m.handleMouseClick(msg)
 	}
 
 	for i := range m.cards {
@@ -164,6 +172,55 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	return m, pageCmd
 }
 
+func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
+	if m.zm.Get("carousel-prev").InBounds(msg) {
+		if m.paginator.OnFirstPage() {
+			return m, nil
+		}
+
+		m.paginator.PrevPage()
+
+		return m.rebuildCards()
+	}
+
+	if m.zm.Get("carousel-next").InBounds(msg) {
+		if m.paginator.OnLastPage() {
+			return m, nil
+		}
+
+		m.paginator.NextPage()
+
+		return m.rebuildCards()
+	}
+
+	for i := range m.cards {
+		if !m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
+			continue
+		}
+
+		newFocus := i + 1
+
+		if m.focus == newFocus {
+			return m, nil
+		}
+
+		if m.focus >= 1 && m.focus <= pageSize {
+			idx := m.focus - 1
+			updated, _ := m.cards[idx].Update(card.BlurMsg{})
+			m.cards[idx] = updated
+		}
+
+		m.focus = newFocus
+
+		updated, cmd := m.cards[i].Update(card.FocusMsg{})
+		m.cards[i] = updated
+
+		return m, cmd
+	}
+
+	return m, nil
+}
+
 // View renders the carousel with card grid, and nav bar below.
 func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
@@ -185,7 +242,10 @@ func (m Model) View() tea.View {
 			idx := row*cols + col
 
 			if idx < len(m.cards) {
-				cells[col] = m.cards[idx].View().Content
+				cells[col] = m.zm.Mark(
+					fmt.Sprintf("carousel-card-%d", idx),
+					m.cards[idx].View().Content,
+				)
 			} else {
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
@@ -222,10 +282,25 @@ func (m Model) View() tea.View {
 			leftChevronColour = focusedFg
 		}
 
-		navContent := lipgloss.JoinHorizontal(lipgloss.Top,
-			lipgloss.NewStyle().Foreground(leftChevronColour).Background(navBg).Render("◀"),
-			lipgloss.NewStyle().Background(navBg).Render(m.paginator.View()),
-			lipgloss.NewStyle().Foreground(rightChevronColour).Background(navBg).Render("▶"),
+		leftChevron := lipgloss.NewStyle().
+			Foreground(leftChevronColour).
+			Background(navBg).
+			Render("◀")
+
+		rightChevron := lipgloss.NewStyle().
+			Foreground(rightChevronColour).
+			Background(navBg).
+			Render("▶")
+
+		paginatorView := lipgloss.NewStyle().
+			Background(navBg).
+			Render(m.paginator.View())
+
+		navContent := lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			m.zm.Mark("carousel-prev", leftChevron),
+			paginatorView,
+			m.zm.Mark("carousel-next", rightChevron),
 		)
 
 		navBar = lipgloss.NewStyle().
