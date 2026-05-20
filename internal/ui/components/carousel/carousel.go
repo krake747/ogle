@@ -227,10 +227,10 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 
 	if m.zm.Get("carousel-paginator").InBounds(msg) {
 		if m.paginator.OnLastPage() {
-			return m, nil
+			m.paginator.Page = 0
+		} else {
+			m.paginator.NextPage()
 		}
-
-		m.paginator.NextPage()
 
 		return m.rebuildCards()
 	}
@@ -275,11 +275,7 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 
 	default:
 		if m.zm.Get("carousel-paginator").InBounds(msg) {
-			if !m.paginatorHovered {
-				m.paginatorHovered = true
-			}
-
-			return m, nil
+			return m.handlePaginatorHover()
 		}
 
 		for i := range m.cards {
@@ -299,12 +295,7 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.hovered >= 1 && m.hovered <= pageSize {
-		idx := m.hovered - 1
-		updated, _ := m.cards[idx].Update(card.UnhoverMsg{})
-		m.cards[idx] = updated
-	}
-
+	m = m.unhoverCard()
 	m.hovered = hit
 
 	if m.hovered >= 1 && m.hovered <= pageSize {
@@ -314,6 +305,27 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 
 		return m, cmd
 	}
+
+	return m, nil
+}
+
+func (m Model) unhoverCard() Model {
+	if m.hovered >= 1 && m.hovered <= pageSize {
+		idx := m.hovered - 1
+		updated, _ := m.cards[idx].Update(card.UnhoverMsg{})
+		m.cards[idx] = updated
+	}
+
+	return m
+}
+
+func (m Model) handlePaginatorHover() (Model, tea.Cmd) {
+	if !m.paginatorHovered {
+		m.paginatorHovered = true
+	}
+
+	m = m.unhoverCard()
+	m.hovered = -1
 
 	return m, nil
 }
