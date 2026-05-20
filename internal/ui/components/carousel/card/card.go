@@ -79,6 +79,7 @@ func (m Model) View() tea.View {
 	}
 
 	innerW := cardW - borderW
+	innerH := cardH - borderW
 	name := m.def.Name
 
 	var shown string
@@ -90,7 +91,7 @@ func (m Model) View() tea.View {
 	}
 
 	content := lipgloss.NewStyle().Width(innerW).Render(shown)
-	padded := lipgloss.PlaceVertical(cardH, lipgloss.Top, content)
+	padded := lipgloss.PlaceVertical(innerH, lipgloss.Top, content)
 
 	borderFg := m.th.CarouselBlurred
 	if m.focused {
@@ -102,6 +103,7 @@ func (m Model) View() tea.View {
 		Height(cardH).
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(borderFg).
+		BorderBackground(m.th.CarouselBackground).
 		Background(m.th.CarouselBackground).
 		Render(padded))
 }

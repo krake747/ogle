@@ -224,6 +224,7 @@ func (m Model) View() tea.View {
 		navBar = lipgloss.NewStyle().
 			Width(carouselW).
 			Align(lipgloss.Center).
+			Background(navBg).
 			Render(navContent)
 	}
 
