@@ -55,6 +55,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		PrevPage: key.NewBinding(key.WithKeys("pgup")),
 		NextPage: key.NewBinding(key.WithKeys("pgdown")),
 	}
+	p.ActiveDot = lipgloss.NewStyle().Foreground(th.CarouselFocused).Render("•")
+	p.InactiveDot = lipgloss.NewStyle().Foreground(th.CarouselBlurred).Render("○")
 
 	_, end := p.GetSliceBounds(len(project.Services))
 	n := end - p.Page*p.PerPage
@@ -104,6 +106,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.ThemeChanged:
 		m.th = msg.Theme
+		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselFocused).Render("•")
+		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselBlurred).Render("○")
 
 	case tea.MouseClickMsg:
 		return m.handleMouseClick(msg)
