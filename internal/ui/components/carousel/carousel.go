@@ -35,14 +35,15 @@ var (
 
 // Model is the carousel component state.
 type Model struct {
-	all       []domain.ServiceDef
-	cards     []card.Model
-	w, h      int
-	focus     int
-	hovered   int
-	paginator paginator.Model
-	th        *theme.Theme
-	zm        *zone.Manager
+	all              []domain.ServiceDef
+	cards            []card.Model
+	w, h             int
+	focus            int
+	hovered          int
+	paginatorHovered bool
+	paginator        paginator.Model
+	th               *theme.Theme
+	zm               *zone.Manager
 }
 
 // New returns a Model for the given project.
@@ -71,15 +72,16 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 	}
 
 	return Model{
-		all:       project.Services,
-		cards:     cards,
-		w:         w,
-		h:         h,
-		focus:     focus,
-		hovered:   -1,
-		paginator: p,
-		th:        th,
-		zm:        zm,
+		all:              project.Services,
+		cards:            cards,
+		w:                w,
+		h:                h,
+		focus:            focus,
+		hovered:          -1,
+		paginatorHovered: false,
+		paginator:        p,
+		th:               th,
+		zm:               zm,
 	}
 }
 
@@ -198,6 +200,16 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 		return m.rebuildCards()
 	}
 
+	if m.zm.Get("carousel-paginator").InBounds(msg) {
+		if m.paginator.OnLastPage() {
+			return m, nil
+		}
+
+		m.paginator.NextPage()
+
+		return m.rebuildCards()
+	}
+
 	for i := range m.cards {
 		if !m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
 			continue
@@ -237,6 +249,14 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		hit = 0
 
 	default:
+		if m.zm.Get("carousel-paginator").InBounds(msg) {
+			if !m.paginatorHovered {
+				m.paginatorHovered = true
+			}
+
+			return m, nil
+		}
+
 		for i := range m.cards {
 			if m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
 				hit = i + 1
@@ -244,6 +264,10 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 				break
 			}
 		}
+	}
+
+	if m.paginatorHovered {
+		m.paginatorHovered = false
 	}
 
 	if hit == m.hovered {
@@ -313,57 +337,67 @@ func (m Model) View() tea.View {
 		Background(m.th.CarouselBackground).
 		Render(grid)
 
-	var navBar string
-
-	if m.paginator.TotalPages > 1 {
-		focusedFg := m.th.CarouselFocused
-		unfocusedFg := m.th.CarouselBlurred
-		hoverFg := m.th.CarouselHover
-		navBg := m.th.CarouselNavBackground
-
-		rightChevronColour := unfocusedFg
-		if m.focus == 0 {
-			rightChevronColour = focusedFg
-		} else if m.hovered == 0 {
-			rightChevronColour = hoverFg
-		}
-
-		leftChevronColour := unfocusedFg
-		if m.focus == m.totalSlots()-1 {
-			leftChevronColour = focusedFg
-		} else if m.hovered == m.totalSlots()-1 {
-			leftChevronColour = hoverFg
-		}
-
-		leftChevron := lipgloss.NewStyle().
-			Foreground(leftChevronColour).
-			Background(navBg).
-			Render("◀")
-
-		rightChevron := lipgloss.NewStyle().
-			Foreground(rightChevronColour).
-			Background(navBg).
-			Render("▶")
-
-		paginatorView := lipgloss.NewStyle().
-			Background(navBg).
-			Render(m.paginator.View())
-
-		navContent := lipgloss.JoinHorizontal(
-			lipgloss.Top,
-			m.zm.Mark("carousel-prev", leftChevron),
-			paginatorView,
-			m.zm.Mark("carousel-next", rightChevron),
-		)
-
-		navBar = lipgloss.NewStyle().
-			Width(carouselW).
-			Align(lipgloss.Center).
-			Background(navBg).
-			Render(navContent)
-	}
+	navBar := m.renderNavBar(carouselW)
 
 	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, grid, navBar))
+}
+
+func (m Model) renderNavBar(carouselW int) string {
+	if m.paginator.TotalPages <= 1 {
+		return ""
+	}
+
+	focusedFg := m.th.CarouselFocused
+	unfocusedFg := m.th.CarouselBlurred
+	hoverFg := m.th.CarouselHover
+	navBg := m.th.CarouselNavBackground
+
+	rightChevronColour := unfocusedFg
+	if m.focus == 0 {
+		rightChevronColour = focusedFg
+	} else if m.hovered == 0 {
+		rightChevronColour = hoverFg
+	}
+
+	leftChevronColour := unfocusedFg
+	if m.focus == m.totalSlots()-1 {
+		leftChevronColour = focusedFg
+	} else if m.hovered == m.totalSlots()-1 {
+		leftChevronColour = hoverFg
+	}
+
+	leftChevron := lipgloss.NewStyle().
+		Foreground(leftChevronColour).
+		Background(navBg).
+		Render("◀")
+
+	rightChevron := lipgloss.NewStyle().
+		Foreground(rightChevronColour).
+		Background(navBg).
+		Render("▶")
+
+	paginatorStyle := lipgloss.NewStyle().Background(navBg)
+	if m.paginatorHovered {
+		paginatorStyle = paginatorStyle.Foreground(hoverFg)
+	}
+
+	paginatorView := m.zm.Mark(
+		"carousel-paginator",
+		paginatorStyle.Render(m.paginator.View()),
+	)
+
+	navContent := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		m.zm.Mark("carousel-prev", leftChevron),
+		paginatorView,
+		m.zm.Mark("carousel-next", rightChevron),
+	)
+
+	return lipgloss.NewStyle().
+		Width(carouselW).
+		Align(lipgloss.Center).
+		Background(navBg).
+		Render(navContent)
 }
 
 func (m Model) rebuildCards() (Model, tea.Cmd) {
@@ -378,12 +412,14 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	if n == 0 {
 		m.focus = 0
 		m.hovered = -1
+		m.paginatorHovered = false
 
 		return m, nil
 	}
 
 	m.focus = 1
 	m.hovered = -1
+	m.paginatorHovered = false
 
 	if len(m.cards) > 0 {
 		updated, cmd := m.cards[0].Update(card.FocusMsg{})
