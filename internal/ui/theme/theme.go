@@ -43,6 +43,10 @@ type Theme struct {
 	StatusInfo            color.Color // info-level status bar text
 	StatusBarBackground   color.Color // status bar background tint
 	TopbarBackground      color.Color // top bar background tint
+	CarouselFocused       color.Color
+	CarouselBlurred       color.Color
+	CarouselBackground    color.Color // background behind the card grid
+	CarouselNavBackground color.Color // background behind the nav bar
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -69,6 +73,10 @@ type userThemeFile struct {
 	StatusInfoColor            string `yaml:"statusInfoColor"`
 	StatusBarBackgroundColor   string `yaml:"statusBarBackgroundColor"`
 	TopbarBackgroundColor      string `yaml:"topbarBackgroundColor"`
+	CarouselFocusedColor       string `yaml:"carouselFocusedColor"`
+	CarouselBlurredColor       string `yaml:"carouselBlurredColor"`
+	CarouselBackgroundColor    string `yaml:"carouselBackgroundColor"`
+	CarouselNavBackgroundColor string `yaml:"carouselNavBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -117,7 +125,7 @@ func builtinByName(name string) *Theme {
 	}
 }
 
-//nolint:gocognit // The applyOverrides function is necessarily verbose and straightforward
+//nolint:funlen,gocognit // The applyOverrides function is necessarily verbose and straightforward
 func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	result := *t
 
@@ -209,6 +217,22 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.TopbarBackgroundColor != "" {
 		result.TopbarBackground = lipgloss.Color(f.TopbarBackgroundColor)
+	}
+
+	if f.CarouselFocusedColor != "" {
+		result.CarouselFocused = lipgloss.Color(f.CarouselFocusedColor)
+	}
+
+	if f.CarouselBlurredColor != "" {
+		result.CarouselBlurred = lipgloss.Color(f.CarouselBlurredColor)
+	}
+
+	if f.CarouselBackgroundColor != "" {
+		result.CarouselBackground = lipgloss.Color(f.CarouselBackgroundColor)
+	}
+
+	if f.CarouselNavBackgroundColor != "" {
+		result.CarouselNavBackground = lipgloss.Color(f.CarouselNavBackgroundColor)
 	}
 
 	return &result

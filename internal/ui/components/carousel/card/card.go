@@ -6,6 +6,8 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // FocusMsg tells a card it is now focused.
@@ -16,8 +18,6 @@ type BlurMsg struct{}
 
 const (
 	cols               = 2
-	chevronW           = 2
-	chevronCount       = 2
 	listRatio          = 30
 	listMinTermWidth   = 80
 	pctDivisor         = 100
@@ -31,15 +31,17 @@ type Model struct {
 	def     domain.ServiceDef
 	w, h    int
 	focused bool
+	th      *theme.Theme
 }
 
 // New returns a Model for the given service definition and terminal dimensions.
-func New(def domain.ServiceDef, w, h int) Model {
+func New(def domain.ServiceDef, w, h int, th *theme.Theme) Model {
 	return Model{
 		def:     def,
 		w:       w,
 		h:       h,
 		focused: false,
+		th:      th,
 	}
 }
 
@@ -60,6 +62,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case BlurMsg:
 		m.focused = false
+
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
 	}
 
 	return m, nil
@@ -87,23 +92,23 @@ func (m Model) View() tea.View {
 	content := lipgloss.NewStyle().Width(innerW).Render(shown)
 	padded := lipgloss.PlaceVertical(cardH, lipgloss.Top, content)
 
-	borderColour := lipgloss.Color("#444444")
+	borderFg := m.th.CarouselBlurred
 	if m.focused {
-		borderColour = lipgloss.Color("#ffffff")
+		borderFg = m.th.CarouselFocused
 	}
 
 	return tea.NewView(lipgloss.NewStyle().
 		Width(cardW).
 		Height(cardH).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(borderColour).
+		BorderForeground(borderFg).
 		Render(padded))
 }
 
 func (m Model) cardWidth() int {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
 
-	return (carouselW - chevronW*chevronCount) / cols
+	return carouselW / cols
 }
 
 func (m Model) cardHeight() int {

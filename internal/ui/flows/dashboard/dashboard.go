@@ -66,7 +66,7 @@ func New(
 		zm:              zm,
 		configDir:       configDir,
 		serviceList:     servicelist.New(project, th, zm, w),
-		carousel:        carousel.New(project, w, h),
+		carousel:        carousel.New(project, w, h, th),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
 		showingSettings: false,

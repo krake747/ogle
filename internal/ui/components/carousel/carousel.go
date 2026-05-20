@@ -7,14 +7,15 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/components/carousel/card"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
 	rows               = 2
 	cols               = 2
 	pageSize           = rows * cols
-	chevronW           = 2
 	chevronCount       = 2
 	listRatio          = 30
 	listMinTermWidth   = 80
@@ -36,10 +37,11 @@ type Model struct {
 	w, h      int
 	focus     int
 	paginator paginator.Model
+	th        *theme.Theme
 }
 
 // New returns a Model for the given project.
-func New(project *domain.Project, w, h int) Model {
+func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 	p := paginator.New(paginator.WithPerPage(pageSize))
 	p.Type = paginator.Dots
 	p.SetTotalPages(len(project.Services))
@@ -53,7 +55,7 @@ func New(project *domain.Project, w, h int) Model {
 
 	cards := make([]card.Model, n)
 	for i := range n {
-		cards[i] = card.New(project.Services[p.Page*p.PerPage+i], w, h)
+		cards[i] = card.New(project.Services[p.Page*p.PerPage+i], w, h, th)
 	}
 
 	focus := 0
@@ -69,6 +71,7 @@ func New(project *domain.Project, w, h int) Model {
 		h:         h,
 		focus:     focus,
 		paginator: p,
+		th:        th,
 	}
 }
 
@@ -88,6 +91,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
+
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
 	}
 
 	for i := range m.cards {
@@ -160,8 +166,7 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 // View renders the carousel with card grid, and nav bar below.
 func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
-	gridW := carouselW - chevronW*chevronCount
-	cardW := gridW / cols
+	cardW := carouselW / cols
 	cardH := min(cardW/terminalCellAspect, maxCardH)
 
 	rowStrs := make([]string, rows)
@@ -187,11 +192,16 @@ func (m Model) View() tea.View {
 
 	grid := lipgloss.JoinVertical(lipgloss.Left, rowStrs...)
 
+	grid = lipgloss.NewStyle().
+		Width(carouselW).
+		Background(m.th.CarouselBackground).
+		Render(grid)
+
 	var navBar string
 
 	if m.paginator.TotalPages > 1 {
-		focusedFg := lipgloss.Color("#ffffff")
-		unfocusedFg := lipgloss.Color("#444444")
+		focusedFg := m.th.CarouselFocused
+		unfocusedFg := m.th.CarouselBlurred
 
 		leftChevronColour := unfocusedFg
 		if m.focus == 0 {
@@ -209,7 +219,11 @@ func (m Model) View() tea.View {
 			lipgloss.NewStyle().Foreground(rightChevronColour).Render("▶"),
 		)
 
-		navBar = lipgloss.NewStyle().Width(carouselW).Align(lipgloss.Center).Render(navContent)
+		navBar = lipgloss.NewStyle().
+			Width(carouselW).
+			Align(lipgloss.Center).
+			Background(m.th.CarouselNavBackground).
+			Render(navContent)
 	}
 
 	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, grid, navBar))
@@ -221,7 +235,7 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	m.cards = make([]card.Model, n)
 
 	for i := range n {
-		m.cards[i] = card.New(m.all[start+i], m.w, m.h)
+		m.cards[i] = card.New(m.all[start+i], m.w, m.h, m.th)
 	}
 
 	if n == 0 {

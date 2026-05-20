@@ -27,7 +27,6 @@ var (
 	defaultBrightMagenta = lipgloss.Color("#ff87d7")
 	defaultBrightCyan    = lipgloss.Color("#5fafd7")
 	defaultBrightWhite   = lipgloss.Color("#ffffff")
-	defaultDarkGrey      = lipgloss.Color("#262626")
 )
 
 // Default returns the default built-in theme.
@@ -46,7 +45,7 @@ func Default() *Theme {
 		HelpBackground:        defaultBlack,
 		ServiceListBackground: defaultBlack,
 		HoverBackground:       defaultBlack,
-		SelectedBackground:    defaultDarkGrey,
+		SelectedBackground:    defaultBrightBlack,
 		Text:                  defaultWhite,
 		Subtext:               defaultBrightBlack,
 		StateRunning:          defaultGreen,
@@ -58,5 +57,9 @@ func Default() *Theme {
 		StatusInfo:            defaultWhite,
 		StatusBarBackground:   defaultBlack,
 		TopbarBackground:      defaultBlack,
+		CarouselFocused:       defaultBrightWhite,
+		CarouselBlurred:       defaultBrightBlack,
+		CarouselBackground:    defaultBlack,
+		CarouselNavBackground: defaultBlack,
 	}
 }
