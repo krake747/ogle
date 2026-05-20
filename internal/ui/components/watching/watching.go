@@ -11,9 +11,11 @@ import (
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 // frameHeight is the number of terminal lines consumed by the app-level chrome
@@ -36,6 +38,7 @@ type Model struct {
 	File     string
 	ctx      context.Context
 	log      *slog.Logger
+	th       *theme.Theme
 	st       state
 	parseErr error
 
@@ -48,12 +51,14 @@ func New(
 	logger *slog.Logger,
 	file string,
 	w, h int,
+	th *theme.Theme,
 ) Model {
 	return Model{
 		parser:   parser.New(ctx, logger),
 		File:     file,
 		ctx:      ctx,
 		log:      logger,
+		th:       th,
 		st:       stateIdle,
 		parseErr: nil,
 		w:        w,
@@ -79,6 +84,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, keyQuit) {
 			return m, tea.Quit
 		}
+
+		return m, nil
+
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
 
 		return m, nil
 
@@ -108,17 +118,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m Model) View() tea.View {
-	var body string
+	muted := lipgloss.NewStyle().Foreground(m.th.Subtext).Render
+	errStyle := lipgloss.NewStyle().Foreground(m.th.ActionError).Render
 
 	switch m.st {
 	case stateParseError:
-		body = fmt.Sprintf(
-			"compose file unavailable — waiting...\n\nParse error: %v\nWaiting for file to change...",
-			m.parseErr,
-		)
+		body := muted("compose file unavailable — waiting...") +
+			"\n\n" +
+			errStyle(fmt.Sprintf("Parse error: %v", m.parseErr)) +
+			"\n" +
+			muted("Waiting for file to change...")
+
+		return tea.NewView(body)
+
 	case stateIdle:
-		body = "compose file unavailable — waiting..."
+		return tea.NewView(muted("compose file unavailable — waiting..."))
 	}
 
-	return tea.NewView(body)
+	return tea.NewView("")
 }

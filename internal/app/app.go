@@ -235,7 +235,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFileAvailabilityChanged(msg)
 
 	case msgs.FileRemoved:
-		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height)
+		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height, m.theme)
 		m.phase = phaseWatching
 
 		return m, tea.Batch(
