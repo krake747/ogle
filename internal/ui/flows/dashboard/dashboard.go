@@ -16,6 +16,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/ui/components/carousel"
 	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/components/settings"
@@ -37,6 +38,7 @@ type Model struct {
 	configDir string
 
 	serviceList     servicelist.Model
+	carousel        carousel.Model
 	panel           servicepanel.Model
 	settings        settings.Model
 	showingSettings bool
@@ -64,6 +66,7 @@ func New(
 		zm:              zm,
 		configDir:       configDir,
 		serviceList:     servicelist.New(project, th, zm, w),
+		carousel:        carousel.New(project, w, h),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
 		showingSettings: false,
@@ -102,7 +105,7 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var svcListCmd, panCmd, settingsCmd tea.Cmd
+	var svcListCmd, carouselCmd, panCmd, settingsCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -178,13 +181,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	m.serviceList, svcListCmd = m.serviceList.Update(msg)
+	m.carousel, carouselCmd = m.carousel.Update(msg)
 	m.panel, panCmd = m.panel.Update(msg)
 
 	if m.showingSettings {
 		m.settings, settingsCmd = m.settings.Update(msg)
 	}
 
-	return m, tea.Batch(svcListCmd, panCmd, settingsCmd)
+	return m, tea.Batch(svcListCmd, carouselCmd, panCmd, settingsCmd)
 }
 
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -243,7 +247,10 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 // View renders the service list and inspector side by side. When settings is
 // visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
-	listContent := m.serviceList.View().Content
+	listContent := lipgloss.JoinVertical(lipgloss.Top,
+		m.serviceList.View().Content,
+		m.carousel.View().Content,
+	)
 	listH := lipgloss.Height(listContent)
 	listW := lipgloss.Width(listContent)
 
