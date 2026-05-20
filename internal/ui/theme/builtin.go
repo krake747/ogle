@@ -57,5 +57,6 @@ func Default() *Theme {
 		ActionError:           defaultBrightRed,
 		StatusInfo:            defaultWhite,
 		StatusBarBackground:   defaultBlack,
+		TopbarBackground:      defaultBlack,
 	}
 }

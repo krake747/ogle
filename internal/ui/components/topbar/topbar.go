@@ -152,14 +152,20 @@ func (m Model) contextText() string {
 func (m Model) renderDaemonStatus() string {
 	switch m.conn.ConnectState() {
 	case connection.ConnectStateConnecting:
-		label := lipgloss.NewStyle().Foreground(m.th.StateTransient).Render("○")
+		label := lipgloss.NewStyle().
+			Foreground(m.th.StateTransient).
+			Background(m.th.TopbarBackground).
+			Render("🐳 ○")
 
-		return "🐳 " + label + " " + m.spn.View()
+		return label + " " + m.spn.View()
 
 	case connection.ConnectStateConnected:
-		live := lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("● LIVE")
+		live := lipgloss.NewStyle().
+			Foreground(m.th.StateRunning).
+			Background(m.th.TopbarBackground).
+			Render("🐳 ● LIVE")
 
-		return "🐳 " + live
+		return live
 
 	case connection.ConnectStateUnavailable:
 		secs := int(math.Ceil(m.conn.Remaining().Seconds()))
@@ -169,9 +175,12 @@ func (m Model) renderDaemonStatus() string {
 			countdown = fmt.Sprintf("(%ds)", secs)
 		}
 
-		label := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("○")
+		label := lipgloss.NewStyle().
+			Foreground(m.th.StateMuted).
+			Background(m.th.TopbarBackground).
+			Render("🐳 ○")
 
-		return "🐳 " + label + " " + countdown
+		return label + " " + countdown
 	default:
 		return ""
 	}
@@ -180,14 +189,19 @@ func (m Model) renderDaemonStatus() string {
 // View renders the top bar: faint "ogle" prefix + phase context on the left,
 // Docker daemon status on the right, right-aligned via padding.
 func (m Model) View() tea.View {
-	left := lipgloss.NewStyle().Foreground(m.th.StateMuted).Render("ogle") + "  " + m.contextText()
+	bg := m.th.TopbarBackground
+	brandStyle := lipgloss.NewStyle().Foreground(m.th.Subtext).Background(bg)
+	contextStyle := lipgloss.NewStyle().Foreground(m.th.Subtext).Background(bg)
+	spacerStyle := lipgloss.NewStyle().Background(bg)
+
+	left := brandStyle.Render("ogle") + contextStyle.Render("  "+m.contextText())
 	right := m.renderDaemonStatus()
 
 	leftW := lipgloss.Width(left)
 	rightW := lipgloss.Width(right)
 	pad := max(m.width-leftW-rightW, 0)
 
-	return tea.NewView(left + strings.Repeat(" ", pad) + right)
+	return tea.NewView(left + spacerStyle.Render(strings.Repeat(" ", pad)) + right)
 }
 
 func daemonTickCmd() tea.Cmd {

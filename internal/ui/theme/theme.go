@@ -42,6 +42,7 @@ type Theme struct {
 	ActionError           color.Color // error suffix text
 	StatusInfo            color.Color // info-level status bar text
 	StatusBarBackground   color.Color // status bar background tint
+	TopbarBackground      color.Color // top bar background tint
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -67,6 +68,7 @@ type userThemeFile struct {
 	ActionErrorColor           string `yaml:"actionErrorColor"`
 	StatusInfoColor            string `yaml:"statusInfoColor"`
 	StatusBarBackgroundColor   string `yaml:"statusBarBackgroundColor"`
+	TopbarBackgroundColor      string `yaml:"topbarBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -115,6 +117,7 @@ func builtinByName(name string) *Theme {
 	}
 }
 
+//nolint:gocognit // The applyOverrides function is necessarily verbose and straightforward
 func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	result := *t
 
@@ -202,6 +205,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.StatusBarBackgroundColor != "" {
 		result.StatusBarBackground = lipgloss.Color(f.StatusBarBackgroundColor)
+	}
+
+	if f.TopbarBackgroundColor != "" {
+		result.TopbarBackground = lipgloss.Color(f.TopbarBackgroundColor)
 	}
 
 	return &result

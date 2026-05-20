@@ -61,5 +61,6 @@ func CatppuccinoMocha() *Theme {
 		ActionError:           mochaRed,
 		StatusInfo:            mochaSubtext1,
 		StatusBarBackground:   mochaMantle,
+		TopbarBackground:      mochaCrust,
 	}
 }
