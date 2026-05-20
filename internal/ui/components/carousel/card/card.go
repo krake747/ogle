@@ -40,7 +40,9 @@ const (
 	pctDivisor         = 100
 	maxCardH           = 12
 	terminalCellAspect = 2
-	borderW            = 2
+	// BorderW is the total width in cells of both left and right (or top and
+	// bottom) border edges.
+	BorderW            = 2
 	scrollStepInterval = 300
 	scrollIdleInterval = 2500
 )
@@ -242,8 +244,8 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 
-	innerW := cardW - borderW
-	innerH := cardH - borderW
+	innerW := cardW - BorderW
+	innerH := cardH - BorderW
 	name := m.def.Name
 
 	var shown string
@@ -312,9 +314,9 @@ func (m Model) cardHeight() int {
 }
 
 func (m Model) needsScroll() bool {
-	return len(m.def.Name) > m.cardWidth()-borderW
+	return len(m.def.Name) > m.cardWidth()-BorderW
 }
 
 func (m Model) maxScrollOffset() int {
-	return len(m.def.Name) - (m.cardWidth() - borderW)
+	return len(m.def.Name) - (m.cardWidth() - BorderW)
 }

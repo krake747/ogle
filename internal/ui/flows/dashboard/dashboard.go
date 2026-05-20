@@ -256,10 +256,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 // View renders the service list and inspector side by side. When settings is
 // visible it renders as an overlay on top of the normal dashboard.
 func (m Model) View() tea.View {
-	listContent := lipgloss.JoinVertical(lipgloss.Top,
-		m.serviceList.View().Content,
-		m.carousel.View().Content,
-	)
+	listContent := m.carousel.View().Content
 	listH := lipgloss.Height(listContent)
 	listW := lipgloss.Width(listContent)
 
@@ -267,7 +264,7 @@ func (m Model) View() tea.View {
 		filler := lipgloss.NewStyle().
 			Width(listW).
 			Height(m.h - listH).
-			Background(m.th.ServiceListBackground).
+			Background(m.th.CarouselBackground).
 			Render("")
 		listContent = lipgloss.JoinVertical(lipgloss.Top, listContent, filler)
 	}

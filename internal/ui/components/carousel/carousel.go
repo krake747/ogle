@@ -370,6 +370,9 @@ func (m Model) View() tea.View {
 					m.cards[idx].View().Content,
 				)
 			} else {
+				innerW := cardW - card.BorderW
+				innerH := cardH - card.BorderW
+				padded := lipgloss.Place(innerW, innerH, lipgloss.Center, lipgloss.Center, "-")
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
 					Height(cardH).
@@ -377,8 +380,7 @@ func (m Model) View() tea.View {
 					BorderForeground(m.th.CarouselEmpty).
 					BorderBackground(m.th.CarouselBackground).
 					Background(m.th.CarouselBackground).
-					Align(lipgloss.Center).
-					Render("-")
+					Render(padded)
 			}
 		}
 
