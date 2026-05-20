@@ -59,5 +59,7 @@ func CatppuccinoMocha() *Theme {
 		StateTransient:        mochaPeach,
 		StateMuted:            mochaOverlay1,
 		ActionError:           mochaRed,
+		StatusInfo:            mochaSubtext1,
+		StatusBarBackground:   mochaMantle,
 	}
 }

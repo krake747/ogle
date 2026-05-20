@@ -40,6 +40,8 @@ type Theme struct {
 	StateTransient        color.Color // restarting, action in-flight
 	StateMuted            color.Color // not created, unknown, nil runtime
 	ActionError           color.Color // error suffix text
+	StatusInfo            color.Color // info-level status bar text
+	StatusBarBackground   color.Color // status bar background tint
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -63,6 +65,8 @@ type userThemeFile struct {
 	StateTransientColor        string `yaml:"stateTransientColor"`
 	StateMutedColor            string `yaml:"stateMutedColor"`
 	ActionErrorColor           string `yaml:"actionErrorColor"`
+	StatusInfoColor            string `yaml:"statusInfoColor"`
+	StatusBarBackgroundColor   string `yaml:"statusBarBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -190,6 +194,14 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.ActionErrorColor != "" {
 		result.ActionError = lipgloss.Color(f.ActionErrorColor)
+	}
+
+	if f.StatusInfoColor != "" {
+		result.StatusInfo = lipgloss.Color(f.StatusInfoColor)
+	}
+
+	if f.StatusBarBackgroundColor != "" {
+		result.StatusBarBackground = lipgloss.Color(f.StatusBarBackgroundColor)
 	}
 
 	return &result

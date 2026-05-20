@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -26,6 +25,7 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
+	"github.com/ma-tf/ogle/internal/ui/components/statusbar"
 	"github.com/ma-tf/ogle/internal/ui/components/topbar"
 	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
@@ -42,8 +42,7 @@ var (
 type phase int
 
 const (
-	frameHeight       = 3
-	statusMsgDuration = 3 * time.Second
+	frameHeight = 3
 )
 
 const (
@@ -63,17 +62,15 @@ type Model struct {
 	zm          *zone.Manager
 	watcher     watcher.Watcher
 
-	topbar         topbar.Model
-	helpbar        helpbar.Model
-	startup        tea.Model
-	dashboard      tea.Model
-	watching       tea.Model
-	phase          phase
-	width          int
-	height         int
-	statusMsg      string
-	statusMsgEnd   time.Time
-	statusMsgError bool
+	topbar    topbar.Model
+	helpbar   helpbar.Model
+	statusbar statusbar.Model
+	startup   tea.Model
+	dashboard tea.Model
+	watching  tea.Model
+	phase     phase
+	width     int
+	height    int
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -135,25 +132,23 @@ func New(
 	}
 
 	return Model{
-		ctx:            ctx,
-		cfg:            cfg,
-		configPath:     configPath,
-		projectFile:    pf,
-		log:            log,
-		theme:          th,
-		zm:             zm,
-		watcher:        wtr,
-		topbar:         topbar.New(ctx, connection.New(), th),
-		helpbar:        helpbar.New(th),
-		startup:        startup.New(ctx, log, width, height, zm, th),
-		dashboard:      dash,
-		watching:       nil,
-		phase:          currentPhase,
-		width:          width,
-		height:         height,
-		statusMsg:      "",
-		statusMsgEnd:   time.Time{},
-		statusMsgError: false,
+		ctx:         ctx,
+		cfg:         cfg,
+		configPath:  configPath,
+		projectFile: pf,
+		log:         log,
+		theme:       th,
+		zm:          zm,
+		watcher:     wtr,
+		topbar:      topbar.New(ctx, connection.New(), th),
+		helpbar:     helpbar.New(th),
+		statusbar:   statusbar.New(th),
+		startup:     startup.New(ctx, log, width, height, zm, th),
+		dashboard:   dash,
+		watching:    nil,
+		phase:       currentPhase,
+		width:       width,
+		height:      height,
 	}, wtr.Close, nil
 }
 
@@ -178,6 +173,8 @@ func (m Model) Init() tea.Cmd {
 // Update drives the root state machine. Messages are either handled by app
 // directly or dispatched to the active phase model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var topbarCmd, helpbarCmd, statusbarCmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -246,24 +243,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			func() tea.Msg { return msgs.BindingsMsg{Keymap: watchingKeymap{}} },
 		)
 
-	case msgs.DisplayError:
-		return m.handleStatusMsg(msg.Err, true)
+	case msgs.DisplayError,
+		msgs.DisplayStatus,
+		msgs.ClearStatusMsg:
+		m.statusbar, statusbarCmd = m.statusbar.Update(msg)
 
-	case msgs.DisplayStatus:
-		return m.handleStatusMsg(msg.Msg, false)
-
-	case msgs.ClearStatusMsg:
-		if time.Now().After(m.statusMsgEnd) {
-			m.statusMsg = ""
-		}
-
-		return m, nil
+		return m, statusbarCmd
 	}
-
-	var topbarCmd, helpbarCmd tea.Cmd
 
 	m.topbar, topbarCmd = m.topbar.Update(msg)
 	m.helpbar, helpbarCmd = m.helpbar.Update(msg)
+	m.statusbar, statusbarCmd = m.statusbar.Update(msg)
 
 	var cmd tea.Cmd
 
@@ -276,7 +266,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.watching, cmd = m.watching.Update(msg)
 	}
 
-	return m, tea.Batch(cmd, topbarCmd, helpbarCmd)
+	return m, tea.Batch(cmd, topbarCmd, helpbarCmd, statusbarCmd)
 }
 
 func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.Cmd) {
@@ -327,17 +317,7 @@ func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (
 	return m, tea.Batch(cmd, m.watcher.Next())
 }
 
-func (m Model) handleStatusMsg(msg string, isError bool) (Model, tea.Cmd) {
-	m.statusMsg = msg
-	m.statusMsgEnd = time.Now().Add(statusMsgDuration)
-	m.statusMsgError = isError
-
-	return m, tea.Tick(statusMsgDuration, func(time.Time) tea.Msg {
-		return msgs.ClearStatusMsg{}
-	})
-}
-
-// View composes the top bar, active phase body, and help bar into a unified frame.
+// View composes the top bar, active phase body, status bar, and help bar into a unified frame.
 func (m Model) View() tea.View {
 	var body tea.View
 
@@ -350,31 +330,21 @@ func (m Model) View() tea.View {
 		body = m.watching.View()
 	}
 
-	avail := m.height - frameHeight
-
-	if m.statusMsg != "" {
-		avail--
-	}
+	avail := m.height - frameHeight - m.statusbar.Height()
 
 	bodyPadded := lipgloss.NewStyle().Height(avail).Render(body.Content)
 
-	if m.statusMsg != "" {
-		var statusStyle lipgloss.Style
-		if m.statusMsgError {
-			statusStyle = lipgloss.NewStyle().Foreground(m.theme.ActionError)
-		}
-
-		bodyPadded = lipgloss.JoinVertical(lipgloss.Top,
-			bodyPadded,
-			statusStyle.Render(m.statusMsg),
-		)
-	}
-
-	content := lipgloss.JoinVertical(lipgloss.Top,
+	parts := []string{
 		m.topbar.View().Content,
 		bodyPadded,
-		m.helpbar.View().Content,
-	)
+	}
+	if m.statusbar.Height() > 0 {
+		parts = append(parts, m.statusbar.View().Content)
+	}
+
+	parts = append(parts, m.helpbar.View().Content)
+
+	content := lipgloss.JoinVertical(lipgloss.Top, parts...)
 
 	v := tea.NewView(content)
 	v.Content = m.zm.Scan(v.Content)

@@ -55,5 +55,7 @@ func Default() *Theme {
 		StateTransient:        defaultBrightYellow,
 		StateMuted:            defaultBrightBlack,
 		ActionError:           defaultBrightRed,
+		StatusInfo:            defaultWhite,
+		StatusBarBackground:   defaultBlack,
 	}
 }
