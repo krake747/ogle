@@ -2,6 +2,7 @@ package carousel
 
 import (
 	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/paginator"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -23,28 +24,52 @@ const (
 	terminalCellAspect = 2
 )
 
-//nolint:gochecknoglobals // package-level key binding
-var keyTab = key.NewBinding(key.WithKeys("tab"))
+//nolint:gochecknoglobals // package-level key bindings
+var (
+	keyTab   = key.NewBinding(key.WithKeys("tab"))
+	keyEnter = key.NewBinding(key.WithKeys("enter"))
+)
 
 // Model is the carousel component state.
 type Model struct {
-	cards []card.Model
-	w, h  int
-	focus int
+	all       []domain.ServiceDef
+	cards     []card.Model
+	w, h      int
+	focus     int
+	paginator paginator.Model
 }
 
 // New returns a Model for the given project.
 func New(project *domain.Project, w, h int) Model {
-	cards := make([]card.Model, len(project.Services))
-	for i, s := range project.Services {
-		cards[i] = card.New(s, w, h)
+	p := paginator.New(paginator.WithPerPage(pageSize))
+	p.Type = paginator.Dots
+	p.SetTotalPages(len(project.Services))
+	p.KeyMap = paginator.KeyMap{
+		PrevPage: key.NewBinding(key.WithKeys("pgup")),
+		NextPage: key.NewBinding(key.WithKeys("pgdown")),
+	}
+
+	_, end := p.GetSliceBounds(len(project.Services))
+	n := end - p.Page*p.PerPage
+
+	cards := make([]card.Model, n)
+	for i := range n {
+		cards[i] = card.New(project.Services[p.Page*p.PerPage+i], w, h)
+	}
+
+	focus := 0
+	if n > 0 {
+		focus = 1
+		cards[0], _ = cards[0].Update(card.FocusMsg{})
 	}
 
 	return Model{
-		cards: cards,
-		w:     w,
-		h:     h,
-		focus: 0,
+		all:       project.Services,
+		cards:     cards,
+		w:         w,
+		h:         h,
+		focus:     focus,
+		paginator: p,
 	}
 }
 
@@ -55,49 +80,85 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles key presses and window resize.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
-		if key.Matches(msg, keyTab) {
-			prevFocus := m.focus
-			m.focus = (m.focus + 1) % totalSlots
-
-			if prevFocus >= 1 && prevFocus <= pageSize {
-				idx := prevFocus - 1
-				updated, _ := m.cards[idx].Update(card.BlurMsg{})
-				m.cards[idx] = updated
-			}
-
-			if m.focus >= 1 && m.focus <= pageSize {
-				idx := m.focus - 1
-				updated, cmd := m.cards[idx].Update(card.FocusMsg{})
-				m.cards[idx] = updated
-
-				return m, cmd
-			}
-
-			return m, nil
-		}
+		return m.handleKeyPress(msg)
 
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
-
-		var cmds []tea.Cmd
-
-		for i := range m.cards {
-			updated, cmd := m.cards[i].Update(msg)
-			m.cards[i] = updated
-
-			cmds = append(cmds, cmd)
-		}
-
-		return m, tea.Batch(cmds...)
 	}
 
-	return m, nil
+	for i := range m.cards {
+		updated, cmd := m.cards[i].Update(msg)
+		m.cards[i] = updated
+
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
-// View renders the carousel with chevrons and card grid.
+func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if key.Matches(msg, keyTab) {
+		prevFocus := m.focus
+		m.focus = (m.focus + 1) % totalSlots
+
+		if prevFocus >= 1 && prevFocus <= pageSize {
+			idx := prevFocus - 1
+			updated, _ := m.cards[idx].Update(card.BlurMsg{})
+			m.cards[idx] = updated
+		}
+
+		if m.focus >= 1 && m.focus <= pageSize {
+			idx := m.focus - 1
+			updated, cmd := m.cards[idx].Update(card.FocusMsg{})
+			m.cards[idx] = updated
+
+			return m, cmd
+		}
+
+		return m, nil
+	}
+
+	if key.Matches(msg, keyEnter) {
+		switch m.focus {
+		case 0:
+			if m.paginator.OnFirstPage() {
+				return m, nil
+			}
+
+			m.paginator.PrevPage()
+
+			return m.rebuildCards()
+
+		case pageSize + 1:
+			if m.paginator.OnLastPage() {
+				return m, nil
+			}
+
+			m.paginator.NextPage()
+
+			return m.rebuildCards()
+		}
+	}
+
+	prevPage := m.paginator.Page
+
+	var pageCmd tea.Cmd
+
+	m.paginator, pageCmd = m.paginator.Update(msg)
+
+	if m.paginator.Page != prevPage {
+		return m.rebuildCards()
+	}
+
+	return m, pageCmd
+}
+
+// View renders the carousel with chevrons, card grid, and paginator.
 func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
 	gridW := carouselW - chevronW*chevronCount
@@ -141,7 +202,7 @@ func (m Model) View() tea.View {
 		rightChevronColour = focusedFg
 	}
 
-	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
+	chevronRow := lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().
 			Width(chevronW).
 			Height(gridH).
@@ -155,5 +216,39 @@ func (m Model) View() tea.View {
 			Align(lipgloss.Center).
 			Foreground(rightChevronColour).
 			Render("▶"),
-	))
+	)
+
+	var paginatorView string
+	if m.paginator.TotalPages > 1 {
+		paginatorView = lipgloss.NewStyle().
+			Width(carouselW).
+			Align(lipgloss.Center).
+			Render(m.paginator.View())
+	}
+
+	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, chevronRow, paginatorView))
+}
+
+func (m Model) rebuildCards() (Model, tea.Cmd) {
+	start, end := m.paginator.GetSliceBounds(len(m.all))
+	n := end - start
+	m.cards = make([]card.Model, n)
+
+	for i := range n {
+		m.cards[i] = card.New(m.all[start+i], m.w, m.h)
+	}
+
+	if n == 0 {
+		m.focus = 0
+
+		return m, nil
+	}
+
+	m.focus = 1
+
+	var cmd tea.Cmd
+
+	m.cards[0], cmd = m.cards[0].Update(card.FocusMsg{})
+
+	return m, cmd
 }
