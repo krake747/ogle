@@ -90,8 +90,8 @@ func (m Model) View() tea.View {
 		shown = name[:innerW-1] + "…"
 	}
 
-	content := lipgloss.NewStyle().Width(innerW).Render(shown)
-	padded := lipgloss.PlaceVertical(innerH, lipgloss.Top, content)
+	content := lipgloss.NewStyle().Width(innerW).Align(lipgloss.Center).Render(shown)
+	padded := lipgloss.PlaceVertical(innerH, lipgloss.Center, content)
 
 	borderFg := m.th.CarouselBlurred
 	if m.focused {
@@ -115,5 +115,10 @@ func (m Model) cardWidth() int {
 }
 
 func (m Model) cardHeight() int {
-	return min(m.cardWidth()/terminalCellAspect, maxCardH)
+	h := min(m.cardWidth()/terminalCellAspect, maxCardH)
+	if h%2 == 0 {
+		h--
+	}
+
+	return max(h, 1)
 }

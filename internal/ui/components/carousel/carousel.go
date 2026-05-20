@@ -20,7 +20,7 @@ const (
 	listRatio          = 30
 	listMinTermWidth   = 80
 	pctDivisor         = 100
-	maxCardH           = 8
+	maxCardH           = 12
 	terminalCellAspect = 2
 )
 
@@ -168,6 +168,12 @@ func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
 	cardW := carouselW / cols
 	cardH := min(cardW/terminalCellAspect, maxCardH)
+
+	if cardH%2 == 0 {
+		cardH--
+	}
+
+	cardH = max(cardH, 1)
 
 	rowStrs := make([]string, rows)
 
