@@ -19,16 +19,9 @@ type FocusMsg struct{}
 type BlurMsg struct{}
 
 // ScrollTick advances the scrolling text window for a truncated service name.
-type ScrollTick struct{}
-
-type scrollPhase int
-
-const (
-	scrollIdleStart scrollPhase = iota
-	scrollForward
-	scrollIdleEnd
-	scrollBackward
-)
+type ScrollTick struct {
+	gen int
+}
 
 const (
 	cols               = 3
@@ -44,24 +37,28 @@ const (
 
 // Model is a tea.Model representing a single service card.
 type Model struct {
-	def          domain.ServiceDef
-	w, h         int
-	focused      bool
-	th           *theme.Theme
-	scrollOffset int
-	scrollPhase  scrollPhase
+	def            domain.ServiceDef
+	w, h           int
+	focused        bool
+	th             *theme.Theme
+	scrollOffset   int
+	scrollDir      int
+	nextScrollTime time.Time
+	focusGen       int
 }
 
 // New returns a Model for the given service definition and terminal dimensions.
 func New(def domain.ServiceDef, w, h int, th *theme.Theme) Model {
 	return Model{
-		def:          def,
-		w:            w,
-		h:            h,
-		focused:      false,
-		th:           th,
-		scrollOffset: 0,
-		scrollPhase:  scrollIdleStart,
+		def:            def,
+		w:              w,
+		h:              h,
+		focused:        false,
+		th:             th,
+		scrollDir:      1,
+		scrollOffset:   0,
+		nextScrollTime: time.Time{},
+		focusGen:       0,
 	}
 }
 
@@ -77,68 +74,61 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.w = msg.Width
 		m.h = msg.Height
 		m.scrollOffset = 0
-		m.scrollPhase = scrollIdleStart
+		m.scrollDir = 1
 
 		if m.focused && m.needsScroll() {
-			return m, tickScroll(scrollIdleInterval * time.Millisecond)
+			m.focusGen++
+			m.nextScrollTime = time.Now().Add(scrollIdleInterval * time.Millisecond)
+
+			return m, tickScroll(m.nextScrollTime, m.focusGen)
 		}
 
 	case FocusMsg:
 		m.focused = true
 		m.scrollOffset = 0
-		m.scrollPhase = scrollIdleStart
+		m.scrollDir = 1
 
 		if m.needsScroll() {
-			return m, tickScroll(scrollIdleInterval * time.Millisecond)
+			m.focusGen++
+			m.nextScrollTime = time.Now().Add(scrollIdleInterval * time.Millisecond)
+
+			return m, tickScroll(m.nextScrollTime, m.focusGen)
 		}
 
 	case BlurMsg:
 		m.focused = false
 		m.scrollOffset = 0
-		m.scrollPhase = scrollIdleStart
+		m.scrollDir = 1
 
 	case ScrollTick:
-		if !m.focused || !m.needsScroll() {
+		if !m.focused || !m.needsScroll() || msg.gen != m.focusGen {
 			return m, nil
+		}
+
+		if time.Now().Before(m.nextScrollTime) {
+			return m, tickScroll(m.nextScrollTime, m.focusGen)
 		}
 
 		maxOff := m.maxScrollOffset()
 
-		switch m.scrollPhase {
-		case scrollIdleStart:
-			m.scrollPhase = scrollForward
+		m.scrollOffset += m.scrollDir
 
-			return m, tickScroll(scrollStepInterval * time.Millisecond)
+		switch {
+		case m.scrollOffset >= maxOff:
+			m.scrollOffset = maxOff
+			m.scrollDir = -1
+			m.nextScrollTime = time.Now().Add(scrollIdleInterval * time.Millisecond)
 
-		case scrollForward:
-			m.scrollOffset++
+		case m.scrollOffset <= 0:
+			m.scrollOffset = 0
+			m.scrollDir = 1
+			m.nextScrollTime = time.Now().Add(scrollIdleInterval * time.Millisecond)
 
-			if m.scrollOffset >= maxOff {
-				m.scrollOffset = maxOff
-				m.scrollPhase = scrollIdleEnd
-
-				return m, tickScroll(scrollIdleInterval * time.Millisecond)
-			}
-
-			return m, tickScroll(scrollStepInterval * time.Millisecond)
-
-		case scrollIdleEnd:
-			m.scrollPhase = scrollBackward
-
-			return m, tickScroll(scrollStepInterval * time.Millisecond)
-
-		case scrollBackward:
-			m.scrollOffset--
-
-			if m.scrollOffset <= 0 {
-				m.scrollOffset = 0
-				m.scrollPhase = scrollIdleStart
-
-				return m, tickScroll(scrollIdleInterval * time.Millisecond)
-			}
-
-			return m, tickScroll(scrollStepInterval * time.Millisecond)
+		default:
+			m.nextScrollTime = time.Now().Add(scrollStepInterval * time.Millisecond)
 		}
+
+		return m, tickScroll(m.nextScrollTime, m.focusGen)
 
 	case msgs.ThemeChanged:
 		m.th = msg.Theme
@@ -147,9 +137,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-func tickScroll(d time.Duration) tea.Cmd {
-	return tea.Tick(d, func(_ time.Time) tea.Msg {
-		return ScrollTick{}
+func tickScroll(t time.Time, gen int) tea.Cmd {
+	return tea.Tick(max(0, time.Until(t)), func(_ time.Time) tea.Msg {
+		return ScrollTick{gen: gen}
 	})
 }
 
