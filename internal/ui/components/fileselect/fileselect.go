@@ -7,6 +7,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/list"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -51,7 +52,7 @@ func New(
 	l := list.New(items, hd, w, h)
 	l.SetShowTitle(false)
 	l.SetStatusBarItemName("file", "files")
-	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0)
+	l.Styles.StatusBar = l.Styles.StatusBar.PaddingBottom(0).Background(th.ServiceListBackground)
 	l.SetFilteringEnabled(false)
 	l.KeyMap.ForceQuit.SetEnabled(false)
 	l.InfiniteScrolling = true
@@ -140,6 +141,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		return m.handleMouseClick(msg)
 
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
+		m.delegate.SetTheme(msg.Theme)
+		m.list.Styles.StatusBar = m.list.Styles.StatusBar.Background(
+			msg.Theme.ServiceListBackground,
+		)
+
+		return m, nil
+
 	case msgs.FileAvailabilityChanged:
 		switch len(msg.Files) {
 		case 1:
@@ -168,5 +178,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // View implements tea.Model.
 func (m Model) View() tea.View {
-	return tea.NewView(m.list.View())
+	m.list.Styles.StatusBar = m.list.Styles.StatusBar.Width(m.list.Width())
+
+	return tea.NewView(
+		lipgloss.NewStyle().Width(m.list.Width()).Render(m.list.View()),
+	)
 }

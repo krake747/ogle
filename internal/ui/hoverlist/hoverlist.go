@@ -57,9 +57,12 @@ func (d *delegate) Render(w io.Writer, m list.Model, index int, item list.Item) 
 	dd := d.DefaultDelegate
 
 	itemBg := d.theme.ServiceListBackground
-	dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(itemBg).Width(contentW)
+	dd.Styles.NormalTitle = dd.Styles.NormalTitle.Background(itemBg).
+		Foreground(d.theme.Text).
+		Width(contentW)
 	dd.Styles.NormalDesc = dd.Styles.NormalDesc.Background(itemBg).Width(contentW)
 	dd.Styles.SelectedTitle = dd.Styles.SelectedTitle.Background(d.theme.SelectedBackground).
+		Foreground(d.theme.Text).
 		Width(contentW)
 	dd.Styles.SelectedDesc = dd.Styles.SelectedDesc.Background(d.theme.SelectedBackground).
 		Width(contentW)
