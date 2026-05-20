@@ -194,19 +194,28 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.ServiceStop:
+		m.carousel, _ = m.carousel.Update(msg)
+
 		return m, svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceStart:
+		m.carousel, _ = m.carousel.Update(msg)
+
 		return m, svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRestart:
+		m.carousel, _ = m.carousel.Update(msg)
+
 		return m, svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRebuild:
+		m.carousel, _ = m.carousel.Update(msg)
+
 		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceActionCompleted:
 		m.serviceList, _ = m.serviceList.Update(msg)
+		m.carousel, _ = m.carousel.Update(msg)
 
 		if msg.Err != nil {
 			return m, func() tea.Msg {

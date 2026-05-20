@@ -2,6 +2,7 @@ package carousel
 
 import (
 	"fmt"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/paginator"
@@ -35,15 +36,15 @@ var (
 
 // Model is the carousel component state.
 type Model struct {
-	all              []domain.ServiceDef
-	cards            []card.Model
-	w, h             int
-	focus            int
-	hovered          int
-	paginatorHovered bool
-	paginator        paginator.Model
-	th               *theme.Theme
-	zm               *zone.Manager
+	all        []domain.ServiceDef
+	cards      []card.Model
+	w, h       int
+	focus      int
+	hovered    int
+	hoveredDot int
+	paginator  paginator.Model
+	th         *theme.Theme
+	zm         *zone.Manager
 }
 
 // New returns a Model for the given project.
@@ -74,16 +75,16 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 	}
 
 	return Model{
-		all:              project.Services,
-		cards:            cards,
-		w:                w,
-		h:                h,
-		focus:            focus,
-		hovered:          -1,
-		paginatorHovered: false,
-		paginator:        p,
-		th:               th,
-		zm:               zm,
+		all:        project.Services,
+		cards:      cards,
+		w:          w,
+		h:          h,
+		focus:      focus,
+		hovered:    -1,
+		hoveredDot: -1,
+		paginator:  p,
+		th:         th,
+		zm:         zm,
 	}
 }
 
@@ -201,6 +202,15 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// enter on a card sends ActivateMsg so the card emits ServiceSelected
+	if m.focus >= 1 && m.focus <= pageSize {
+		idx := m.focus - 1
+		updated, cmd := m.cards[idx].Update(card.ActivateMsg{})
+		m.cards[idx] = updated
+
+		return m, cmd
+	}
+
 	return m, nil
 }
 
@@ -225,14 +235,16 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 		return m.rebuildCards()
 	}
 
-	if m.zm.Get("carousel-paginator").InBounds(msg) {
-		if m.paginator.OnLastPage() {
-			m.paginator.Page = 0
-		} else {
-			m.paginator.NextPage()
-		}
+	for i := range m.paginator.TotalPages {
+		if m.zm.Get(fmt.Sprintf("carousel-dot-%d", i)).InBounds(msg) {
+			if m.paginator.Page == i {
+				return m, nil
+			}
 
-		return m.rebuildCards()
+			m.paginator.Page = i
+
+			return m.rebuildCards()
+		}
 	}
 
 	for i := range m.cards {
@@ -254,10 +266,13 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 
 		m.focus = newFocus
 
-		updated, cmd := m.cards[i].Update(card.FocusMsg{})
+		updated, focusCmd := m.cards[i].Update(card.FocusMsg{})
 		m.cards[i] = updated
 
-		return m, cmd
+		updated, activateCmd := m.cards[i].Update(card.ActivateMsg{})
+		m.cards[i] = updated
+
+		return m, tea.Batch(focusCmd, activateCmd)
 	}
 
 	return m, nil
@@ -274,8 +289,18 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		hit = 0
 
 	default:
-		if m.zm.Get("carousel-paginator").InBounds(msg) {
-			return m.handlePaginatorHover()
+		for i := range m.paginator.TotalPages {
+			if m.zm.Get(fmt.Sprintf("carousel-dot-%d", i)).InBounds(msg) {
+				if m.hoveredDot == i {
+					return m, nil
+				}
+
+				m.hoveredDot = i
+				m = m.unhoverCard()
+				m.hovered = -1
+
+				return m, nil
+			}
 		}
 
 		for i := range m.cards {
@@ -287,8 +312,8 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		}
 	}
 
-	if m.paginatorHovered {
-		m.paginatorHovered = false
+	if m.hoveredDot >= 0 {
+		m.hoveredDot = -1
 	}
 
 	if hit == m.hovered {
@@ -317,17 +342,6 @@ func (m Model) unhoverCard() Model {
 	}
 
 	return m
-}
-
-func (m Model) handlePaginatorHover() (Model, tea.Cmd) {
-	if !m.paginatorHovered {
-		m.paginatorHovered = true
-	}
-
-	m = m.unhoverCard()
-	m.hovered = -1
-
-	return m, nil
 }
 
 // View renders the carousel with card grid, and nav bar below.
@@ -363,7 +377,7 @@ func (m Model) View() tea.View {
 					BorderForeground(m.th.CarouselEmpty).
 					BorderBackground(m.th.CarouselBackground).
 					Background(m.th.CarouselBackground).
-					Align(lipgloss.Center, lipgloss.Center).
+					Align(lipgloss.Center).
 					Render("-")
 			}
 		}
@@ -417,20 +431,31 @@ func (m Model) renderNavBar(carouselW int) string {
 		Background(navBg).
 		Render("▶")
 
-	if m.paginatorHovered {
-		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(hoverFg).Render("•")
-		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(hoverFg).Render("○")
-	} else {
-		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(focusedFg).Render("•")
-		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(unfocusedFg).Render("○")
+	totalPages := m.paginator.TotalPages
+	dots := make([]string, totalPages)
+
+	for i := range totalPages {
+		dotChar := "○"
+		dotColour := unfocusedFg
+
+		switch i {
+		case m.paginator.Page:
+			dotChar = "•"
+			dotColour = focusedFg
+		case m.hoveredDot:
+			dotColour = hoverFg
+		}
+
+		dots[i] = m.zm.Mark(
+			fmt.Sprintf("carousel-dot-%d", i),
+			lipgloss.NewStyle().
+				Foreground(dotColour).
+				Background(m.th.CarouselBackground).
+				Render(dotChar),
+		)
 	}
 
-	paddedPaginator := lipgloss.NewStyle().
-		Padding(0, 1).
-		Background(navBg).
-		Render(m.paginator.View())
-
-	paginatorView := m.zm.Mark("carousel-paginator", paddedPaginator)
+	paginatorView := strings.Join(dots, "")
 
 	navContent := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -458,14 +483,14 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	if n == 0 {
 		m.focus = 0
 		m.hovered = -1
-		m.paginatorHovered = false
+		m.hoveredDot = -1
 
 		return m, nil
 	}
 
 	m.focus = 1
 	m.hovered = -1
-	m.paginatorHovered = false
+	m.hoveredDot = -1
 
 	if len(m.cards) > 0 {
 		updated, cmd := m.cards[0].Update(card.FocusMsg{})
