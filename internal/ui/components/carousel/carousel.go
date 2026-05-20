@@ -15,7 +15,6 @@ const (
 	cols               = 2
 	pageSize           = rows * cols
 	chevronW           = 2
-	totalSlots         = pageSize + 2
 	chevronCount       = 2
 	listRatio          = 30
 	listMinTermWidth   = 80
@@ -104,7 +103,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	if key.Matches(msg, keyTab) {
 		prevFocus := m.focus
-		m.focus = (m.focus + 1) % totalSlots
+		m.focus = (m.focus + 1) % m.totalSlots()
 
 		if prevFocus >= 1 && prevFocus <= pageSize {
 			idx := prevFocus - 1
@@ -134,7 +133,7 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 			return m.rebuildCards()
 
-		case pageSize + 1:
+		case m.totalSlots() - 1:
 			if m.paginator.OnLastPage() {
 				return m, nil
 			}
@@ -158,7 +157,7 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	return m, pageCmd
 }
 
-// View renders the carousel with chevrons, card grid, and paginator.
+// View renders the carousel with card grid, and nav bar below.
 func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
 	gridW := carouselW - chevronW*chevronCount
@@ -187,46 +186,33 @@ func (m Model) View() tea.View {
 	}
 
 	grid := lipgloss.JoinVertical(lipgloss.Left, rowStrs...)
-	gridH := lipgloss.Height(grid)
 
-	focusedFg := lipgloss.Color("#ffffff")
-	unfocusedFg := lipgloss.Color("#444444")
+	var navBar string
 
-	leftChevronColour := unfocusedFg
-	if m.focus == 0 {
-		leftChevronColour = focusedFg
-	}
-
-	rightChevronColour := unfocusedFg
-	if m.focus == pageSize+1 {
-		rightChevronColour = focusedFg
-	}
-
-	chevronRow := lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().
-			Width(chevronW).
-			Height(gridH).
-			Align(lipgloss.Center).
-			Foreground(leftChevronColour).
-			Render("◀"),
-		grid,
-		lipgloss.NewStyle().
-			Width(chevronW).
-			Height(gridH).
-			Align(lipgloss.Center).
-			Foreground(rightChevronColour).
-			Render("▶"),
-	)
-
-	var paginatorView string
 	if m.paginator.TotalPages > 1 {
-		paginatorView = lipgloss.NewStyle().
-			Width(carouselW).
-			Align(lipgloss.Center).
-			Render(m.paginator.View())
+		focusedFg := lipgloss.Color("#ffffff")
+		unfocusedFg := lipgloss.Color("#444444")
+
+		leftChevronColour := unfocusedFg
+		if m.focus == 0 {
+			leftChevronColour = focusedFg
+		}
+
+		rightChevronColour := unfocusedFg
+		if m.focus == m.totalSlots()-1 {
+			rightChevronColour = focusedFg
+		}
+
+		navContent := lipgloss.JoinHorizontal(lipgloss.Top,
+			lipgloss.NewStyle().Foreground(leftChevronColour).Render("◀"),
+			m.paginator.View(),
+			lipgloss.NewStyle().Foreground(rightChevronColour).Render("▶"),
+		)
+
+		navBar = lipgloss.NewStyle().Width(carouselW).Align(lipgloss.Center).Render(navContent)
 	}
 
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, chevronRow, paginatorView))
+	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, grid, navBar))
 }
 
 func (m Model) rebuildCards() (Model, tea.Cmd) {
@@ -251,4 +237,12 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	m.cards[0], cmd = m.cards[0].Update(card.FocusMsg{})
 
 	return m, cmd
+}
+
+func (m Model) totalSlots() int {
+	if m.paginator.TotalPages > 1 {
+		return pageSize + chevronCount
+	}
+
+	return pageSize
 }
