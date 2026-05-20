@@ -40,6 +40,10 @@ func Default() *Theme {
 			Border(lipgloss.NormalBorder()).
 			BorderForeground(defaultBrightBlack),
 		ServiceListTitle:      lipgloss.NewStyle().Bold(true).Foreground(defaultBrightBlack),
+		HelpKey:               lipgloss.NewStyle().Foreground(defaultWhite),
+		HelpDesc:              lipgloss.NewStyle().Foreground(defaultBrightBlack),
+		HelpSep:               lipgloss.NewStyle().Foreground(defaultBrightBlack),
+		HelpBackground:        defaultBlack,
 		ServiceListBackground: defaultBlack,
 		HoverBackground:       defaultBlack,
 		SelectedBackground:    defaultDarkGrey,

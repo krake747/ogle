@@ -25,6 +25,10 @@ type Theme struct {
 	BorderFocused         lipgloss.Style
 	BorderBlurred         lipgloss.Style
 	ServiceListTitle      lipgloss.Style
+	HelpKey               lipgloss.Style // key binding label (e.g. "ctrl+c")
+	HelpDesc              lipgloss.Style // key binding description (e.g. "quit")
+	HelpSep               lipgloss.Style // separator and ellipsis
+	HelpBackground        color.Color    // full-width background fill behind the help bar
 	ServiceListBackground color.Color
 	HoverBackground       color.Color
 	SelectedBackground    color.Color
@@ -44,6 +48,10 @@ type userThemeFile struct {
 	BorderFocusedColor         string `yaml:"borderFocusedColor"`
 	BorderBlurredColor         string `yaml:"borderBlurredColor"`
 	ServiceListTitleColor      string `yaml:"serviceListTitleColor"`
+	HelpKeyColor               string `yaml:"helpKeyColor"`
+	HelpDescColor              string `yaml:"helpDescColor"`
+	HelpSepColor               string `yaml:"helpSepColor"`
+	HelpBackgroundColor        string `yaml:"helpBackgroundColor"`
 	ServiceListBackgroundColor string `yaml:"serviceListBackgroundColor"`
 	HoverBackgroundColor       string `yaml:"hoverBackgroundColor"`
 	SelectedBackgroundColor    string `yaml:"selectedBackgroundColor"`
@@ -122,6 +130,22 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 		result.ServiceListTitle = result.ServiceListTitle.Foreground(
 			lipgloss.Color(f.ServiceListTitleColor),
 		)
+	}
+
+	if f.HelpKeyColor != "" {
+		result.HelpKey = result.HelpKey.Foreground(lipgloss.Color(f.HelpKeyColor))
+	}
+
+	if f.HelpDescColor != "" {
+		result.HelpDesc = result.HelpDesc.Foreground(lipgloss.Color(f.HelpDescColor))
+	}
+
+	if f.HelpSepColor != "" {
+		result.HelpSep = result.HelpSep.Foreground(lipgloss.Color(f.HelpSepColor))
+	}
+
+	if f.HelpBackgroundColor != "" {
+		result.HelpBackground = lipgloss.Color(f.HelpBackgroundColor)
 	}
 
 	if f.ServiceListBackgroundColor != "" {

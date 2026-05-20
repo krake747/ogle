@@ -144,7 +144,7 @@ func New(
 		zm:             zm,
 		watcher:        wtr,
 		topbar:         topbar.New(ctx, connection.New(), th),
-		helpbar:        helpbar.New(),
+		helpbar:        helpbar.New(th),
 		startup:        startup.New(ctx, log, width, height, zm, th),
 		dashboard:      dash,
 		watching:       nil,
