@@ -128,9 +128,32 @@ func (m Model) View() tea.View {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rowStrs...)
 	gridH := lipgloss.Height(grid)
 
+	focusedFg := lipgloss.Color("#ffffff")
+	unfocusedFg := lipgloss.Color("#444444")
+
+	leftChevronColour := unfocusedFg
+	if m.focus == 0 {
+		leftChevronColour = focusedFg
+	}
+
+	rightChevronColour := unfocusedFg
+	if m.focus == pageSize+1 {
+		rightChevronColour = focusedFg
+	}
+
 	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center).Render("◀"),
+		lipgloss.NewStyle().
+			Width(chevronW).
+			Height(gridH).
+			Align(lipgloss.Center).
+			Foreground(leftChevronColour).
+			Render("◀"),
 		grid,
-		lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center).Render("▶"),
+		lipgloss.NewStyle().
+			Width(chevronW).
+			Height(gridH).
+			Align(lipgloss.Center).
+			Foreground(rightChevronColour).
+			Render("▶"),
 	))
 }
