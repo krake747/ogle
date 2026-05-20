@@ -6,18 +6,21 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/ui/components/carousel/card"
 )
 
 const (
-	rows             = 2
-	cols             = 2
-	pageSize         = rows * cols
-	chevronW         = 2
-	totalSlots       = pageSize + 2
-	chevronCount     = 2
-	listRatio        = 30
-	listMinTermWidth = 80
-	pctDivisor       = 100
+	rows               = 2
+	cols               = 2
+	pageSize           = rows * cols
+	chevronW           = 2
+	totalSlots         = pageSize + 2
+	chevronCount       = 2
+	listRatio          = 30
+	listMinTermWidth   = 80
+	pctDivisor         = 100
+	maxCardH           = 8
+	terminalCellAspect = 2
 )
 
 //nolint:gochecknoglobals // package-level key binding
@@ -25,16 +28,16 @@ var keyTab = key.NewBinding(key.WithKeys("tab"))
 
 // Model is the carousel component state.
 type Model struct {
-	cards []card
+	cards []card.Model
 	w, h  int
 	focus int
 }
 
 // New returns a Model for the given project.
 func New(project *domain.Project, w, h int) Model {
-	cards := make([]card, len(project.Services))
+	cards := make([]card.Model, len(project.Services))
 	for i, s := range project.Services {
-		cards[i] = newCard(s)
+		cards[i] = card.New(s, w, h)
 	}
 
 	return Model{
@@ -46,7 +49,9 @@ func New(project *domain.Project, w, h int) Model {
 }
 
 // Init satisfies tea.Model.
-func (m Model) Init() tea.Cmd { return nil }
+func (m Model) Init() tea.Cmd {
+	return nil
+}
 
 // Update handles key presses and window resize.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
@@ -54,11 +59,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		if key.Matches(msg, keyTab) {
 			m.focus = (m.focus + 1) % totalSlots
+
+			return m, nil
 		}
 
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
+
+		var cmds []tea.Cmd
+
+		for i := range m.cards {
+			updated, cmd := m.cards[i].Update(msg)
+			m.cards[i] = updated
+
+			cmds = append(cmds, cmd)
+		}
+
+		return m, tea.Batch(cmds...)
 	}
 
 	return m, nil
@@ -69,16 +87,7 @@ func (m Model) View() tea.View {
 	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
 	gridW := carouselW - chevronW*chevronCount
 	cardW := gridW / cols
-
-	const (
-		maxCardH           = 8
-		terminalCellAspect = 2
-	)
-
 	cardH := min(cardW/terminalCellAspect, maxCardH)
-
-	focusedFg := lipgloss.Color("#ffffff")
-	unfocusedFg := lipgloss.Color("#444444")
 
 	rowStrs := make([]string, rows)
 
@@ -89,7 +98,7 @@ func (m Model) View() tea.View {
 			idx := row*cols + col
 
 			if idx < len(m.cards) {
-				cells[col] = m.cards[idx].View(cardW, cardH, m.focus == idx+1).Content
+				cells[col] = m.cards[idx].View().Content
 			} else {
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
@@ -104,29 +113,9 @@ func (m Model) View() tea.View {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rowStrs...)
 	gridH := lipgloss.Height(grid)
 
-	chevronColour := unfocusedFg
-	if m.focus == 0 {
-		chevronColour = focusedFg
-	}
-
-	leftCol := lipgloss.NewStyle().
-		Width(chevronW).
-		Height(gridH).
-		Align(lipgloss.Center).
-		Foreground(chevronColour).
-		Render("◀")
-
-	rightChevronColour := unfocusedFg
-	if m.focus == pageSize+1 {
-		rightChevronColour = focusedFg
-	}
-
-	rightCol := lipgloss.NewStyle().
-		Width(chevronW).
-		Height(gridH).
-		Align(lipgloss.Center).
-		Foreground(rightChevronColour).
-		Render("▶")
-
-	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, grid, rightCol))
+	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center).Render("◀"),
+		grid,
+		lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center).Render("▶"),
+	))
 }
