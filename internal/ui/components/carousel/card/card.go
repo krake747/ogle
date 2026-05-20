@@ -17,11 +17,11 @@ type FocusMsg struct{}
 type BlurMsg struct{}
 
 const (
-	cols               = 2
+	cols               = 3
 	listRatio          = 30
 	listMinTermWidth   = 80
 	pctDivisor         = 100
-	maxCardH           = 8
+	maxCardH           = 12
 	terminalCellAspect = 2
 	borderW            = 2
 )

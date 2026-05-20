@@ -14,7 +14,7 @@ import (
 
 const (
 	rows               = 2
-	cols               = 2
+	cols               = 3
 	pageSize           = rows * cols
 	chevronCount       = 2
 	listRatio          = 30
