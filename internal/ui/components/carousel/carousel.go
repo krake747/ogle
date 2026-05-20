@@ -60,7 +60,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 
 	focus := 0
 
-	if n > 0 && p.TotalPages <= 1 {
+	if n > 0 {
+		focus = 1
 		cards[0], _ = cards[0].Update(card.FocusMsg{})
 	}
 
@@ -252,12 +253,11 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.focus = 0
+	m.focus = 1
 
-	if m.paginator.TotalPages <= 1 && len(m.cards) > 0 {
-		var cmd tea.Cmd
-
-		m.cards[0], cmd = m.cards[0].Update(card.FocusMsg{})
+	if len(m.cards) > 0 {
+		updated, cmd := m.cards[0].Update(card.FocusMsg{})
+		m.cards[0] = updated
 
 		return m, cmd
 	}
