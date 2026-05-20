@@ -8,6 +8,12 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 )
 
+// FocusMsg tells a card it is now focused.
+type FocusMsg struct{}
+
+// BlurMsg tells a card it is no longer focused.
+type BlurMsg struct{}
+
 const (
 	cols               = 2
 	chevronW           = 2
@@ -22,16 +28,18 @@ const (
 
 // Model is a tea.Model representing a single service card.
 type Model struct {
-	def  domain.ServiceDef
-	w, h int
+	def     domain.ServiceDef
+	w, h    int
+	focused bool
 }
 
 // New returns a Model for the given service definition and terminal dimensions.
 func New(def domain.ServiceDef, w, h int) Model {
 	return Model{
-		def: def,
-		w:   w,
-		h:   h,
+		def:     def,
+		w:       w,
+		h:       h,
+		focused: false,
 	}
 }
 
@@ -42,9 +50,16 @@ func (m Model) Init() tea.Cmd {
 
 // Update satisfies tea.Model.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if msg, ok := msg.(tea.WindowSizeMsg); ok {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
 		m.w = msg.Width
 		m.h = msg.Height
+
+	case FocusMsg:
+		m.focused = true
+
+	case BlurMsg:
+		m.focused = false
 	}
 
 	return m, nil
@@ -72,11 +87,16 @@ func (m Model) View() tea.View {
 	content := lipgloss.NewStyle().Width(innerW).Render(shown)
 	padded := lipgloss.PlaceVertical(cardH, lipgloss.Top, content)
 
+	borderColour := lipgloss.Color("#444444")
+	if m.focused {
+		borderColour = lipgloss.Color("#ffffff")
+	}
+
 	return tea.NewView(lipgloss.NewStyle().
 		Width(cardW).
 		Height(cardH).
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#444444")).
+		BorderForeground(borderColour).
 		Render(padded))
 }
 

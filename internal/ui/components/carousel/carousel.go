@@ -58,7 +58,22 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if key.Matches(msg, keyTab) {
+			prevFocus := m.focus
 			m.focus = (m.focus + 1) % totalSlots
+
+			if prevFocus >= 1 && prevFocus <= pageSize {
+				idx := prevFocus - 1
+				updated, _ := m.cards[idx].Update(card.BlurMsg{})
+				m.cards[idx] = updated
+			}
+
+			if m.focus >= 1 && m.focus <= pageSize {
+				idx := m.focus - 1
+				updated, cmd := m.cards[idx].Update(card.FocusMsg{})
+				m.cards[idx] = updated
+
+				return m, cmd
+			}
 
 			return m, nil
 		}
