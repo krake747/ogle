@@ -48,6 +48,7 @@ type Theme struct {
 	CarouselBackground    color.Color // background behind the card grid
 	CarouselNavBackground color.Color // background behind the nav bar
 	CarouselHover         color.Color // border/chevron color when hovered (not focused)
+	CarouselEmpty         color.Color // border colour for empty placeholder cards
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -79,6 +80,7 @@ type userThemeFile struct {
 	CarouselBackgroundColor    string `yaml:"carouselBackgroundColor"`
 	CarouselNavBackgroundColor string `yaml:"carouselNavBackgroundColor"`
 	CarouselHoverColor         string `yaml:"carouselHoverColor"`
+	CarouselEmptyColor         string `yaml:"carouselEmptyColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -239,6 +241,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.CarouselHoverColor != "" {
 		result.CarouselHover = lipgloss.Color(f.CarouselHoverColor)
+	}
+
+	if f.CarouselEmptyColor != "" {
+		result.CarouselEmpty = lipgloss.Color(f.CarouselEmptyColor)
 	}
 
 	return &result

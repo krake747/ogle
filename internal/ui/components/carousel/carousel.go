@@ -128,46 +128,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	if key.Matches(msg, keyTab) {
-		prevFocus := m.focus
-		m.focus = (m.focus + 1) % m.totalSlots()
-
-		if prevFocus >= 1 && prevFocus <= pageSize {
-			idx := prevFocus - 1
-			updated, _ := m.cards[idx].Update(card.BlurMsg{})
-			m.cards[idx] = updated
-		}
-
-		if m.focus >= 1 && m.focus <= pageSize {
-			idx := m.focus - 1
-			updated, cmd := m.cards[idx].Update(card.FocusMsg{})
-			m.cards[idx] = updated
-
-			return m, cmd
-		}
-
-		return m, nil
+		return m.handleTab()
 	}
 
 	if key.Matches(msg, keyEnter) {
-		switch m.focus {
-		case 0:
-			if m.paginator.OnLastPage() {
-				return m, nil
-			}
-
-			m.paginator.NextPage()
-
-			return m.rebuildCards()
-
-		case m.totalSlots() - 1:
-			if m.paginator.OnFirstPage() {
-				return m, nil
-			}
-
-			m.paginator.PrevPage()
-
-			return m.rebuildCards()
-		}
+		return m.handleEnter()
 	}
 
 	prevPage := m.paginator.Page
@@ -181,6 +146,62 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	}
 
 	return m, pageCmd
+}
+
+func (m Model) handleTab() (Model, tea.Cmd) {
+	prevFocus := m.focus
+	total := m.totalSlots()
+	m.focus = (m.focus + 1) % total
+
+	// skip empty grid slots that have no card
+	for m.focus >= 1 && m.focus <= pageSize && !m.slotHasCard(m.focus) {
+		m.focus = (m.focus + 1) % total
+	}
+
+	if prevFocus >= 1 && prevFocus <= pageSize && m.slotHasCard(prevFocus) {
+		idx := prevFocus - 1
+		updated, _ := m.cards[idx].Update(card.BlurMsg{})
+		m.cards[idx] = updated
+	}
+
+	if m.focus >= 1 && m.focus <= pageSize && m.slotHasCard(m.focus) {
+		idx := m.focus - 1
+		updated, cmd := m.cards[idx].Update(card.FocusMsg{})
+		m.cards[idx] = updated
+
+		return m, cmd
+	}
+
+	return m, nil
+}
+
+func (m Model) handleEnter() (Model, tea.Cmd) {
+	switch m.focus {
+	case 0:
+		if m.paginator.OnLastPage() {
+			return m, nil
+		}
+
+		m.paginator.NextPage()
+
+		return m.rebuildCards()
+
+	case m.totalSlots() - 1:
+		if m.paginator.OnFirstPage() {
+			return m, nil
+		}
+
+		m.paginator.PrevPage()
+
+		return m.rebuildCards()
+	}
+
+	// enter on an empty slot is a no-op
+	if m.focus >= 1 && m.focus <= pageSize && !m.slotHasCard(m.focus) {
+		return m, nil
+	}
+
+	return m, nil
 }
 
 func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
@@ -326,8 +347,12 @@ func (m Model) View() tea.View {
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
 					Height(cardH).
+					Border(lipgloss.RoundedBorder()).
+					BorderForeground(m.th.CarouselEmpty).
+					BorderBackground(m.th.CarouselBackground).
 					Background(m.th.CarouselBackground).
-					Render("")
+					Align(lipgloss.Center, lipgloss.Center).
+					Render("-")
 			}
 		}
 
@@ -380,15 +405,20 @@ func (m Model) renderNavBar(carouselW int) string {
 		Background(navBg).
 		Render("▶")
 
-	paginatorStyle := lipgloss.NewStyle().Background(navBg)
 	if m.paginatorHovered {
-		paginatorStyle = paginatorStyle.Foreground(hoverFg)
+		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(hoverFg).Render("•")
+		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(hoverFg).Render("○")
+	} else {
+		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(focusedFg).Render("•")
+		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(unfocusedFg).Render("○")
 	}
 
-	paginatorView := m.zm.Mark(
-		"carousel-paginator",
-		paginatorStyle.Render(m.paginator.View()),
-	)
+	paddedPaginator := lipgloss.NewStyle().
+		Padding(0, 1).
+		Background(navBg).
+		Render(m.paginator.View())
+
+	paginatorView := m.zm.Mark("carousel-paginator", paddedPaginator)
 
 	navContent := lipgloss.JoinHorizontal(
 		lipgloss.Top,
@@ -433,6 +463,14 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	}
 
 	return m, nil
+}
+
+func (m Model) slotHasCard(slot int) bool {
+	if slot < 1 || slot > pageSize {
+		return false
+	}
+
+	return slot-1 < len(m.cards)
 }
 
 func (m Model) totalSlots() int {

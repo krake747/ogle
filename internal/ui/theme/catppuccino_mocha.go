@@ -69,5 +69,6 @@ func CatppuccinoMocha() *Theme {
 		CarouselBackground:    mochaCrust,
 		CarouselNavBackground: mochaCrust,
 		CarouselHover:         mochaText,
+		CarouselEmpty:         mochaSurface0,
 	}
 }
