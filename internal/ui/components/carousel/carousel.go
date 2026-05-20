@@ -25,18 +25,23 @@ var keyTab = key.NewBinding(key.WithKeys("tab"))
 
 // Model is the carousel component state.
 type Model struct {
-	services []domain.ServiceDef
-	w, h     int
-	focus    int
+	cards []card
+	w, h  int
+	focus int
 }
 
 // New returns a Model for the given project.
 func New(project *domain.Project, w, h int) Model {
+	cards := make([]card, len(project.Services))
+	for i, s := range project.Services {
+		cards[i] = newCard(s)
+	}
+
 	return Model{
-		services: project.Services,
-		w:        w,
-		h:        h,
-		focus:    -1,
+		cards: cards,
+		w:     w,
+		h:     h,
+		focus: 0,
 	}
 }
 
@@ -83,18 +88,8 @@ func (m Model) View() tea.View {
 		for col := range cols {
 			idx := row*cols + col
 
-			if idx < len(m.services) {
-				borderColour := unfocusedFg
-				if idx == m.focus {
-					borderColour = focusedFg
-				}
-
-				cells[col] = lipgloss.NewStyle().
-					Width(cardW).
-					Height(cardH).
-					Border(lipgloss.RoundedBorder()).
-					BorderForeground(borderColour).
-					Render("")
+			if idx < len(m.cards) {
+				cells[col] = m.cards[idx].View(cardW, cardH, m.focus == idx+1).Content
 			} else {
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
@@ -109,23 +104,29 @@ func (m Model) View() tea.View {
 	grid := lipgloss.JoinVertical(lipgloss.Left, rowStrs...)
 	gridH := lipgloss.Height(grid)
 
-	leftStyle := lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center)
-	if m.focus == -1 {
-		leftStyle = leftStyle.Foreground(focusedFg)
-	} else {
-		leftStyle = leftStyle.Foreground(unfocusedFg)
+	chevronColour := unfocusedFg
+	if m.focus == 0 {
+		chevronColour = focusedFg
 	}
 
-	leftCol := leftStyle.Render("◀")
+	leftCol := lipgloss.NewStyle().
+		Width(chevronW).
+		Height(gridH).
+		Align(lipgloss.Center).
+		Foreground(chevronColour).
+		Render("◀")
 
-	rightStyle := lipgloss.NewStyle().Width(chevronW).Height(gridH).Align(lipgloss.Center)
-	if m.focus == pageSize {
-		rightStyle = rightStyle.Foreground(focusedFg)
-	} else {
-		rightStyle = rightStyle.Foreground(unfocusedFg)
+	rightChevronColour := unfocusedFg
+	if m.focus == pageSize+1 {
+		rightChevronColour = focusedFg
 	}
 
-	rightCol := rightStyle.Render("▶")
+	rightCol := lipgloss.NewStyle().
+		Width(chevronW).
+		Height(gridH).
+		Align(lipgloss.Center).
+		Foreground(rightChevronColour).
+		Render("▶")
 
 	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top, leftCol, grid, rightCol))
 }
