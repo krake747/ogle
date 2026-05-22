@@ -30,6 +30,7 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
+	"github.com/ma-tf/ogle/internal/ui/layout"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -40,10 +41,6 @@ var (
 )
 
 type phase int
-
-const (
-	frameHeight = 3
-)
 
 const (
 	phaseStartup phase = iota
@@ -127,7 +124,7 @@ func New(
 			zm,
 			filepath.Dir(configPath),
 			width,
-			height-frameHeight,
+			height,
 		)
 	}
 
@@ -198,7 +195,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.zm,
 			filepath.Dir(m.configPath),
 			m.width,
-			m.height-frameHeight,
+			m.height,
 		)
 		m.phase = phaseDashboard
 
@@ -330,20 +327,25 @@ func (m Model) View() tea.View {
 		body = m.watching.View()
 	}
 
-	avail := m.height - frameHeight - m.statusbar.Height()
-
-	bodyPadded := lipgloss.NewStyle().Height(avail).Render(body.Content)
-
+	statusView := m.statusbar.View()
+	hasStatus := statusView.Content != ""
+	statusH := 0
+	if hasStatus {
+		statusH = lipgloss.Height(statusView.Content)
+	}
+	chromeH := layout.FrameHeight
+	if statusH > 0 {
+		chromeH += statusH
+	}
+	avail := max(0, m.height-chromeH)
 	parts := []string{
 		m.topbar.View().Content,
-		bodyPadded,
+		lipgloss.NewStyle().Height(avail).Render(body.Content),
 	}
-	if m.statusbar.Height() > 0 {
-		parts = append(parts, m.statusbar.View().Content)
+	if hasStatus {
+		parts = append(parts, statusView.Content)
 	}
-
 	parts = append(parts, m.helpbar.View().Content)
-
 	content := lipgloss.JoinVertical(lipgloss.Top, parts...)
 
 	v := tea.NewView(content)

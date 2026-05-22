@@ -23,6 +23,7 @@ type Model struct {
 	streamerStarted bool
 	theme           *theme.Theme
 	project         string
+	selected        bool
 }
 
 // New constructs a host for the given service.
@@ -37,12 +38,8 @@ func New(th *theme.Theme, def domain.ServiceDef, project string, w, h, logBuffer
 		streamerStarted: false,
 		theme:           th,
 		project:         project,
+		selected:        false,
 	}
-}
-
-// ServiceName returns the service name.
-func (m Model) ServiceName() string {
-	return m.def.Name
 }
 
 // Init batches the init cmds of all children.
@@ -55,6 +52,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
+	case msgs.ServiceSelected:
+		m.selected = (msg.ServiceName == m.def.Name)
+
+		return m, nil
+
+	case tea.KeyPressMsg, tea.MouseWheelMsg:
+		if !m.selected {
+			return m, nil
+		}
+
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
 			m.streamerStarted = true
@@ -89,6 +96,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 // View returns the rendered content for this host's position in the compositor.
 func (m Model) View() tea.View {
+	if !m.selected {
+		return tea.NewView("")
+	}
+
 	inspView := m.inspector.View().Content
 	logView := m.logPane.View().Content
 

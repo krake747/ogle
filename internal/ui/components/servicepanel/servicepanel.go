@@ -19,7 +19,6 @@ type Model struct {
 	hosts         []servicehost.Model
 	theme         *theme.Theme
 	pollerStarted bool
-	selectedName  string
 }
 
 // New constructs a Model with one host per project service.
@@ -33,7 +32,6 @@ func New(project *domain.Project, th *theme.Theme, w, h, logBufferCap int) Model
 		hosts:         hosts,
 		theme:         th,
 		pollerStarted: false,
-		selectedName:  "",
 	}
 }
 
@@ -52,21 +50,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0, len(m.hosts)+1)
 
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg, tea.MouseWheelMsg:
-		for i := range m.hosts {
-			if m.hosts[i].ServiceName() == m.selectedName {
-				var cmd tea.Cmd
-
-				m.hosts[i], cmd = m.hosts[i].Update(msg)
-				cmds = append(cmds, cmd)
-
-				return m, tea.Batch(cmds...)
-			}
-		}
-
-	case msgs.ServiceSelected:
-		m.selectedName = msg.ServiceName
-
 	case msgs.ThemeChanged:
 		m.theme = msg.Theme
 
@@ -90,16 +73,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-// View renders all hosts as compositor layers with the selected host at top.
+// View renders all hosts as compositor layers.
 func (m Model) View() tea.View {
 	lyrs := make([]*lipgloss.Layer, len(m.hosts))
 	for i, h := range m.hosts {
-		content := ""
-		if h.ServiceName() == m.selectedName {
-			content = h.View().Content
-		}
-
-		lyrs[i] = lipgloss.NewLayer(content).X(0).Y(0).Z(i)
+		lyrs[i] = lipgloss.NewLayer(h.View().Content).X(0).Y(0).Z(i)
 	}
 
 	return tea.NewView(lipgloss.NewCompositor(lyrs...).Render())

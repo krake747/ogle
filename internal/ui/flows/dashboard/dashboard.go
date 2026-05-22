@@ -20,13 +20,11 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/components/carousel"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/components/settings"
+	"github.com/ma-tf/ogle/internal/ui/layout"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// frameHeight is the number of terminal lines consumed by the app-level chrome
-// (topbar + helpbar) that each phase must subtract from its allocated height.
 const (
-	frameHeight     = 3
 	accordionHeight = 8
 )
 
@@ -105,7 +103,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
-		m.h = msg.Height - frameHeight
+		m.h = msg.Height
 
 	case msgs.StatePollTick:
 		m.panel, panCmd = m.panel.Update(msg)
@@ -288,7 +286,9 @@ func (m Model) View() tea.View {
 	listH := lipgloss.Height(listContent)
 	listW := lipgloss.Width(listContent)
 
-	if listH+accordionHeight <= m.h {
+	usableH := m.h - layout.FrameHeight
+
+	if listH+accordionHeight <= usableH {
 		accView := m.accordion.View().Content
 		accView = lipgloss.NewStyle().
 			Width(listW).
@@ -299,10 +299,10 @@ func (m Model) View() tea.View {
 	}
 
 	listH = lipgloss.Height(listContent)
-	if listH < m.h {
+	if listH < usableH {
 		filler := lipgloss.NewStyle().
 			Width(listW).
-			Height(m.h - listH).
+			Height(usableH - listH).
 			Background(m.th.CarouselBackground).
 			Render("")
 		listContent = lipgloss.JoinVertical(lipgloss.Top, listContent, filler)

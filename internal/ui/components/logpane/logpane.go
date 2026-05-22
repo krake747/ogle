@@ -7,11 +7,11 @@ import (
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/layout"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
-	appFrameHeight     = 3
 	servicePanelHeight = 5
 	defaultCap         = 1000
 	horizontalStep     = 8
@@ -42,6 +42,7 @@ func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 
 	carouselW := max(w, listMinTermWidth) * listRatio / pctDivisor
 	panW := max(w-carouselW, 0)
+	usableH := max(0, h-layout.FrameHeight)
 
 	vp := viewport.New(viewport.WithWidth(max(panW-borderWidth, 0)), viewport.WithHeight(0))
 	vp.KeyMap = viewport.KeyMap{
@@ -60,7 +61,7 @@ func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 		lineCh:   lineCh,
 		th:       th,
 		w:        panW,
-		h:        h,
+		h:        usableH,
 		wrap:     false,
 	}
 }
@@ -103,7 +104,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		wasAtBottom := m.viewport.AtBottom()
 		carouselW := max(msg.Width, listMinTermWidth) * listRatio / pctDivisor
 		m.w = msg.Width - carouselW
-		m.h = msg.Height - appFrameHeight
+		m.h = max(0, msg.Height-layout.FrameHeight)
 		m.viewport.SetWidth(max(m.w-borderWidth, 0))
 		h := min(len(m.lines), max(m.h-servicePanelHeight-borderWidth, 0))
 		m.viewport.SetHeight(h)

@@ -75,16 +75,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-// Height returns 1 when a message is active, 0 otherwise. Used by the caller
-// to adjust the available body height.
-func (m Model) Height() int {
-	if m.msg != "" {
-		return 1
-	}
-
-	return 0
-}
-
 // View renders the status bar. Returns an empty view when no message is active.
 func (m Model) View() tea.View {
 	if m.msg == "" {

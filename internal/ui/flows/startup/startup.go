@@ -13,10 +13,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// frameHeight is the number of terminal lines consumed by the app-level chrome
-// (topbar + helpbar) that this phase must subtract from its allocated height.
-const frameHeight = 3
-
 // Model is the startup flow orchestrator.
 type Model struct {
 	parser     parser.Parser
@@ -68,12 +64,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.w = msg.Width
-		m.h = msg.Height - frameHeight
+		m.h = msg.Height
 
 		var cmd tea.Cmd
 
-		bodyMsg := tea.WindowSizeMsg{Width: msg.Width, Height: msg.Height - frameHeight}
-		m.fileSelect, cmd = m.fileSelect.Update(bodyMsg)
+		m.fileSelect, cmd = m.fileSelect.Update(msg)
 
 		return m, cmd
 	}
