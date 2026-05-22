@@ -1,8 +1,9 @@
 package dashboard
 
 import (
-	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
+
+	"github.com/ma-tf/ogle/internal/ui/components/carousel"
 )
 
 //nolint:gochecknoglobals // package-level key bindings are shared across all Model instances
@@ -14,25 +15,29 @@ var (
 	keyScrollDown  = key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "scroll down"))
 	keyScrollLeft  = key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←/h", "scroll left"))
 	keyScrollRight = key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "scroll right"))
+	keyRestart     = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
+	keyRebuild     = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
 )
 
-const extraBindings = 2 // extra short-help entries beyond list and actions
-
-// appKeymap merges the service list, action, and quit bindings into one KeyMap.
-type appKeymap struct {
-	list    help.KeyMap
-	actions []key.Binding
-}
+type appKeymap struct{}
 
 func (k appKeymap) ShortHelp() []key.Binding {
-	out := make([]key.Binding, 0, len(k.list.ShortHelp())+len(k.actions)+extraBindings)
-	out = append(out, k.list.ShortHelp()...)
-	out = append(out, k.actions...)
-	out = append(out, keySettings, keyQuit)
+	out := append([]key.Binding{}, carousel.Keymap{}.ShortHelp()...)
+	out = append(out,
+		keyRestart,
+		keyRebuild,
+		keyScrollUp,
+		keyScrollDown,
+		keyScrollLeft,
+		keyScrollRight,
+		keyToggleWrap,
+		keySettings,
+		keyQuit,
+	)
 
 	return out
 }
 
 func (k appKeymap) FullHelp() [][]key.Binding {
-	return k.list.FullHelp()
+	return nil
 }

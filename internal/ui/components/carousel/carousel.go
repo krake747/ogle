@@ -3,6 +3,7 @@ package carousel
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/paginator"
@@ -17,34 +18,36 @@ import (
 )
 
 const (
-	rows               = 2
-	cols               = 3
-	pageSize           = rows * cols
-	chevronCount       = 2
-	listRatio          = 30
-	listMinTermWidth   = 80
-	pctDivisor         = 100
-	maxCardH           = 12
-	terminalCellAspect = 2
-)
-
-//nolint:gochecknoglobals // package-level key bindings
-var (
-	keyTab   = key.NewBinding(key.WithKeys("tab"))
-	keyEnter = key.NewBinding(key.WithKeys("enter"))
+	rows                 = 2
+	cols                 = 3
+	pageSize             = rows * cols
+	chevronCount         = 2
+	listRatio            = 30
+	listMinTermWidth     = 80
+	pctDivisor           = 100
+	maxCardH             = 12
+	terminalCellAspect   = 2
+	doubleClickThreshold = 350 * time.Millisecond
+	zonePrev             = "carousel-prev"
+	zoneNext             = "carousel-next"
+	zoneDotFmt           = "carousel-dot-%d"
+	zoneCardFmt          = "carousel-card-%d"
 )
 
 // Model is the carousel component state.
 type Model struct {
-	all        []domain.ServiceDef
-	cards      []card.Model
-	w, h       int
-	focus      int
-	hovered    int
-	hoveredDot int
-	paginator  paginator.Model
-	th         *theme.Theme
-	zm         *zone.Manager
+	all           []domain.ServiceDef
+	cards         []card.Model
+	w, h          int
+	focus         int
+	hovered       int
+	hoveredDot    int
+	paginator     paginator.Model
+	th            *theme.Theme
+	zm            *zone.Manager
+	runtimeData   map[string]*domain.ServiceRuntimeData
+	lastClickTime time.Time
+	lastClickIdx  int
 }
 
 // New returns a Model for the given project.
@@ -53,8 +56,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 	p.Type = paginator.Dots
 	p.SetTotalPages(len(project.Services))
 	p.KeyMap = paginator.KeyMap{
-		PrevPage: key.NewBinding(key.WithKeys("pgup")),
-		NextPage: key.NewBinding(key.WithKeys("pgdown")),
+		PrevPage: KeyPgUp,
+		NextPage: KeyPgDown,
 	}
 	p.ActiveDot = lipgloss.NewStyle().Foreground(th.CarouselFocused).Render("•")
 	p.InactiveDot = lipgloss.NewStyle().Foreground(th.CarouselBlurred).Render("○")
@@ -75,16 +78,19 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 	}
 
 	return Model{
-		all:        project.Services,
-		cards:      cards,
-		w:          w,
-		h:          h,
-		focus:      focus,
-		hovered:    -1,
-		hoveredDot: -1,
-		paginator:  p,
-		th:         th,
-		zm:         zm,
+		all:           project.Services,
+		cards:         cards,
+		w:             w,
+		h:             h,
+		focus:         focus,
+		hovered:       -1,
+		hoveredDot:    -1,
+		paginator:     p,
+		th:            th,
+		zm:            zm,
+		runtimeData:   nil,
+		lastClickTime: time.Time{},
+		lastClickIdx:  -1,
 	}
 }
 
@@ -110,6 +116,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselFocused).Render("•")
 		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselBlurred).Render("○")
 
+	case msgs.ServicesPolled:
+		if msg.Err == nil {
+			m.runtimeData = msg.Runtimes
+		}
+
 	case tea.MouseClickMsg:
 		return m.handleMouseClick(msg)
 
@@ -128,11 +139,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
-	if key.Matches(msg, keyTab) {
+	if key.Matches(msg, KeyTab) {
 		return m.handleTab()
 	}
 
-	if key.Matches(msg, keyEnter) {
+	if key.Matches(msg, KeyEnter) {
 		return m.handleEnter()
 	}
 
@@ -170,7 +181,9 @@ func (m Model) handleTab() (Model, tea.Cmd) {
 		updated, cmd := m.cards[idx].Update(card.FocusMsg{})
 		m.cards[idx] = updated
 
-		return m, cmd
+		return m, tea.Batch(cmd, func() tea.Msg {
+			return msgs.ServiceSelected{ServiceName: m.cardServiceName(idx)}
+		})
 	}
 
 	return m, nil
@@ -202,20 +215,20 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	// enter on a card sends ActivateMsg so the card emits ServiceSelected
+	// enter on a card toggles start/stop
 	if m.focus >= 1 && m.focus <= pageSize {
 		idx := m.focus - 1
-		updated, cmd := m.cards[idx].Update(card.ActivateMsg{})
-		m.cards[idx] = updated
+		name := m.cardServiceName(idx)
 
-		return m, cmd
+		return m, m.toggleServiceCmd(name)
 	}
 
 	return m, nil
 }
 
 func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
-	if m.zm.Get("carousel-prev").InBounds(msg) {
+	switch {
+	case m.zm.Get(zonePrev).InBounds(msg):
 		if m.paginator.OnFirstPage() {
 			return m, nil
 		}
@@ -223,9 +236,8 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 		m.paginator.PrevPage()
 
 		return m.rebuildCards()
-	}
 
-	if m.zm.Get("carousel-next").InBounds(msg) {
+	case m.zm.Get(zoneNext).InBounds(msg):
 		if m.paginator.OnLastPage() {
 			return m, nil
 		}
@@ -236,7 +248,7 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 	}
 
 	for i := range m.paginator.TotalPages {
-		if m.zm.Get(fmt.Sprintf("carousel-dot-%d", i)).InBounds(msg) {
+		if m.zm.Get(fmt.Sprintf(zoneDotFmt, i)).InBounds(msg) {
 			if m.paginator.Page == i {
 				return m, nil
 			}
@@ -248,49 +260,61 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 	}
 
 	for i := range m.cards {
-		if !m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
+		if !m.zm.Get(fmt.Sprintf(zoneCardFmt, i)).InBounds(msg) {
 			continue
 		}
 
-		newFocus := i + 1
-
-		if m.focus == newFocus {
-			return m, nil
-		}
-
-		if m.focus >= 1 && m.focus <= pageSize {
-			idx := m.focus - 1
-			updated, _ := m.cards[idx].Update(card.BlurMsg{})
-			m.cards[idx] = updated
-		}
-
-		m.focus = newFocus
-
-		updated, focusCmd := m.cards[i].Update(card.FocusMsg{})
-		m.cards[i] = updated
-
-		updated, activateCmd := m.cards[i].Update(card.ActivateMsg{})
-		m.cards[i] = updated
-
-		return m, tea.Batch(focusCmd, activateCmd)
+		return m.handleCardClick(i)
 	}
 
 	return m, nil
+}
+
+func (m Model) handleCardClick(i int) (Model, tea.Cmd) {
+	newFocus := i + 1
+
+	if m.focus == newFocus {
+		if i == m.lastClickIdx && time.Since(m.lastClickTime) < doubleClickThreshold {
+			return m, m.toggleServiceCmd(m.cardServiceName(i))
+		}
+
+		m.lastClickTime = time.Now()
+		m.lastClickIdx = i
+
+		return m, nil
+	}
+
+	if m.focus >= 1 && m.focus <= pageSize {
+		idx := m.focus - 1
+		updated, _ := m.cards[idx].Update(card.BlurMsg{})
+		m.cards[idx] = updated
+	}
+
+	m.focus = newFocus
+	m.lastClickTime = time.Now()
+	m.lastClickIdx = i
+
+	updated, focusCmd := m.cards[i].Update(card.FocusMsg{})
+	m.cards[i] = updated
+
+	return m, tea.Batch(focusCmd, func() tea.Msg {
+		return msgs.ServiceSelected{ServiceName: m.cardServiceName(i)}
+	})
 }
 
 func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 	hit := -1
 
 	switch {
-	case m.zm.Get("carousel-prev").InBounds(msg):
+	case m.zm.Get(zonePrev).InBounds(msg):
 		hit = m.totalSlots() - 1
 
-	case m.zm.Get("carousel-next").InBounds(msg):
+	case m.zm.Get(zoneNext).InBounds(msg):
 		hit = 0
 
 	default:
 		for i := range m.paginator.TotalPages {
-			if m.zm.Get(fmt.Sprintf("carousel-dot-%d", i)).InBounds(msg) {
+			if m.zm.Get(fmt.Sprintf(zoneDotFmt, i)).InBounds(msg) {
 				if m.hoveredDot == i {
 					return m, nil
 				}
@@ -304,7 +328,7 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		}
 
 		for i := range m.cards {
-			if m.zm.Get(fmt.Sprintf("carousel-card-%d", i)).InBounds(msg) {
+			if m.zm.Get(fmt.Sprintf(zoneCardFmt, i)).InBounds(msg) {
 				hit = i + 1
 
 				break
@@ -366,7 +390,7 @@ func (m Model) View() tea.View {
 
 			if idx < len(m.cards) {
 				cells[col] = m.zm.Mark(
-					fmt.Sprintf("carousel-card-%d", idx),
+					fmt.Sprintf(zoneCardFmt, idx),
 					m.cards[idx].View().Content,
 				)
 			} else {
@@ -449,7 +473,7 @@ func (m Model) renderNavBar(carouselW int) string {
 		}
 
 		dots[i] = m.zm.Mark(
-			fmt.Sprintf("carousel-dot-%d", i),
+			fmt.Sprintf(zoneDotFmt, i),
 			lipgloss.NewStyle().
 				Foreground(dotColour).
 				Background(m.th.CarouselBackground).
@@ -461,9 +485,9 @@ func (m Model) renderNavBar(carouselW int) string {
 
 	navContent := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		m.zm.Mark("carousel-prev", leftChevron),
+		m.zm.Mark(zonePrev, leftChevron),
 		paginatorView,
-		m.zm.Mark("carousel-next", rightChevron),
+		m.zm.Mark(zoneNext, rightChevron),
 	)
 
 	return lipgloss.NewStyle().
@@ -486,6 +510,8 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 		m.focus = 0
 		m.hovered = -1
 		m.hoveredDot = -1
+		m.lastClickTime = time.Time{}
+		m.lastClickIdx = -1
 
 		return m, nil
 	}
@@ -493,12 +519,16 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	m.focus = 1
 	m.hovered = -1
 	m.hoveredDot = -1
+	m.lastClickTime = time.Time{}
+	m.lastClickIdx = -1
 
 	if len(m.cards) > 0 {
 		updated, cmd := m.cards[0].Update(card.FocusMsg{})
 		m.cards[0] = updated
 
-		return m, cmd
+		return m, tea.Batch(cmd, func() tea.Msg {
+			return msgs.ServiceSelected{ServiceName: m.all[start].Name}
+		})
 	}
 
 	return m, nil
@@ -510,6 +540,21 @@ func (m Model) slotHasCard(slot int) bool {
 	}
 
 	return slot-1 < len(m.cards)
+}
+
+func (m Model) cardServiceName(idx int) string {
+	start, _ := m.paginator.GetSliceBounds(len(m.all))
+
+	return m.all[start+idx].Name
+}
+
+func (m Model) toggleServiceCmd(name string) tea.Cmd {
+	rt := m.runtimeData[name]
+	if rt != nil && rt.State == domain.ServiceStateRunning {
+		return func() tea.Msg { return msgs.ServiceStop{ServiceName: name} }
+	}
+
+	return func() tea.Msg { return msgs.ServiceStart{ServiceName: name} }
 }
 
 func (m Model) totalSlots() int {

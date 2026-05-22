@@ -25,9 +25,6 @@ type HoverMsg struct{}
 // UnhoverMsg tells a card the mouse is no longer hovering over it.
 type UnhoverMsg struct{}
 
-// ActivateMsg tells a card the user has confirmed it as the selected service.
-type ActivateMsg struct{}
-
 // ScrollTick advances the scrolling text window for a truncated service name.
 type ScrollTick struct {
 	gen int
@@ -146,11 +143,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.ServiceActionCompleted:
 		m = m.handleActionCompleted(msg)
-
-	case ActivateMsg:
-		return m, func() tea.Msg {
-			return msgs.ServiceSelected{ServiceName: m.def.Name}
-		}
 
 	case msgs.ThemeChanged:
 		m.th = msg.Theme

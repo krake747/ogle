@@ -17,7 +17,6 @@ import (
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/ui/components/carousel"
-	"github.com/ma-tf/ogle/internal/ui/components/servicelist"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/components/settings"
 	"github.com/ma-tf/ogle/internal/ui/theme"
@@ -37,12 +36,13 @@ type Model struct {
 	zm        *zone.Manager
 	configDir string
 
-	serviceList     servicelist.Model
 	carousel        carousel.Model
 	panel           servicepanel.Model
 	settings        settings.Model
 	showingSettings bool
 	cfg             config.Config
+	selectedName    string
+	runtimeData     map[string]*domain.ServiceRuntimeData
 	w, h            int
 }
 
@@ -57,6 +57,11 @@ func New(
 	configDir string,
 	w, h int,
 ) tea.Model {
+	selectedName := ""
+	if len(project.Services) > 0 {
+		selectedName = project.Services[0].Name
+	}
+
 	return Model{
 		ctx:             ctx,
 		log:             log,
@@ -65,12 +70,13 @@ func New(
 		th:              th,
 		zm:              zm,
 		configDir:       configDir,
-		serviceList:     servicelist.New(project, th, zm, w),
 		carousel:        carousel.New(project, w, h, th, zm),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
 		showingSettings: false,
 		cfg:             cfg,
+		selectedName:    selectedName,
+		runtimeData:     nil,
 		w:               w,
 		h:               h,
 	}
@@ -79,33 +85,16 @@ func New(
 // Init fires sub-model initialisation and sends the keymap to the helpbar.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		m.serviceList.Init(),
 		m.panel.Init(),
 		func() tea.Msg {
-			return msgs.BindingsMsg{
-				Keymap: appKeymap{
-					list: m.serviceList,
-					actions: []key.Binding{
-						servicelist.KeyPrev,
-						servicelist.KeyNext,
-						servicelist.KeyToggleService,
-						servicelist.KeyRestart,
-						servicelist.KeyRebuild,
-						keyScrollUp,
-						keyScrollDown,
-						keyScrollLeft,
-						keyScrollRight,
-						keyToggleWrap,
-					},
-				},
-			}
+			return msgs.BindingsMsg{Keymap: appKeymap{}}
 		},
 	)
 }
 
 // Update handles dashboard-level messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var svcListCmd, carouselCmd, panCmd, settingsCmd tea.Cmd
+	var carouselCmd, panCmd, settingsCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -126,30 +115,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyPressMsg:
-		if m.showingSettings {
-			m.settings, settingsCmd = m.settings.Update(msg)
-
-			return m, settingsCmd
-		}
-
-		switch {
-		case key.Matches(msg, keyQuit):
-			return m, tea.Quit
-
-		case key.Matches(msg, keySettings):
-			m.showingSettings = true
-
-			return m, nil
-
-		case key.Matches(msg, keyToggleWrap):
-			return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
-
-		case key.Matches(msg, keyScrollUp), key.Matches(msg, keyScrollDown),
-			key.Matches(msg, keyScrollLeft), key.Matches(msg, keyScrollRight):
-			m.panel, panCmd = m.panel.Update(msg)
-
-			return m, panCmd
-		}
+		return m.handleKeyPress(msg)
 
 	case msgs.ServiceStop,
 		msgs.ServiceStart,
@@ -178,9 +144,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.showingSettings = msg.Visible
 
 		return m, nil
+
+	case msgs.ServiceSelected:
+		m.selectedName = msg.ServiceName
+
+	case msgs.ServicesPolled:
+		if msg.Err == nil {
+			m.runtimeData = msg.Runtimes
+		}
 	}
 
-	m.serviceList, svcListCmd = m.serviceList.Update(msg)
 	m.carousel, carouselCmd = m.carousel.Update(msg)
 	m.panel, panCmd = m.panel.Update(msg)
 
@@ -188,7 +161,56 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settings, settingsCmd = m.settings.Update(msg)
 	}
 
-	return m, tea.Batch(svcListCmd, carouselCmd, panCmd, settingsCmd)
+	return m, tea.Batch(carouselCmd, panCmd, settingsCmd)
+}
+
+func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.showingSettings {
+		var settingsCmd tea.Cmd
+
+		m.settings, settingsCmd = m.settings.Update(msg)
+
+		return m, settingsCmd
+	}
+
+	switch {
+	case key.Matches(msg, keyQuit):
+		return m, tea.Quit
+
+	case key.Matches(msg, keySettings):
+		m.showingSettings = true
+
+		return m, nil
+
+	case key.Matches(msg, keyToggleWrap):
+		return m, func() tea.Msg { return msgs.ToggleLogWrap{} }
+
+	case key.Matches(msg, keyScrollUp), key.Matches(msg, keyScrollDown),
+		key.Matches(msg, keyScrollLeft), key.Matches(msg, keyScrollRight):
+		m.panel, _ = m.panel.Update(msg)
+
+		return m, nil
+
+	case key.Matches(msg, keyRestart):
+		if m.selectedName == "" {
+			return m, nil
+		}
+
+		return m, func() tea.Msg {
+			return msgs.ServiceRestart{ServiceName: m.selectedName}
+		}
+
+	case key.Matches(msg, keyRebuild):
+		if m.selectedName == "" {
+			return m, nil
+		}
+
+		return m, func() tea.Msg {
+			return msgs.ServiceRebuild{ServiceName: m.selectedName}
+		}
+	}
+
+	return m, nil
 }
 
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -214,7 +236,6 @@ func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceActionCompleted:
-		m.serviceList, _ = m.serviceList.Update(msg)
 		m.carousel, _ = m.carousel.Update(msg)
 
 		if msg.Err != nil {
