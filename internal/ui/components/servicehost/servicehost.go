@@ -32,7 +32,7 @@ func New(th *theme.Theme, def domain.ServiceDef, project string, w, h, logBuffer
 	return Model{
 		def:             def,
 		inspector:       inspector.New(th, def, w, h),
-		logPane:         logpane.New(w, h, logBufferCap, s.Lines()),
+		logPane:         logpane.New(th, w, h, logBufferCap, s.Lines()),
 		streamer:        s,
 		streamerStarted: false,
 		theme:           th,

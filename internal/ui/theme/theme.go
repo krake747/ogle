@@ -43,6 +43,7 @@ type Theme struct {
 	StatusInfo            color.Color // info-level status bar text
 	StatusBarBackground   color.Color // status bar background tint
 	TopbarBackground      color.Color // top bar background tint
+	LogPaneBackground     color.Color // log pane background fill
 	CarouselFocused       color.Color
 	CarouselBlurred       color.Color
 	CarouselBackground    color.Color // background behind the card grid
@@ -81,6 +82,7 @@ type userThemeFile struct {
 	CarouselNavBackgroundColor string `yaml:"carouselNavBackgroundColor"`
 	CarouselHoverColor         string `yaml:"carouselHoverColor"`
 	CarouselEmptyColor         string `yaml:"carouselEmptyColor"`
+	LogPaneBackgroundColor     string `yaml:"logPaneBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -245,6 +247,10 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 
 	if f.CarouselEmptyColor != "" {
 		result.CarouselEmpty = lipgloss.Color(f.CarouselEmptyColor)
+	}
+
+	if f.LogPaneBackgroundColor != "" {
+		result.LogPaneBackground = lipgloss.Color(f.LogPaneBackgroundColor)
 	}
 
 	return &result

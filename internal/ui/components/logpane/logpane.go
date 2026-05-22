@@ -3,9 +3,11 @@ package logpane
 import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
@@ -13,6 +15,10 @@ const (
 	servicePanelHeight = 5
 	defaultCap         = 1000
 	horizontalStep     = 8
+	borderWidth        = 2
+	listMinTermWidth   = 80
+	listRatio          = 30
+	pctDivisor         = 100
 )
 
 // Model stores raw log text lines backed by a viewport for windowed rendering.
@@ -21,18 +27,20 @@ type Model struct {
 	cap      int
 	viewport viewport.Model
 	lineCh   <-chan string
+	th       *theme.Theme
+	w        int
 	h        int
 	wrap     bool
 }
 
 // New returns a Model reading from the given line channel. lineCap sets the
 // maximum number of lines retained; values <= 0 fall back to defaultCap.
-func New(w, h, lineCap int, lineCh <-chan string) Model {
+func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 	if lineCap <= 0 {
 		lineCap = defaultCap
 	}
 
-	vp := viewport.New(viewport.WithWidth(w), viewport.WithHeight(0))
+	vp := viewport.New(viewport.WithWidth(max(w-borderWidth, 0)), viewport.WithHeight(0))
 	vp.KeyMap = viewport.KeyMap{
 		Up:    viewport.DefaultKeyMap().Up,
 		Down:  viewport.DefaultKeyMap().Down,
@@ -47,6 +55,8 @@ func New(w, h, lineCap int, lineCh <-chan string) Model {
 		cap:      lineCap,
 		viewport: vp,
 		lineCh:   lineCh,
+		th:       th,
+		w:        w,
 		h:        h,
 		wrap:     false,
 	}
@@ -83,11 +93,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		return m, nil
 
+	case msgs.ThemeChanged:
+		m.th = msg.Theme
+
 	case tea.WindowSizeMsg:
 		wasAtBottom := m.viewport.AtBottom()
+		carouselW := max(msg.Width, listMinTermWidth) * listRatio / pctDivisor
+		m.w = msg.Width - carouselW
 		m.h = msg.Height - appFrameHeight
-		m.viewport.SetWidth(msg.Width)
-		h := min(len(m.lines), max(m.h-servicePanelHeight, 0))
+		m.viewport.SetWidth(max(m.w-borderWidth, 0))
+		h := min(len(m.lines), max(m.h-servicePanelHeight-borderWidth, 0))
 		m.viewport.SetHeight(h)
 
 		if wasAtBottom || m.viewport.PastBottom() {
@@ -123,7 +138,7 @@ func (m Model) drainLines() (Model, tea.Cmd) {
 		default:
 			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetContentLines(m.lines)
-			h := min(len(m.lines), max(m.h-servicePanelHeight, 0))
+			h := min(len(m.lines), max(m.h-servicePanelHeight-borderWidth, 0))
 			m.viewport.SetHeight(h)
 
 			if wasAtBottom {
@@ -163,7 +178,20 @@ func (m Model) realLineIndex(yOffset int) int {
 	return max(0, len(m.lines)-1)
 }
 
-// View returns the viewport-rendered window of log lines.
+// View returns the viewport-rendered window of log lines with border, background,
+// and foreground styling from the theme.
 func (m Model) View() tea.View {
-	return tea.NewView(m.viewport.View())
+	content := m.viewport.View()
+	if content == "" {
+		return tea.NewView("")
+	}
+
+	styled := lipgloss.NewStyle().
+		Background(m.th.LogPaneBackground).
+		Render(content)
+
+	return tea.NewView(m.th.BorderBlurred.
+		Border(lipgloss.RoundedBorder()).
+		Width(m.w).
+		Render(styled))
 }

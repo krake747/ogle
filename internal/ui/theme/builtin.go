@@ -66,5 +66,6 @@ func Default() *Theme {
 		CarouselNavBackground: defaultBlack,
 		CarouselHover:         defaultBrightWhite,
 		CarouselEmpty:         defaultDarkGrey,
+		LogPaneBackground:     defaultBlack,
 	}
 }
