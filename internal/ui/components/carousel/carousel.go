@@ -396,7 +396,14 @@ func (m Model) View() tea.View {
 			} else {
 				innerW := cardW - card.BorderW
 				innerH := cardH - card.BorderW
-				padded := lipgloss.Place(innerW, innerH, lipgloss.Center, lipgloss.Center, "-")
+				emptyLabel := lipgloss.NewStyle().Foreground(m.th.Subtext).Render("-")
+				padded := lipgloss.Place(
+					innerW,
+					innerH,
+					lipgloss.Center,
+					lipgloss.Center,
+					emptyLabel,
+				)
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
 					Height(cardH).
