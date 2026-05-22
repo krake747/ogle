@@ -71,5 +71,8 @@ func CatppuccinoMocha() *Theme {
 		CarouselHover:         mochaText,
 		CarouselEmpty:         mochaSurface0,
 		LogPaneBackground:     mochaCrust,
+		AccordionLabel:        mochaSubtext0,
+		AccordionValue:        mochaText,
+		AccordionBackground:   mochaCrust,
 	}
 }

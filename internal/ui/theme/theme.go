@@ -50,6 +50,9 @@ type Theme struct {
 	CarouselNavBackground color.Color // background behind the nav bar
 	CarouselHover         color.Color // border/chevron color when hovered (not focused)
 	CarouselEmpty         color.Color // border colour for empty placeholder cards
+	AccordionLabel        color.Color // accordion label colour (e.g. "Image:")
+	AccordionValue        color.Color // accordion value colour
+	AccordionBackground   color.Color // accordion background fill
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -83,6 +86,9 @@ type userThemeFile struct {
 	CarouselHoverColor         string `yaml:"carouselHoverColor"`
 	CarouselEmptyColor         string `yaml:"carouselEmptyColor"`
 	LogPaneBackgroundColor     string `yaml:"logPaneBackgroundColor"`
+	AccordionLabelColor        string `yaml:"accordionLabelColor"`
+	AccordionValueColor        string `yaml:"accordionValueColor"`
+	AccordionBackgroundColor   string `yaml:"accordionBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -131,10 +137,16 @@ func builtinByName(name string) *Theme {
 	}
 }
 
-//nolint:funlen,gocognit // The applyOverrides function is necessarily verbose and straightforward
 func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	result := *t
 
+	applyStyleOverrides(&result, f)
+	applyColorOverrides(&result, f)
+
+	return &result
+}
+
+func applyStyleOverrides(result *Theme, f userThemeFile) {
 	if f.BorderFocusedColor != "" {
 		result.BorderFocused = result.BorderFocused.BorderForeground(
 			lipgloss.Color(f.BorderFocusedColor),
@@ -164,94 +176,45 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	if f.HelpSepColor != "" {
 		result.HelpSep = result.HelpSep.Foreground(lipgloss.Color(f.HelpSepColor))
 	}
+}
 
-	if f.HelpBackgroundColor != "" {
-		result.HelpBackground = lipgloss.Color(f.HelpBackgroundColor)
+type colorOverride struct {
+	field string
+	dst   *color.Color
+}
+
+func applyColorOverrides(result *Theme, f userThemeFile) {
+	overrides := []colorOverride{
+		{field: f.HelpBackgroundColor, dst: &result.HelpBackground},
+		{field: f.ServiceListBackgroundColor, dst: &result.ServiceListBackground},
+		{field: f.HoverBackgroundColor, dst: &result.HoverBackground},
+		{field: f.SelectedBackgroundColor, dst: &result.SelectedBackground},
+		{field: f.TextColor, dst: &result.Text},
+		{field: f.SubtextColor, dst: &result.Subtext},
+		{field: f.StateRunningColor, dst: &result.StateRunning},
+		{field: f.StateExitedColor, dst: &result.StateExited},
+		{field: f.StatePausedColor, dst: &result.StatePaused},
+		{field: f.StateTransientColor, dst: &result.StateTransient},
+		{field: f.StateMutedColor, dst: &result.StateMuted},
+		{field: f.ActionErrorColor, dst: &result.ActionError},
+		{field: f.StatusInfoColor, dst: &result.StatusInfo},
+		{field: f.StatusBarBackgroundColor, dst: &result.StatusBarBackground},
+		{field: f.TopbarBackgroundColor, dst: &result.TopbarBackground},
+		{field: f.CarouselFocusedColor, dst: &result.CarouselFocused},
+		{field: f.CarouselBlurredColor, dst: &result.CarouselBlurred},
+		{field: f.CarouselBackgroundColor, dst: &result.CarouselBackground},
+		{field: f.CarouselNavBackgroundColor, dst: &result.CarouselNavBackground},
+		{field: f.CarouselHoverColor, dst: &result.CarouselHover},
+		{field: f.CarouselEmptyColor, dst: &result.CarouselEmpty},
+		{field: f.LogPaneBackgroundColor, dst: &result.LogPaneBackground},
+		{field: f.AccordionLabelColor, dst: &result.AccordionLabel},
+		{field: f.AccordionValueColor, dst: &result.AccordionValue},
+		{field: f.AccordionBackgroundColor, dst: &result.AccordionBackground},
 	}
 
-	if f.ServiceListBackgroundColor != "" {
-		result.ServiceListBackground = lipgloss.Color(f.ServiceListBackgroundColor)
+	for _, o := range overrides {
+		if o.field != "" {
+			*o.dst = lipgloss.Color(o.field)
+		}
 	}
-
-	if f.HoverBackgroundColor != "" {
-		result.HoverBackground = lipgloss.Color(f.HoverBackgroundColor)
-	}
-
-	if f.SelectedBackgroundColor != "" {
-		result.SelectedBackground = lipgloss.Color(f.SelectedBackgroundColor)
-	}
-
-	if f.TextColor != "" {
-		result.Text = lipgloss.Color(f.TextColor)
-	}
-
-	if f.SubtextColor != "" {
-		result.Subtext = lipgloss.Color(f.SubtextColor)
-	}
-
-	if f.StateRunningColor != "" {
-		result.StateRunning = lipgloss.Color(f.StateRunningColor)
-	}
-
-	if f.StateExitedColor != "" {
-		result.StateExited = lipgloss.Color(f.StateExitedColor)
-	}
-
-	if f.StatePausedColor != "" {
-		result.StatePaused = lipgloss.Color(f.StatePausedColor)
-	}
-
-	if f.StateTransientColor != "" {
-		result.StateTransient = lipgloss.Color(f.StateTransientColor)
-	}
-
-	if f.StateMutedColor != "" {
-		result.StateMuted = lipgloss.Color(f.StateMutedColor)
-	}
-
-	if f.ActionErrorColor != "" {
-		result.ActionError = lipgloss.Color(f.ActionErrorColor)
-	}
-
-	if f.StatusInfoColor != "" {
-		result.StatusInfo = lipgloss.Color(f.StatusInfoColor)
-	}
-
-	if f.StatusBarBackgroundColor != "" {
-		result.StatusBarBackground = lipgloss.Color(f.StatusBarBackgroundColor)
-	}
-
-	if f.TopbarBackgroundColor != "" {
-		result.TopbarBackground = lipgloss.Color(f.TopbarBackgroundColor)
-	}
-
-	if f.CarouselFocusedColor != "" {
-		result.CarouselFocused = lipgloss.Color(f.CarouselFocusedColor)
-	}
-
-	if f.CarouselBlurredColor != "" {
-		result.CarouselBlurred = lipgloss.Color(f.CarouselBlurredColor)
-	}
-
-	if f.CarouselBackgroundColor != "" {
-		result.CarouselBackground = lipgloss.Color(f.CarouselBackgroundColor)
-	}
-
-	if f.CarouselNavBackgroundColor != "" {
-		result.CarouselNavBackground = lipgloss.Color(f.CarouselNavBackgroundColor)
-	}
-
-	if f.CarouselHoverColor != "" {
-		result.CarouselHover = lipgloss.Color(f.CarouselHoverColor)
-	}
-
-	if f.CarouselEmptyColor != "" {
-		result.CarouselEmpty = lipgloss.Color(f.CarouselEmptyColor)
-	}
-
-	if f.LogPaneBackgroundColor != "" {
-		result.LogPaneBackground = lipgloss.Color(f.LogPaneBackgroundColor)
-	}
-
-	return &result
 }

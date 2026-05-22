@@ -253,10 +253,19 @@ func (m Model) View() tea.View {
 		shown = name[:innerW-1] + "…"
 	}
 
+	bg := m.th.CarouselBackground
+	switch {
+	case m.focused:
+		bg = m.th.SelectedBackground
+	case m.hovered:
+		bg = m.th.HoverBackground
+	}
+
 	content := lipgloss.NewStyle().
 		Width(innerW).
 		Align(lipgloss.Center).
 		Foreground(m.th.Text).
+		Background(bg).
 		Render(shown)
 	padded := lipgloss.PlaceVertical(innerH, lipgloss.Center, content)
 
@@ -278,14 +287,6 @@ func (m Model) View() tea.View {
 	}
 
 	borderFg := colorutil.Brighten(baseColour, factor)
-
-	bg := m.th.CarouselBackground
-	switch {
-	case m.focused:
-		bg = m.th.SelectedBackground
-	case m.hovered:
-		bg = m.th.HoverBackground
-	}
 
 	return tea.NewView(lipgloss.NewStyle().
 		Width(cardW).

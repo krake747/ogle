@@ -75,7 +75,7 @@ func New(
 		th:              th,
 		zm:              zm,
 		configDir:       configDir,
-		accordion:       accordion.New(w, accordionHeight, th),
+		accordion:       accordion.New(project, w, accordionHeight, th),
 		carousel:        carousel.New(project, w, h, th, zm),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
