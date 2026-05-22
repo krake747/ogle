@@ -16,6 +16,7 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/ui/components/accordion"
 	"github.com/ma-tf/ogle/internal/ui/components/carousel"
 	"github.com/ma-tf/ogle/internal/ui/components/servicepanel"
 	"github.com/ma-tf/ogle/internal/ui/components/settings"
@@ -24,7 +25,10 @@ import (
 
 // frameHeight is the number of terminal lines consumed by the app-level chrome
 // (topbar + helpbar) that each phase must subtract from its allocated height.
-const frameHeight = 3
+const (
+	frameHeight     = 3
+	accordionHeight = 8
+)
 
 // Model is the dashboard flow orchestrator.
 type Model struct {
@@ -36,6 +40,7 @@ type Model struct {
 	zm        *zone.Manager
 	configDir string
 
+	accordion       accordion.Model
 	carousel        carousel.Model
 	panel           servicepanel.Model
 	settings        settings.Model
@@ -70,6 +75,7 @@ func New(
 		th:              th,
 		zm:              zm,
 		configDir:       configDir,
+		accordion:       accordion.New(w, accordionHeight, th),
 		carousel:        carousel.New(project, w, h, th, zm),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
 		settings:        settings.New(th, cfg, w, h),
@@ -94,7 +100,7 @@ func (m Model) Init() tea.Cmd {
 
 // Update handles dashboard-level messages.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var carouselCmd, panCmd, settingsCmd tea.Cmd
+	var carouselCmd, panCmd, settingsCmd, accCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -154,6 +160,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	m.accordion, accCmd = m.accordion.Update(msg)
 	m.carousel, carouselCmd = m.carousel.Update(msg)
 	m.panel, panCmd = m.panel.Update(msg)
 
@@ -161,7 +168,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.settings, settingsCmd = m.settings.Update(msg)
 	}
 
-	return m, tea.Batch(carouselCmd, panCmd, settingsCmd)
+	return m, tea.Batch(accCmd, carouselCmd, panCmd, settingsCmd)
 }
 
 func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
@@ -281,6 +288,17 @@ func (m Model) View() tea.View {
 	listH := lipgloss.Height(listContent)
 	listW := lipgloss.Width(listContent)
 
+	if listH+accordionHeight <= m.h {
+		accView := m.accordion.View().Content
+		accView = lipgloss.NewStyle().
+			Width(listW).
+			Height(accordionHeight).
+			Background(m.th.CarouselBackground).
+			Render(accView)
+		listContent = lipgloss.JoinVertical(lipgloss.Top, listContent, accView)
+	}
+
+	listH = lipgloss.Height(listContent)
 	if listH < m.h {
 		filler := lipgloss.NewStyle().
 			Width(listW).

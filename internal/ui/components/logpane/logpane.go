@@ -40,7 +40,10 @@ func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 		lineCap = defaultCap
 	}
 
-	vp := viewport.New(viewport.WithWidth(max(w-borderWidth, 0)), viewport.WithHeight(0))
+	carouselW := max(w, listMinTermWidth) * listRatio / pctDivisor
+	panW := max(w-carouselW, 0)
+
+	vp := viewport.New(viewport.WithWidth(max(panW-borderWidth, 0)), viewport.WithHeight(0))
 	vp.KeyMap = viewport.KeyMap{
 		Up:    viewport.DefaultKeyMap().Up,
 		Down:  viewport.DefaultKeyMap().Down,
@@ -56,7 +59,7 @@ func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 		viewport: vp,
 		lineCh:   lineCh,
 		th:       th,
-		w:        w,
+		w:        panW,
 		h:        h,
 		wrap:     false,
 	}
