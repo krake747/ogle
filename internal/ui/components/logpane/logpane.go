@@ -12,13 +12,12 @@ import (
 )
 
 const (
-	servicePanelHeight = 5
-	defaultCap         = 1000
-	horizontalStep     = 8
-	borderWidth        = 2
-	listMinTermWidth   = 80
-	listRatio          = 30
-	pctDivisor         = 100
+	defaultCap       = 1000
+	horizontalStep   = 8
+	borderWidth      = 2
+	listMinTermWidth = 80
+	listRatio        = 30
+	pctDivisor       = 100
 )
 
 // Model stores raw log text lines backed by a viewport for windowed rendering.
@@ -106,7 +105,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.w = msg.Width - carouselW
 		m.h = max(0, msg.Height-layout.FrameHeight)
 		m.viewport.SetWidth(max(m.w-borderWidth, 0))
-		h := min(len(m.lines), max(m.h-servicePanelHeight-borderWidth, 0))
+		h := min(len(m.lines), max(m.h-borderWidth, 0))
 		m.viewport.SetHeight(h)
 
 		if wasAtBottom || m.viewport.PastBottom() {
@@ -142,7 +141,7 @@ func (m Model) drainLines() (Model, tea.Cmd) {
 		default:
 			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetContentLines(m.lines)
-			h := min(len(m.lines), max(m.h-servicePanelHeight-borderWidth, 0))
+			h := min(len(m.lines), max(m.h-borderWidth, 0))
 			m.viewport.SetHeight(h)
 
 			if wasAtBottom {
@@ -196,6 +195,8 @@ func (m Model) View() tea.View {
 
 	return tea.NewView(m.th.BorderBlurred.
 		Border(lipgloss.RoundedBorder()).
+		BorderBackground(m.th.LogPaneBackground).
 		Width(m.w).
+		Background(m.th.LogPaneBackground).
 		Render(styled))
 }
