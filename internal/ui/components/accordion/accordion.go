@@ -181,17 +181,15 @@ func (m Model) syncValues() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	var cmds []tea.Cmd
+	m.scrollGen++
 
 	for i := range m.values {
-		m.scrollGen++
 		m.values[i] = value.New(raws[i], colours[i], bg, vw)
-
-		var cmd tea.Cmd
-
-		m.values[i], cmd = m.values[i].Update(value.StartMsg{Gen: m.scrollGen})
-		cmds = append(cmds, cmd)
 	}
+
+	cmds := []tea.Cmd{func() tea.Msg {
+		return value.StartMsg{Gen: m.scrollGen}
+	}}
 
 	m.lastRaws = raws
 	m.lastColours = colours
