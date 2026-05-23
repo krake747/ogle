@@ -73,10 +73,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 	}
 
 	focus := 0
-
 	if n > 0 {
 		focus = dotCount
-		cards[0], _ = cards[0].Update(card.FocusMsg{})
 	}
 
 	return Model{
@@ -106,6 +104,12 @@ func (m Model) dotCount() int {
 
 // Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd {
+	if len(m.cards) > 0 {
+		return func() tea.Msg {
+			return card.FocusMsg{ServiceName: m.cardServiceName(0)}
+		}
+	}
+
 	return nil
 }
 
@@ -187,23 +191,30 @@ func (m Model) handleTab() (Model, tea.Cmd) {
 		m.focus = (m.focus + 1) % total
 	}
 
+	var cmds []tea.Cmd
+
 	if prevFocus >= d && prevFocus < d+pageSize && m.slotHasCard(prevFocus) {
 		idx := prevFocus - d
-		updated, _ := m.cards[idx].Update(card.BlurMsg{})
-		m.cards[idx] = updated
+
+		cmds = append(cmds, func() tea.Msg {
+			return card.BlurMsg{ServiceName: m.cardServiceName(idx)}
+		})
 	}
 
 	if m.focus >= d && m.focus < d+pageSize && m.slotHasCard(m.focus) {
 		idx := m.focus - d
-		updated, cmd := m.cards[idx].Update(card.FocusMsg{})
-		m.cards[idx] = updated
 
-		return m, tea.Batch(cmd, func() tea.Msg {
-			return msgs.ServiceSelected{ServiceName: m.cardServiceName(idx)}
-		})
+		cmds = append(cmds,
+			func() tea.Msg {
+				return card.FocusMsg{ServiceName: m.cardServiceName(idx)}
+			},
+			func() tea.Msg {
+				return msgs.ServiceSelected{ServiceName: m.cardServiceName(idx)}
+			},
+		)
 	}
 
-	return m, nil
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleEnter() (Model, tea.Cmd) {
@@ -268,22 +279,30 @@ func (m Model) handleCardClick(i int) (Model, tea.Cmd) {
 		return m, nil
 	}
 
+	var cmds []tea.Cmd
+
 	if m.focus >= d && m.focus < d+pageSize {
 		idx := m.focus - d
-		updated, _ := m.cards[idx].Update(card.BlurMsg{})
-		m.cards[idx] = updated
+
+		cmds = append(cmds, func() tea.Msg {
+			return card.BlurMsg{ServiceName: m.cardServiceName(idx)}
+		})
 	}
 
 	m.focus = newFocus
 	m.lastClickTime = time.Now()
 	m.lastClickIdx = i
 
-	updated, focusCmd := m.cards[i].Update(card.FocusMsg{})
-	m.cards[i] = updated
+	cmds = append(cmds,
+		func() tea.Msg {
+			return card.FocusMsg{ServiceName: m.cardServiceName(i)}
+		},
+		func() tea.Msg {
+			return msgs.ServiceSelected{ServiceName: m.cardServiceName(i)}
+		},
+	)
 
-	return m, tea.Batch(focusCmd, func() tea.Msg {
-		return msgs.ServiceSelected{ServiceName: m.cardServiceName(i)}
-	})
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
@@ -297,10 +316,13 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 			}
 
 			m.hoveredDot = i
-			m = m.unhoverCard()
+
+			var unhoverCmd tea.Cmd
+
+			m, unhoverCmd = m.unhoverCard()
 			m.hovered = -1
 
-			return m, nil
+			return m, unhoverCmd
 		}
 	}
 
@@ -320,29 +342,34 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m = m.unhoverCard()
+	var cmd tea.Cmd
+
+	m, cmd = m.unhoverCard()
 	m.hovered = hit
 
 	if m.hovered >= d && m.hovered < d+pageSize {
 		idx := m.hovered - d
-		updated, cmd := m.cards[idx].Update(card.HoverMsg{})
-		m.cards[idx] = updated
+		cmds := []tea.Cmd{cmd, func() tea.Msg {
+			return card.HoverMsg{ServiceName: m.cardServiceName(idx)}
+		}}
 
-		return m, cmd
+		return m, tea.Batch(cmds...)
 	}
 
-	return m, nil
+	return m, cmd
 }
 
-func (m Model) unhoverCard() Model {
+func (m Model) unhoverCard() (Model, tea.Cmd) {
 	d := m.dotCount()
 	if m.hovered >= d && m.hovered < d+pageSize {
 		idx := m.hovered - d
-		updated, _ := m.cards[idx].Update(card.UnhoverMsg{})
-		m.cards[idx] = updated
+
+		return m, func() tea.Msg {
+			return card.UnhoverMsg{ServiceName: m.cardServiceName(idx)}
+		}
 	}
 
-	return m
+	return m, nil
 }
 
 // View renders the carousel with card grid, and nav bar below.
@@ -475,10 +502,9 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 	m.lastClickIdx = -1
 
 	if len(m.cards) > 0 {
-		updated, cmd := m.cards[0].Update(card.FocusMsg{})
-		m.cards[0] = updated
-
-		return m, tea.Batch(cmd, func() tea.Msg {
+		return m, tea.Batch(func() tea.Msg {
+			return card.FocusMsg{ServiceName: m.all[start].Name}
+		}, func() tea.Msg {
 			return msgs.ServiceSelected{ServiceName: m.all[start].Name}
 		})
 	}

@@ -14,16 +14,16 @@ import (
 )
 
 // FocusMsg tells a card it is now focused.
-type FocusMsg struct{}
+type FocusMsg struct{ ServiceName string }
 
 // BlurMsg tells a card it is no longer focused.
-type BlurMsg struct{}
+type BlurMsg struct{ ServiceName string }
 
 // HoverMsg tells a card the mouse is hovering over it.
-type HoverMsg struct{}
+type HoverMsg struct{ ServiceName string }
 
 // UnhoverMsg tells a card the mouse is no longer hovering over it.
-type UnhoverMsg struct{}
+type UnhoverMsg struct{ ServiceName string }
 
 // ScrollTick advances the scrolling text window for a truncated service name.
 type ScrollTick struct {
@@ -99,6 +99,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case FocusMsg:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
 		m.focused = true
 		m.scrollOffset = 0
 		m.scrollDir = 1
@@ -111,14 +115,26 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 	case BlurMsg:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
 		m.focused = false
 		m.scrollOffset = 0
 		m.scrollDir = 1
 
 	case HoverMsg:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
 		m.hovered = true
 
 	case UnhoverMsg:
+		if m.def.Name != msg.ServiceName {
+			break
+		}
+
 		m.hovered = false
 
 	case ScrollTick:
@@ -129,17 +145,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.runtime = msg.Runtimes[m.def.Name]
 		}
 
-	case msgs.ServiceStop:
-		m = m.setInFlightIfMatch(msg.ServiceName)
-
-	case msgs.ServiceStart:
-		m = m.setInFlightIfMatch(msg.ServiceName)
-
-	case msgs.ServiceRestart:
-		m = m.setInFlightIfMatch(msg.ServiceName)
-
-	case msgs.ServiceRebuild:
-		m = m.setInFlightIfMatch(msg.ServiceName)
+	case msgs.ServiceStop, msgs.ServiceStart, msgs.ServiceRestart, msgs.ServiceRebuild:
+		m = m.setInFlightIfMatch(serviceNameFromMsg(msg))
 
 	case msgs.ServiceActionCompleted:
 		m = m.handleActionCompleted(msg)
@@ -220,6 +227,21 @@ func (m Model) handleActionCompleted(msg msgs.ServiceActionCompleted) Model {
 	}
 
 	return m
+}
+
+func serviceNameFromMsg(msg tea.Msg) string {
+	switch m := msg.(type) {
+	case msgs.ServiceStop:
+		return m.ServiceName
+	case msgs.ServiceStart:
+		return m.ServiceName
+	case msgs.ServiceRestart:
+		return m.ServiceName
+	case msgs.ServiceRebuild:
+		return m.ServiceName
+	default:
+		return ""
+	}
 }
 
 func tickScroll(t time.Time, gen int) tea.Cmd {
