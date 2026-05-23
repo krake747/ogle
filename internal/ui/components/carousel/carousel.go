@@ -193,19 +193,19 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 	switch m.focus {
 	case 0:
 		if m.paginator.OnLastPage() {
-			return m, nil
+			m.paginator.Page = 0
+		} else {
+			m.paginator.NextPage()
 		}
-
-		m.paginator.NextPage()
 
 		return m.rebuildCards()
 
 	case m.totalSlots() - 1:
 		if m.paginator.OnFirstPage() {
-			return m, nil
+			m.paginator.Page = m.paginator.TotalPages - 1
+		} else {
+			m.paginator.PrevPage()
 		}
-
-		m.paginator.PrevPage()
 
 		return m.rebuildCards()
 	}
@@ -230,19 +230,19 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 	switch {
 	case m.zm.Get(zonePrev).InBounds(msg):
 		if m.paginator.OnFirstPage() {
-			return m, nil
+			m.paginator.Page = m.paginator.TotalPages - 1
+		} else {
+			m.paginator.PrevPage()
 		}
-
-		m.paginator.PrevPage()
 
 		return m.rebuildCards()
 
 	case m.zm.Get(zoneNext).InBounds(msg):
 		if m.paginator.OnLastPage() {
-			return m, nil
+			m.paginator.Page = 0
+		} else {
+			m.paginator.NextPage()
 		}
-
-		m.paginator.NextPage()
 
 		return m.rebuildCards()
 	}
