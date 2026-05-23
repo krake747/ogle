@@ -336,26 +336,18 @@ func (m Model) View() tea.View {
 			Height(bodyH).
 			Background(m.theme.BodyBackground).
 			Render(body.Content),
-		m.helpbar.View().Content,
 	}
-	frame := lipgloss.JoinVertical(lipgloss.Top, parts...)
 
 	statusView := m.statusbar.View()
 	if statusView.Content == "" {
-		v := tea.NewView(frame)
-		v.Content = m.zm.Scan(v.Content)
-		v.AltScreen = true
-		v.MouseMode = tea.MouseModeAllMotion
-
-		return v
+		parts = append(parts, m.helpbar.View().Content)
+	} else {
+		parts = append(parts, statusView.Content)
 	}
 
-	compositor := lipgloss.NewCompositor(
-		lipgloss.NewLayer(frame).X(0).Y(0).Z(0),
-		lipgloss.NewLayer(statusView.Content).X(0).Y(bodyH).Z(1),
-	)
+	frame := lipgloss.JoinVertical(lipgloss.Top, parts...)
 
-	v := tea.NewView(compositor.Render())
+	v := tea.NewView(frame)
 	v.Content = m.zm.Scan(v.Content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion
