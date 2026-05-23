@@ -161,8 +161,8 @@ func (m Model) renderDaemonStatus() string {
 
 	case connection.ConnectStateConnected:
 		live := lipgloss.NewStyle().
-			Foreground(m.th.StateRunning).
-			Background(m.th.TopbarBackground).
+			Foreground(m.th.TopbarStatusText).
+			Background(m.th.StateRunning).
 			Render("🐳 ● LIVE")
 
 		return live
@@ -190,8 +190,8 @@ func (m Model) renderDaemonStatus() string {
 // Docker daemon status on the right, right-aligned via padding.
 func (m Model) View() tea.View {
 	bg := m.th.TopbarBackground
-	brandStyle := lipgloss.NewStyle().Foreground(m.th.Subtext).Background(bg)
-	contextStyle := lipgloss.NewStyle().Foreground(m.th.Subtext).Background(bg)
+	brandStyle := lipgloss.NewStyle().Foreground(m.th.TopbarBrandText).Background(bg)
+	contextStyle := lipgloss.NewStyle().Foreground(m.th.TopbarContextText).Background(bg)
 	spacerStyle := lipgloss.NewStyle().Background(bg)
 
 	left := brandStyle.Render("ogle") + contextStyle.Render("  "+m.contextText())

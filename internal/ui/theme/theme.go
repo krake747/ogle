@@ -43,6 +43,9 @@ type Theme struct {
 	StatusInfo                     color.Color // info-level status bar text
 	StatusBarBackground            color.Color // status bar background tint
 	TopbarBackground               color.Color // top bar background tint
+	TopbarBrandText                color.Color // "ogle" brand text foreground
+	TopbarContextText              color.Color // context/phase text foreground
+	TopbarStatusText               color.Color // daemon status text foreground
 	LogPaneBackground              color.Color // log pane background fill
 	CarouselFocused                color.Color
 	CarouselBlurred                color.Color
@@ -82,6 +85,9 @@ type userThemeFile struct {
 	StatusInfoColor                     string `yaml:"statusInfoColor"`
 	StatusBarBackgroundColor            string `yaml:"statusBarBackgroundColor"`
 	TopbarBackgroundColor               string `yaml:"topbarBackgroundColor"`
+	TopbarBrandTextColor                string `yaml:"topbarBrandTextColor"`
+	TopbarContextTextColor              string `yaml:"topbarContextTextColor"`
+	TopbarStatusTextColor               string `yaml:"topbarStatusTextColor"`
 	CarouselFocusedColor                string `yaml:"carouselFocusedColor"`
 	CarouselBlurredColor                string `yaml:"carouselBlurredColor"`
 	CarouselBackgroundColor             string `yaml:"carouselBackgroundColor"`
@@ -206,6 +212,9 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.StatusInfoColor, dst: &result.StatusInfo},
 		{field: f.StatusBarBackgroundColor, dst: &result.StatusBarBackground},
 		{field: f.TopbarBackgroundColor, dst: &result.TopbarBackground},
+		{field: f.TopbarBrandTextColor, dst: &result.TopbarBrandText},
+		{field: f.TopbarContextTextColor, dst: &result.TopbarContextText},
+		{field: f.TopbarStatusTextColor, dst: &result.TopbarStatusText},
 		{field: f.CarouselFocusedColor, dst: &result.CarouselFocused},
 		{field: f.CarouselBlurredColor, dst: &result.CarouselBlurred},
 		{field: f.CarouselBackgroundColor, dst: &result.CarouselBackground},
