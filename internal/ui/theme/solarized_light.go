@@ -35,10 +35,12 @@ func SolarizedLight() *Theme {
 		TopbarBrandText:                solarizedBlue,
 		TopbarContextText:              solarizedBase00,
 		TopbarStatusText:               solarizedWhite,
+		TopbarDisconnectedBackground:   solarizedRed,
+		TopbarRetryBackground:          solarizedOrange,
 		CarouselFocused:                solarizedBase01,
 		CarouselBlurred:                solarizedBase1,
 		CarouselBackground:             solarizedBase3,
-		CarouselNavBackground:          solarizedBase2,
+		CarouselNavBackground:          solarizedBase3,
 		CarouselHover:                  solarizedBase00,
 		CarouselEmpty:                  solarizedBase2,
 		LogPaneBackground:              solarizedBase3,
@@ -47,6 +49,6 @@ func SolarizedLight() *Theme {
 		AccordionValue:                 solarizedBase00,
 		AccordionBackground:            solarizedBase3,
 		AccordionHeaderBackground:      solarizedBase2,
-		AccordionHeaderHoverBackground: solarizedBase1,
+		AccordionHeaderHoverBackground: solarizedBase2,
 	}
 }

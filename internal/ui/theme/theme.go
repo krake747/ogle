@@ -46,6 +46,8 @@ type Theme struct {
 	TopbarBrandText                color.Color // "ogle" brand text foreground
 	TopbarContextText              color.Color // context/phase text foreground
 	TopbarStatusText               color.Color // daemon status text foreground
+	TopbarDisconnectedBackground   color.Color // red — "DISCONNECTED" badge
+	TopbarRetryBackground          color.Color // orange — "RECONNECTING" badge
 	LogPaneBackground              color.Color // log pane background fill
 	CarouselFocused                color.Color
 	CarouselBlurred                color.Color
@@ -88,6 +90,8 @@ type userThemeFile struct {
 	TopbarBrandTextColor                string `yaml:"topbarBrandTextColor"`
 	TopbarContextTextColor              string `yaml:"topbarContextTextColor"`
 	TopbarStatusTextColor               string `yaml:"topbarStatusTextColor"`
+	TopbarDisconnectedBackgroundColor   string `yaml:"topbarDisconnectedBackgroundColor"`
+	TopbarRetryBackgroundColor          string `yaml:"topbarRetryBackgroundColor"`
 	CarouselFocusedColor                string `yaml:"carouselFocusedColor"`
 	CarouselBlurredColor                string `yaml:"carouselBlurredColor"`
 	CarouselBackgroundColor             string `yaml:"carouselBackgroundColor"`
@@ -227,6 +231,8 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.TopbarBrandTextColor, dst: &result.TopbarBrandText},
 		{field: f.TopbarContextTextColor, dst: &result.TopbarContextText},
 		{field: f.TopbarStatusTextColor, dst: &result.TopbarStatusText},
+		{field: f.TopbarDisconnectedBackgroundColor, dst: &result.TopbarDisconnectedBackground},
+		{field: f.TopbarRetryBackgroundColor, dst: &result.TopbarRetryBackground},
 		{field: f.CarouselFocusedColor, dst: &result.CarouselFocused},
 		{field: f.CarouselBlurredColor, dst: &result.CarouselBlurred},
 		{field: f.CarouselBackgroundColor, dst: &result.CarouselBackground},

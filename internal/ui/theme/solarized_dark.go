@@ -58,10 +58,12 @@ func SolarizedDark() *Theme {
 		TopbarBrandText:                solarizedBlue,
 		TopbarContextText:              solarizedBase0,
 		TopbarStatusText:               solarizedWhite,
+		TopbarDisconnectedBackground:   solarizedRed,
+		TopbarRetryBackground:          solarizedOrange,
 		CarouselFocused:                solarizedBase1,
 		CarouselBlurred:                solarizedBase01,
 		CarouselBackground:             solarizedBase03,
-		CarouselNavBackground:          solarizedBase02,
+		CarouselNavBackground:          solarizedBase03,
 		CarouselHover:                  solarizedBase0,
 		CarouselEmpty:                  solarizedBase02,
 		LogPaneBackground:              solarizedBase03,
@@ -70,6 +72,6 @@ func SolarizedDark() *Theme {
 		AccordionValue:                 solarizedBase0,
 		AccordionBackground:            solarizedBase03,
 		AccordionHeaderBackground:      solarizedBase02,
-		AccordionHeaderHoverBackground: solarizedBase01,
+		AccordionHeaderHoverBackground: solarizedBase02,
 	}
 }

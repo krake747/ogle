@@ -68,6 +68,8 @@ func CatppuccinoLatte() *Theme {
 		TopbarBrandText:                latteSubtext0,
 		TopbarContextText:              latteSubtext0,
 		TopbarStatusText:               latteWhite,
+		TopbarDisconnectedBackground:   latteRed,
+		TopbarRetryBackground:          lattePeach,
 		CarouselFocused:                latteSubtext0,
 		CarouselBlurred:                latteOverlay0,
 		CarouselBackground:             latteCrust,

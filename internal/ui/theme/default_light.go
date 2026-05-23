@@ -38,6 +38,8 @@ func DefaultLight() *Theme {
 		TopbarBrandText:                defaultDarkGrey,
 		TopbarContextText:              defaultBrightBlack,
 		TopbarStatusText:               defaultWhite,
+		TopbarDisconnectedBackground:   defaultRed,
+		TopbarRetryBackground:          defaultBrightYellow,
 		CarouselFocused:                defaultBlack,
 		CarouselBlurred:                defaultBrightBlack,
 		CarouselBackground:             defaultWhite,
@@ -50,6 +52,6 @@ func DefaultLight() *Theme {
 		AccordionValue:                 defaultBlack,
 		AccordionBackground:            defaultWhite,
 		AccordionHeaderBackground:      defaultBrightBlack,
-		AccordionHeaderHoverBackground: defaultDarkGrey,
+		AccordionHeaderHoverBackground: defaultBrightBlack,
 	}
 }

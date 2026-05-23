@@ -153,11 +153,11 @@ func (m Model) renderDaemonStatus() string {
 	switch m.conn.ConnectState() {
 	case connection.ConnectStateConnecting:
 		label := lipgloss.NewStyle().
-			Foreground(m.th.StateTransient).
-			Background(m.th.TopbarBackground).
-			Render("🐳 ○")
+			Foreground(m.th.TopbarStatusText).
+			Background(m.th.TopbarRetryBackground).
+			Render("🐳 ○ RECONNECTING " + m.spn.View())
 
-		return label + " " + m.spn.View()
+		return label
 
 	case connection.ConnectStateConnected:
 		live := lipgloss.NewStyle().
@@ -176,11 +176,15 @@ func (m Model) renderDaemonStatus() string {
 		}
 
 		label := lipgloss.NewStyle().
-			Foreground(m.th.StateMuted).
-			Background(m.th.TopbarBackground).
-			Render("🐳 ○")
+			Foreground(m.th.TopbarStatusText).
+			Background(m.th.TopbarDisconnectedBackground).
+			Render("🐳 ○ DISCONNECTED")
+		ctr := lipgloss.NewStyle().
+			Foreground(m.th.TopbarStatusText).
+			Background(m.th.TopbarDisconnectedBackground).
+			Render(" " + countdown)
 
-		return label + " " + countdown
+		return label + ctr
 	default:
 		return ""
 	}

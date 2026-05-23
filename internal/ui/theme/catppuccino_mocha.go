@@ -68,6 +68,8 @@ func CatppuccinoMocha() *Theme {
 		TopbarBrandText:                mochaSubtext0,
 		TopbarContextText:              mochaSubtext0,
 		TopbarStatusText:               mochaWhite,
+		TopbarDisconnectedBackground:   mochaRed,
+		TopbarRetryBackground:          mochaPeach,
 		CarouselFocused:                mochaSubtext0,
 		CarouselBlurred:                mochaOverlay0,
 		CarouselBackground:             mochaCrust,

@@ -205,7 +205,7 @@ func (m Model) View() tea.View {
 
 	helpTxt := "↑↓ nav · ← → adjust · esc close"
 	if time.Since(m.savedTime) < savedTimeTick {
-		helpTxt += "  ✓"
+		helpTxt += lipgloss.NewStyle().Foreground(m.th.StateRunning).Render("  ✓")
 	}
 
 	help := lipgloss.NewStyle().
@@ -243,6 +243,7 @@ func (m Model) renderField(label, value string, focused bool) string {
 
 	valBox := borderStyle.
 		Foreground(valFg).
+		BorderBackground(m.th.BodyBackground).
 		Background(m.th.BodyBackground).
 		Width(fieldValueWidth).
 		Render(value)
@@ -254,7 +255,7 @@ func (m Model) renderField(label, value string, focused bool) string {
 			Foreground(m.th.Subtext).
 			Background(m.th.BodyBackground).
 			Render(label),
-		"  ",
+		lipgloss.NewStyle().Background(m.th.BodyBackground).Render("  "),
 		valBox,
 	)
 }
