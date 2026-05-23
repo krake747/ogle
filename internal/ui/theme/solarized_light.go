@@ -34,7 +34,7 @@ func SolarizedLight() *Theme {
 		TopbarBackground:               solarizedBase2,
 		TopbarBrandText:                solarizedBlue,
 		TopbarContextText:              solarizedBase00,
-		TopbarStatusText:               solarizedBase1,
+		TopbarStatusText:               solarizedWhite,
 		CarouselFocused:                solarizedBase01,
 		CarouselBlurred:                solarizedBase1,
 		CarouselBackground:             solarizedBase3,

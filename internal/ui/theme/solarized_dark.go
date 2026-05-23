@@ -22,6 +22,7 @@ var (
 	solarizedBlue    = lipgloss.Color("#268bd2")
 	solarizedCyan    = lipgloss.Color("#2aa198")
 	solarizedGreen   = lipgloss.Color("#859900")
+	solarizedWhite   = lipgloss.Color("#ffffff")
 )
 
 // SolarizedDark returns a dark-background theme based on the Solarized palette.
@@ -52,11 +53,11 @@ func SolarizedDark() *Theme {
 		StateMuted:                     solarizedBase01,
 		ActionError:                    solarizedRed,
 		StatusInfo:                     solarizedBase1,
-		StatusBarBackground:            solarizedBase02,
+		StatusBarBackground:            solarizedBase01,
 		TopbarBackground:               solarizedBase02,
 		TopbarBrandText:                solarizedBlue,
 		TopbarContextText:              solarizedBase0,
-		TopbarStatusText:               solarizedBase01,
+		TopbarStatusText:               solarizedWhite,
 		CarouselFocused:                solarizedBase1,
 		CarouselBlurred:                solarizedBase01,
 		CarouselBackground:             solarizedBase03,

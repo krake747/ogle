@@ -190,6 +190,7 @@ func (m Model) View() tea.View {
 		Bold(true).
 		Width(boxWidth).
 		AlignHorizontal(lipgloss.Center).
+		Foreground(m.th.Text).
 		Render("Settings")
 
 	themeField := m.renderField("Theme",
@@ -225,6 +226,7 @@ func (m Model) View() tea.View {
 	return tea.NewView(lipgloss.NewStyle().
 		Width(boxWidth).
 		Padding(0, 1).
+		Background(m.th.BodyBackground).
 		Render(content))
 }
 
@@ -234,12 +236,23 @@ func (m Model) renderField(label, value string, focused bool) string {
 		borderStyle = m.th.BorderFocused
 	}
 
-	valBox := borderStyle.Width(fieldValueWidth).Render(value)
+	valFg := m.th.Text
+	if !focused {
+		valFg = m.th.Subtext
+	}
+
+	valBox := borderStyle.
+		Foreground(valFg).
+		Background(m.th.BodyBackground).
+		Width(fieldValueWidth).
+		Render(value)
 
 	return lipgloss.JoinHorizontal(lipgloss.Center,
 		lipgloss.NewStyle().
 			Width(labelWidth).
 			AlignHorizontal(lipgloss.Right).
+			Foreground(m.th.Subtext).
+			Background(m.th.BodyBackground).
 			Render(label),
 		"  ",
 		valBox,
