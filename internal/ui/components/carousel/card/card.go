@@ -9,7 +9,6 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
-	"github.com/ma-tf/ogle/internal/ui/colorutil"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -291,24 +290,13 @@ func (m Model) View() tea.View {
 		Render(shown)
 	padded := lipgloss.PlaceVertical(innerH, lipgloss.Center, content)
 
-	baseColour := m.th.StateMuted
+	borderFg := m.th.StateMuted
 	switch {
 	case m.inFlight:
-		baseColour = m.th.StateTransient
+		borderFg = m.th.StateTransient
 	case m.runtime != nil:
-		baseColour = colourForState(m.runtime.State, m.th)
+		borderFg = colourForState(m.runtime.State, m.th)
 	}
-
-	factor := 0.7
-
-	switch {
-	case m.hovered:
-		factor = 1.3
-	case m.focused:
-		factor = 1.0
-	}
-
-	borderFg := colorutil.Brighten(baseColour, factor)
 
 	return tea.NewView(lipgloss.NewStyle().
 		Width(cardW).

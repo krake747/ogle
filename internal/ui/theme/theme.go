@@ -22,75 +22,79 @@ var ErrUnknownTheme = errors.New("unknown theme")
 // BorderFocused and BorderBlurred pre-compose lipgloss.NormalBorder(); call
 // sites extend with Width/Height only.
 type Theme struct {
-	BorderFocused         lipgloss.Style
-	BorderBlurred         lipgloss.Style
-	ServiceListTitle      lipgloss.Style
-	HelpKey               lipgloss.Style // key binding label (e.g. "ctrl+c")
-	HelpDesc              lipgloss.Style // key binding description (e.g. "quit")
-	HelpSep               lipgloss.Style // separator and ellipsis
-	HelpBackground        color.Color    // full-width background fill behind the help bar
-	ServiceListBackground color.Color
-	HoverBackground       color.Color
-	SelectedBackground    color.Color
-	Text                  color.Color // body copy / primary foreground
-	Subtext               color.Color // labels, secondary text
-	StateRunning          color.Color // running
-	StateExited           color.Color // exited / dead
-	StatePaused           color.Color // paused
-	StateTransient        color.Color // restarting, action in-flight
-	StateMuted            color.Color // not created, unknown, nil runtime
-	ActionError           color.Color // error suffix text
-	StatusInfo            color.Color // info-level status bar text
-	StatusBarBackground   color.Color // status bar background tint
-	TopbarBackground      color.Color // top bar background tint
-	LogPaneBackground     color.Color // log pane background fill
-	CarouselFocused       color.Color
-	CarouselBlurred       color.Color
-	CarouselBackground    color.Color // background behind the card grid
-	CarouselNavBackground color.Color // background behind the nav bar
-	CarouselHover         color.Color // border/chevron color when hovered (not focused)
-	CarouselEmpty         color.Color // border colour for empty placeholder cards
-	AccordionLabel        color.Color // accordion label colour (e.g. "Image:")
-	AccordionValue        color.Color // accordion value colour
-	AccordionBackground   color.Color // accordion background fill
-	BodyBackground        color.Color // background fill behind body content
+	BorderFocused                  lipgloss.Style
+	BorderBlurred                  lipgloss.Style
+	ServiceListTitle               lipgloss.Style
+	HelpKey                        lipgloss.Style // key binding label (e.g. "ctrl+c")
+	HelpDesc                       lipgloss.Style // key binding description (e.g. "quit")
+	HelpSep                        lipgloss.Style // separator and ellipsis
+	HelpBackground                 color.Color    // full-width background fill behind the help bar
+	ServiceListBackground          color.Color
+	HoverBackground                color.Color
+	SelectedBackground             color.Color
+	Text                           color.Color // body copy / primary foreground
+	Subtext                        color.Color // labels, secondary text
+	StateRunning                   color.Color // running
+	StateExited                    color.Color // exited / dead
+	StatePaused                    color.Color // paused
+	StateTransient                 color.Color // restarting, action in-flight
+	StateMuted                     color.Color // not created, unknown, nil runtime
+	ActionError                    color.Color // error suffix text
+	StatusInfo                     color.Color // info-level status bar text
+	StatusBarBackground            color.Color // status bar background tint
+	TopbarBackground               color.Color // top bar background tint
+	LogPaneBackground              color.Color // log pane background fill
+	CarouselFocused                color.Color
+	CarouselBlurred                color.Color
+	CarouselBackground             color.Color // background behind the card grid
+	CarouselNavBackground          color.Color // background behind the nav bar
+	CarouselHover                  color.Color // border/chevron color when hovered (not focused)
+	CarouselEmpty                  color.Color // border colour for empty placeholder cards
+	AccordionLabel                 color.Color // accordion label colour (e.g. "Image:")
+	AccordionValue                 color.Color // accordion value colour
+	AccordionBackground            color.Color // accordion background fill
+	AccordionHeaderBackground      color.Color // header bar background (brighter than AccordionBackground)
+	AccordionHeaderHoverBackground color.Color // header bar background when hovered
+	BodyBackground                 color.Color // background fill behind body content
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
 type userThemeFile struct {
-	Base                       string `yaml:"base"`
-	BorderFocusedColor         string `yaml:"borderFocusedColor"`
-	BorderBlurredColor         string `yaml:"borderBlurredColor"`
-	ServiceListTitleColor      string `yaml:"serviceListTitleColor"`
-	HelpKeyColor               string `yaml:"helpKeyColor"`
-	HelpDescColor              string `yaml:"helpDescColor"`
-	HelpSepColor               string `yaml:"helpSepColor"`
-	HelpBackgroundColor        string `yaml:"helpBackgroundColor"`
-	ServiceListBackgroundColor string `yaml:"serviceListBackgroundColor"`
-	HoverBackgroundColor       string `yaml:"hoverBackgroundColor"`
-	SelectedBackgroundColor    string `yaml:"selectedBackgroundColor"`
-	TextColor                  string `yaml:"textColor"`
-	SubtextColor               string `yaml:"subtextColor"`
-	StateRunningColor          string `yaml:"stateRunningColor"`
-	StateExitedColor           string `yaml:"stateExitedColor"`
-	StatePausedColor           string `yaml:"statePausedColor"`
-	StateTransientColor        string `yaml:"stateTransientColor"`
-	StateMutedColor            string `yaml:"stateMutedColor"`
-	ActionErrorColor           string `yaml:"actionErrorColor"`
-	StatusInfoColor            string `yaml:"statusInfoColor"`
-	StatusBarBackgroundColor   string `yaml:"statusBarBackgroundColor"`
-	TopbarBackgroundColor      string `yaml:"topbarBackgroundColor"`
-	CarouselFocusedColor       string `yaml:"carouselFocusedColor"`
-	CarouselBlurredColor       string `yaml:"carouselBlurredColor"`
-	CarouselBackgroundColor    string `yaml:"carouselBackgroundColor"`
-	CarouselNavBackgroundColor string `yaml:"carouselNavBackgroundColor"`
-	CarouselHoverColor         string `yaml:"carouselHoverColor"`
-	CarouselEmptyColor         string `yaml:"carouselEmptyColor"`
-	LogPaneBackgroundColor     string `yaml:"logPaneBackgroundColor"`
-	AccordionLabelColor        string `yaml:"accordionLabelColor"`
-	AccordionValueColor        string `yaml:"accordionValueColor"`
-	AccordionBackgroundColor   string `yaml:"accordionBackgroundColor"`
-	BodyBackgroundColor        string `yaml:"bodyBackgroundColor"`
+	Base                                string `yaml:"base"`
+	BorderFocusedColor                  string `yaml:"borderFocusedColor"`
+	BorderBlurredColor                  string `yaml:"borderBlurredColor"`
+	ServiceListTitleColor               string `yaml:"serviceListTitleColor"`
+	HelpKeyColor                        string `yaml:"helpKeyColor"`
+	HelpDescColor                       string `yaml:"helpDescColor"`
+	HelpSepColor                        string `yaml:"helpSepColor"`
+	HelpBackgroundColor                 string `yaml:"helpBackgroundColor"`
+	ServiceListBackgroundColor          string `yaml:"serviceListBackgroundColor"`
+	HoverBackgroundColor                string `yaml:"hoverBackgroundColor"`
+	SelectedBackgroundColor             string `yaml:"selectedBackgroundColor"`
+	TextColor                           string `yaml:"textColor"`
+	SubtextColor                        string `yaml:"subtextColor"`
+	StateRunningColor                   string `yaml:"stateRunningColor"`
+	StateExitedColor                    string `yaml:"stateExitedColor"`
+	StatePausedColor                    string `yaml:"statePausedColor"`
+	StateTransientColor                 string `yaml:"stateTransientColor"`
+	StateMutedColor                     string `yaml:"stateMutedColor"`
+	ActionErrorColor                    string `yaml:"actionErrorColor"`
+	StatusInfoColor                     string `yaml:"statusInfoColor"`
+	StatusBarBackgroundColor            string `yaml:"statusBarBackgroundColor"`
+	TopbarBackgroundColor               string `yaml:"topbarBackgroundColor"`
+	CarouselFocusedColor                string `yaml:"carouselFocusedColor"`
+	CarouselBlurredColor                string `yaml:"carouselBlurredColor"`
+	CarouselBackgroundColor             string `yaml:"carouselBackgroundColor"`
+	CarouselNavBackgroundColor          string `yaml:"carouselNavBackgroundColor"`
+	CarouselHoverColor                  string `yaml:"carouselHoverColor"`
+	CarouselEmptyColor                  string `yaml:"carouselEmptyColor"`
+	LogPaneBackgroundColor              string `yaml:"logPaneBackgroundColor"`
+	AccordionLabelColor                 string `yaml:"accordionLabelColor"`
+	AccordionValueColor                 string `yaml:"accordionValueColor"`
+	AccordionBackgroundColor            string `yaml:"accordionBackgroundColor"`
+	AccordionHeaderBackgroundColor      string `yaml:"accordionHeaderBackgroundColor"`
+	AccordionHeaderHoverBackgroundColor string `yaml:"accordionHeaderHoverBackgroundColor"`
+	BodyBackgroundColor                 string `yaml:"bodyBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -212,6 +216,8 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.AccordionLabelColor, dst: &result.AccordionLabel},
 		{field: f.AccordionValueColor, dst: &result.AccordionValue},
 		{field: f.AccordionBackgroundColor, dst: &result.AccordionBackground},
+		{field: f.AccordionHeaderBackgroundColor, dst: &result.AccordionHeaderBackground},
+		{field: f.AccordionHeaderHoverBackgroundColor, dst: &result.AccordionHeaderHoverBackground},
 		{field: f.BodyBackgroundColor, dst: &result.BodyBackground},
 	}
 

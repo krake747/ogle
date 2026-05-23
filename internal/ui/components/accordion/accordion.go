@@ -43,6 +43,7 @@ type Model struct {
 	lastWidth    int
 	zm           *zone.Manager
 	collapsed    bool
+	hovered      bool
 }
 
 // New returns a Model with the given project, dimensions, theme, and zone
@@ -67,6 +68,7 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		lastWidth:    -1,
 		zm:           zm,
 		collapsed:    false,
+		hovered:      false,
 	}
 	for i := range m.values {
 		m.values[i] = value.New("", th.AccordionValue, th.AccordionBackground, m.valueWidth())
@@ -110,6 +112,11 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		return m, nil
+
+	case tea.MouseMotionMsg:
+		m.hovered = m.zm != nil && m.zm.Get(zoneAccordionHeader).InBounds(msg)
+
+		return m, nil
 	}
 
 	var cmds []tea.Cmd
@@ -138,10 +145,15 @@ func (m Model) View() tea.View {
 		indicator = "▼"
 	}
 
+	headerBg := m.th.AccordionHeaderBackground
+	if m.hovered {
+		headerBg = m.th.AccordionHeaderHoverBackground
+	}
+
 	headerStr := lipgloss.NewStyle().
 		Width(labelWidth + vw).
 		Foreground(m.th.AccordionLabel).
-		Background(m.th.AccordionBackground).
+		Background(headerBg).
 		Render(" " + indicator + " Service Details")
 	headerStr = m.zm.Mark(zoneAccordionHeader, headerStr)
 
