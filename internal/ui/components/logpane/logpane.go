@@ -43,7 +43,10 @@ func New(th *theme.Theme, w, h, lineCap int, lineCh <-chan string) Model {
 	panW := max(w-carouselW, 0)
 	usableH := max(0, h-layout.FrameHeight)
 
-	vp := viewport.New(viewport.WithWidth(max(panW-borderWidth, 0)), viewport.WithHeight(0))
+	vp := viewport.New(
+		viewport.WithWidth(max(panW-borderWidth, 0)),
+		viewport.WithHeight(max(usableH-borderWidth, 0)),
+	)
 	vp.KeyMap = viewport.KeyMap{
 		Up:    viewport.DefaultKeyMap().Up,
 		Down:  viewport.DefaultKeyMap().Down,
@@ -105,8 +108,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.w = msg.Width - carouselW
 		m.h = max(0, msg.Height-layout.FrameHeight)
 		m.viewport.SetWidth(max(m.w-borderWidth, 0))
-		h := min(len(m.lines), max(m.h-borderWidth, 0))
-		m.viewport.SetHeight(h)
+		m.viewport.SetHeight(max(m.h-borderWidth, 0))
 
 		if wasAtBottom || m.viewport.PastBottom() {
 			m.viewport.GotoBottom()
@@ -141,8 +143,7 @@ func (m Model) drainLines() (Model, tea.Cmd) {
 		default:
 			wasAtBottom := m.viewport.AtBottom()
 			m.viewport.SetContentLines(m.lines)
-			h := min(len(m.lines), max(m.h-borderWidth, 0))
-			m.viewport.SetHeight(h)
+			m.viewport.SetHeight(max(m.h-borderWidth, 0))
 
 			if wasAtBottom {
 				m.viewport.GotoBottom()
@@ -185,18 +186,16 @@ func (m Model) realLineIndex(yOffset int) int {
 // and foreground styling from the theme.
 func (m Model) View() tea.View {
 	content := m.viewport.View()
-	if content == "" {
-		return tea.NewView("")
+	if content != "" {
+		content = lipgloss.NewStyle().
+			Background(m.th.LogPaneBackground).
+			Render(content)
 	}
-
-	styled := lipgloss.NewStyle().
-		Background(m.th.LogPaneBackground).
-		Render(content)
 
 	return tea.NewView(m.th.BorderBlurred.
 		Border(lipgloss.RoundedBorder()).
 		BorderBackground(m.th.LogPaneBackground).
 		Width(m.w).
 		Background(m.th.LogPaneBackground).
-		Render(styled))
+		Render(content))
 }
