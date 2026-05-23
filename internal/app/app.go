@@ -327,28 +327,31 @@ func (m Model) View() tea.View {
 		body = m.watching.View()
 	}
 
-	statusView := m.statusbar.View()
-	hasStatus := statusView.Content != ""
-	statusH := 0
-	if hasStatus {
-		statusH = lipgloss.Height(statusView.Content)
-	}
-	chromeH := layout.FrameHeight
-	if statusH > 0 {
-		chromeH += statusH
-	}
-	avail := max(0, m.height-chromeH)
+	bodyH := max(0, m.height-layout.FrameHeight)
+
 	parts := []string{
 		m.topbar.View().Content,
-		lipgloss.NewStyle().Height(avail).Render(body.Content),
+		lipgloss.NewStyle().Height(bodyH).Render(body.Content),
+		m.helpbar.View().Content,
 	}
-	if hasStatus {
-		parts = append(parts, statusView.Content)
-	}
-	parts = append(parts, m.helpbar.View().Content)
-	content := lipgloss.JoinVertical(lipgloss.Top, parts...)
+	frame := lipgloss.JoinVertical(lipgloss.Top, parts...)
 
-	v := tea.NewView(content)
+	statusView := m.statusbar.View()
+	if statusView.Content == "" {
+		v := tea.NewView(frame)
+		v.Content = m.zm.Scan(v.Content)
+		v.AltScreen = true
+		v.MouseMode = tea.MouseModeAllMotion
+
+		return v
+	}
+
+	compositor := lipgloss.NewCompositor(
+		lipgloss.NewLayer(frame).X(0).Y(0).Z(0),
+		lipgloss.NewLayer(statusView.Content).X(0).Y(bodyH).Z(1),
+	)
+
+	v := tea.NewView(compositor.Render())
 	v.Content = m.zm.Scan(v.Content)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeAllMotion

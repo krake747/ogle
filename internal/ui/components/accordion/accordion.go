@@ -11,14 +11,20 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/components/accordion/value"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 const (
-	dash          = "—"
-	shortIDLen    = 12
-	secsPerMinute = 60
-	secsPerHour   = 3600
+	dash             = "—"
+	shortIDLen       = 12
+	labelWidth       = 14
+	secsPerMinute    = 60
+	secsPerHour      = 3600
+	listMinTermWidth = 80
+	listRatio        = 30
+	pctDivisor       = 100
+	numFields        = 5
 )
 
 // Model is the accordion component state.
@@ -28,6 +34,8 @@ type Model struct {
 	selectedName string
 	w, h         int
 	th           *theme.Theme
+	values       [numFields]value.Model
+	scrollGen    int
 }
 
 // New returns a Model with the given project, dimensions, and theme.
@@ -37,14 +45,21 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 		selectedName = project.Services[0].Name
 	}
 
-	return Model{
+	m := Model{
 		services:     project.Services,
 		selectedName: selectedName,
 		runtime:      nil,
 		w:            w,
 		h:            h,
 		th:           th,
+		values:       [numFields]value.Model{},
+		scrollGen:    0,
 	}
+	for i := range m.values {
+		m.values[i] = value.New("", th.AccordionValue, th.AccordionBackground, m.valueWidth())
+	}
+
+	return m
 }
 
 // Init satisfies tea.Model.
@@ -57,19 +72,36 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.w = msg.Width
 		m.h = msg.Height
 
+		return m.syncValues()
+
 	case msgs.ThemeChanged:
 		m.th = msg.Theme
 
+		return m.syncValues()
+
 	case msgs.ServiceSelected:
 		m.selectedName = msg.ServiceName
+
+		return m.syncValues()
 
 	case msgs.ServicesPolled:
 		if msg.Err == nil && m.selectedName != "" {
 			m.runtime = msg.Runtimes[m.selectedName]
 		}
+
+		return m.syncValues()
 	}
 
-	return m, nil
+	var cmds []tea.Cmd
+
+	for i := range m.values {
+		var cmd tea.Cmd
+
+		m.values[i], cmd = m.values[i].Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 // View renders the inspector detail for the selected service.
@@ -78,9 +110,84 @@ func (m Model) View() tea.View {
 		return tea.NewView("")
 	}
 
+	vw := m.valueWidth()
+	bg := m.th.AccordionBackground
+
+	labels := []string{
+		"Image:        ",
+		"Container ID: ",
+		"Created:      ",
+		"State:        ",
+		"Ports:        ",
+	}
+	labelBlock := lipgloss.JoinVertical(lipgloss.Left, labels...)
+	labelCol := lipgloss.NewStyle().
+		Width(labelWidth).
+		Foreground(m.th.AccordionLabel).
+		Background(bg).
+		Render(labelBlock)
+
+	valStrs := make([]string, numFields)
+	for i := range numFields {
+		valStrs[i] = m.values[i].View().Content
+	}
+
+	valBlock := lipgloss.JoinVertical(lipgloss.Left, valStrs...)
+	valCol := lipgloss.NewStyle().
+		Width(vw).
+		Foreground(m.th.AccordionValue).
+		Background(bg).
+		Render(valBlock)
+
+	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
+		labelCol,
+		valCol,
+	))
+}
+
+func (m Model) syncValues() (Model, tea.Cmd) {
+	vw := m.valueWidth()
+	if m.selectedName == "" || vw <= 0 {
+		for i := range m.values {
+			m.values[i] = value.New("", m.th.AccordionValue, m.th.AccordionBackground, 0)
+		}
+
+		return m, nil
+	}
+
+	bg := m.th.AccordionBackground
+	raws, colours := m.computeFieldContent()
+
+	var cmds []tea.Cmd
+
+	for i := range m.values {
+		m.scrollGen++
+		m.values[i] = value.New(raws[i], colours[i], bg, vw)
+
+		var cmd tea.Cmd
+
+		m.values[i], cmd = m.values[i].Start(m.scrollGen)
+		cmds = append(cmds, cmd)
+	}
+
+	return m, tea.Batch(cmds...)
+}
+
+func (m Model) computeFieldContent() ([numFields]string, [numFields]color.Color) {
 	def, ok := m.lookupDef(m.selectedName)
+
+	var (
+		raws    [numFields]string
+		colours [numFields]color.Color
+	)
+
 	if !ok {
-		return tea.NewView("")
+		for i := range raws {
+			raws[i] = ""
+			colours[i] = m.th.AccordionValue
+		}
+
+		return raws, colours
 	}
 
 	stateStr := dash
@@ -110,28 +217,27 @@ func (m Model) View() tea.View {
 		stateColour = colourForState(m.runtime.State, m.th)
 	}
 
-	bg := m.th.AccordionBackground
-	lbl := lipgloss.NewStyle().Foreground(m.th.AccordionLabel).Background(bg).Render
-	val := lipgloss.NewStyle().Foreground(m.th.AccordionValue).Background(bg).Render
-
-	var stateVal string
-	if stateStr == dash {
-		stateVal = val(dash)
-	} else {
-		stateVal = lipgloss.NewStyle().Foreground(stateColour).Background(bg).Render(stateStr)
+	portsStr := strings.Join(def.Ports, ", ")
+	if portsStr == "" {
+		portsStr = dash
 	}
 
-	line := lipgloss.NewStyle().Width(m.w).Background(m.th.AccordionBackground).Render
-
-	lines := []string{
-		line(lbl("Image:        ") + val(def.Image)),
-		line(lbl("Container ID: ") + val(containerID)),
-		line(lbl("Created:      ") + val(createdAt)),
-		line(lbl("State:        ") + stateVal),
-		line(lbl("Ports:        ") + val(strings.Join(def.Ports, ", "))),
+	raws = [numFields]string{def.Image, containerID, createdAt, stateStr, portsStr}
+	colours = [numFields]color.Color{
+		m.th.AccordionValue,
+		m.th.AccordionValue,
+		m.th.AccordionValue,
+		stateColour,
+		m.th.AccordionValue,
 	}
 
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, lines...))
+	return raws, colours
+}
+
+func (m Model) valueWidth() int {
+	carouselW := max(m.w, listMinTermWidth) * listRatio / pctDivisor
+
+	return max(0, carouselW-labelWidth)
 }
 
 func (m Model) lookupDef(name string) (domain.ServiceDef, bool) {

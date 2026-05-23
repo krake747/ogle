@@ -215,46 +215,58 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 		}
 	}
 
-	return m, nil
+	var cmd tea.Cmd
+
+	m.carousel, cmd = m.carousel.Update(msg)
+
+	return m, cmd
 }
 
 func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var carouselCmd, svcCmd, statusCmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case msgs.ServiceStop:
-		m.carousel, _ = m.carousel.Update(msg)
-
-		return m, svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		m.carousel, carouselCmd = m.carousel.Update(msg)
+		statusCmd = func() tea.Msg {
+			return msgs.DisplayStatus{Msg: msg.ServiceName + " stopping"}
+		}
+		svcCmd = svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceStart:
-		m.carousel, _ = m.carousel.Update(msg)
-
-		return m, svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		m.carousel, carouselCmd = m.carousel.Update(msg)
+		statusCmd = func() tea.Msg {
+			return msgs.DisplayStatus{Msg: msg.ServiceName + " starting"}
+		}
+		svcCmd = svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRestart:
-		m.carousel, _ = m.carousel.Update(msg)
-
-		return m, svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		m.carousel, carouselCmd = m.carousel.Update(msg)
+		statusCmd = func() tea.Msg {
+			return msgs.DisplayStatus{Msg: msg.ServiceName + " restarting"}
+		}
+		svcCmd = svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRebuild:
-		m.carousel, _ = m.carousel.Update(msg)
-
-		return m, svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		m.carousel, carouselCmd = m.carousel.Update(msg)
+		statusCmd = func() tea.Msg {
+			return msgs.DisplayStatus{Msg: msg.ServiceName + " rebuilding"}
+		}
+		svcCmd = svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceActionCompleted:
-		m.carousel, _ = m.carousel.Update(msg)
-
+		m.carousel, carouselCmd = m.carousel.Update(msg)
 		if msg.Err != nil {
-			return m, func() tea.Msg {
-				return msgs.DisplayError{Err: msg.Err.Error()}
-			}
+			return m, tea.Batch(
+				carouselCmd,
+				func() tea.Msg { return msgs.DisplayError{Err: msg.Err.Error()} },
+			)
 		}
 
-		return m, func() tea.Msg {
-			return msgs.ClearStatusMsg{}
-		}
+		return m, carouselCmd
 	}
 
-	return m, nil
+	return m, tea.Batch(carouselCmd, statusCmd, svcCmd)
 }
 
 func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd) {
