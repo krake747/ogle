@@ -105,9 +105,12 @@ func (m Model) dotCount() int {
 // Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd {
 	if len(m.cards) > 0 {
-		return func() tea.Msg {
-			return card.FocusMsg{ServiceName: m.cardServiceName(0)}
-		}
+		name := m.cardServiceName(0)
+
+		return tea.Batch(
+			func() tea.Msg { return card.FocusMsg{ServiceName: name} },
+			func() tea.Msg { return msgs.ServiceSelected{ServiceName: name} },
+		)
 	}
 
 	return nil

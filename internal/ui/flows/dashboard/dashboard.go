@@ -89,6 +89,7 @@ func New(
 // Init fires sub-model initialisation and sends the keymap to the helpbar.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
+		m.carousel.Init(),
 		m.panel.Init(),
 		func() tea.Msg {
 			return msgs.BindingsMsg{Keymap: appKeymap{}}
