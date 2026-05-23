@@ -331,7 +331,11 @@ func (m Model) View() tea.View {
 
 	parts := []string{
 		m.topbar.View().Content,
-		lipgloss.NewStyle().Height(bodyH).Render(body.Content),
+		lipgloss.NewStyle().
+			Width(m.width).
+			Height(bodyH).
+			Background(m.theme.ServiceListBackground).
+			Render(body.Content),
 		m.helpbar.View().Content,
 	}
 	frame := lipgloss.JoinVertical(lipgloss.Top, parts...)
