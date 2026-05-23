@@ -67,6 +67,7 @@ func Default() *Theme {
 		CarouselHover:         defaultBrightWhite,
 		CarouselEmpty:         defaultDarkGrey,
 		LogPaneBackground:     defaultBlack,
+		BodyBackground:        defaultBlack,
 		AccordionLabel:        defaultBrightBlack,
 		AccordionValue:        defaultWhite,
 		AccordionBackground:   defaultBlack,

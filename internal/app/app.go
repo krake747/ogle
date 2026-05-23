@@ -334,7 +334,7 @@ func (m Model) View() tea.View {
 		lipgloss.NewStyle().
 			Width(m.width).
 			Height(bodyH).
-			Background(m.theme.ServiceListBackground).
+			Background(m.theme.BodyBackground).
 			Render(body.Content),
 		m.helpbar.View().Content,
 	}

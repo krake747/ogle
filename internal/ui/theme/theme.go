@@ -53,6 +53,7 @@ type Theme struct {
 	AccordionLabel        color.Color // accordion label colour (e.g. "Image:")
 	AccordionValue        color.Color // accordion value colour
 	AccordionBackground   color.Color // accordion background fill
+	BodyBackground        color.Color // background fill behind body content
 }
 
 // userThemeFile is the YAML schema for a user-defined theme override file.
@@ -89,6 +90,7 @@ type userThemeFile struct {
 	AccordionLabelColor        string `yaml:"accordionLabelColor"`
 	AccordionValueColor        string `yaml:"accordionValueColor"`
 	AccordionBackgroundColor   string `yaml:"accordionBackgroundColor"`
+	BodyBackgroundColor        string `yaml:"bodyBackgroundColor"`
 }
 
 // Load resolves a theme by name. configDir is the directory containing
@@ -210,6 +212,7 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.AccordionLabelColor, dst: &result.AccordionLabel},
 		{field: f.AccordionValueColor, dst: &result.AccordionValue},
 		{field: f.AccordionBackgroundColor, dst: &result.AccordionBackground},
+		{field: f.BodyBackgroundColor, dst: &result.BodyBackground},
 	}
 
 	for _, o := range overrides {
