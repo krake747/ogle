@@ -212,7 +212,7 @@ func (m Model) computeFieldContent() ([numFields]string, [numFields]color.Color)
 		}
 	}
 
-	stateColour := m.th.StateMuted
+	stateColour := m.th.AccordionValue
 	if m.runtime != nil {
 		stateColour = colourForState(m.runtime.State, m.th)
 	}
