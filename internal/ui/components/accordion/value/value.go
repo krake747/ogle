@@ -20,13 +20,15 @@ type StartMsg struct {
 }
 
 type scrollTick struct {
-	gen int
+	gen        int
+	instanceID int64
 }
 
 type scrollState struct {
-	offset int
-	dir    int
-	gen    int
+	offset     int
+	dir        int
+	gen        int
+	instanceID int64
 }
 
 // Model renders a single accordion value with horizontal scroll when content
@@ -47,9 +49,10 @@ func New(raw string, colour, bg color.Color, width int) Model {
 		bg:       bg,
 		width:    width,
 		scroll: scrollState{
-			offset: 0,
-			dir:    1,
-			gen:    0,
+			offset:     0,
+			dir:        1,
+			gen:        0,
+			instanceID: time.Now().UnixNano(),
 		},
 	}
 }
@@ -95,7 +98,7 @@ func (m Model) View() tea.View {
 }
 
 func (m Model) handleScrollTick(msg scrollTick) (Model, tea.Cmd) {
-	if msg.gen != m.scroll.gen || m.width <= 0 {
+	if msg.instanceID != m.scroll.instanceID || msg.gen != m.scroll.gen || m.width <= 0 {
 		return m, nil
 	}
 
@@ -128,8 +131,9 @@ func (m Model) needsScroll() bool {
 
 func (m Model) tick(d time.Duration) tea.Cmd {
 	gen := m.scroll.gen
+	id := m.scroll.instanceID
 
 	return tea.Tick(d, func(_ time.Time) tea.Msg {
-		return scrollTick{gen: gen}
+		return scrollTick{gen: gen, instanceID: id}
 	})
 }
