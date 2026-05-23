@@ -14,6 +14,11 @@ const (
 	scrollIdleInterval = 2500
 )
 
+// StartMsg triggers the value's horizontal scroll animation.
+type StartMsg struct {
+	Gen int
+}
+
 type scrollTick struct {
 	gen int
 }
@@ -52,21 +57,20 @@ func New(raw string, colour, bg color.Color, width int) Model {
 // Init satisfies tea.Model.
 func (m Model) Init() tea.Cmd { return nil }
 
-// Start schedules the first scroll tick if the content exceeds the available
-// width.
-func (m Model) Start(gen int) (Model, tea.Cmd) {
-	m.scroll.gen = gen
-	if !m.needsScroll() {
-		return m, nil
-	}
-
-	return m, m.tick(scrollIdleInterval * time.Millisecond)
-}
-
-// Update handles scroll animation ticks.
+// Update handles scroll start requests and animation ticks.
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	if tick, ok := msg.(scrollTick); ok {
-		return m.handleScrollTick(tick)
+	switch msg := msg.(type) {
+	case StartMsg:
+		m.scroll.gen = msg.Gen
+
+		if !m.needsScroll() {
+			return m, nil
+		}
+
+		return m, m.tick(scrollIdleInterval * time.Millisecond)
+
+	case scrollTick:
+		return m.handleScrollTick(msg)
 	}
 
 	return m, nil

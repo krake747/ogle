@@ -36,6 +36,9 @@ type Model struct {
 	th           *theme.Theme
 	values       [numFields]value.Model
 	scrollGen    int
+	lastRaws     [numFields]string
+	lastColours  [numFields]color.Color
+	lastWidth    int
 }
 
 // New returns a Model with the given project, dimensions, and theme.
@@ -54,6 +57,9 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 		th:           th,
 		values:       [numFields]value.Model{},
 		scrollGen:    0,
+		lastRaws:     [numFields]string{},
+		lastColours:  [numFields]color.Color{},
+		lastWidth:    -1,
 	}
 	for i := range m.values {
 		m.values[i] = value.New("", th.AccordionValue, th.AccordionBackground, m.valueWidth())
@@ -163,11 +169,17 @@ func (m Model) syncValues() (Model, tea.Cmd) {
 			m.values[i] = value.New("", m.th.AccordionValue, m.th.AccordionBackground, 0)
 		}
 
+		m.lastWidth = -1
+
 		return m, nil
 	}
 
 	bg := m.th.AccordionBackground
 	raws, colours := m.computeFieldContent()
+
+	if raws == m.lastRaws && colours == m.lastColours && vw == m.lastWidth {
+		return m, nil
+	}
 
 	var cmds []tea.Cmd
 
@@ -177,9 +189,13 @@ func (m Model) syncValues() (Model, tea.Cmd) {
 
 		var cmd tea.Cmd
 
-		m.values[i], cmd = m.values[i].Start(m.scrollGen)
+		m.values[i], cmd = m.values[i].Update(value.StartMsg{Gen: m.scrollGen})
 		cmds = append(cmds, cmd)
 	}
+
+	m.lastRaws = raws
+	m.lastColours = colours
+	m.lastWidth = vw
 
 	return m, tea.Batch(cmds...)
 }
