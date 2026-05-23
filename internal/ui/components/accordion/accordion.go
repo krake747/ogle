@@ -140,9 +140,9 @@ func (m Model) View() tea.View {
 	vw := m.valueWidth()
 	bg := m.th.AccordionBackground
 
-	indicator := "▲"
+	indicator := "▼"
 	if m.collapsed {
-		indicator = "▼"
+		indicator = "▶"
 	}
 
 	headerBg := m.th.AccordionHeaderBackground
