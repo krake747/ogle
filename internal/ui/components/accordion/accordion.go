@@ -120,19 +120,30 @@ func (m Model) View() tea.View {
 		"State:        ",
 		"Ports:        ",
 	}
-	labelBlock := lipgloss.JoinVertical(lipgloss.Left, labels...)
+
+	def, ok := m.lookupDef(m.selectedName)
+	skipImage := ok && def.Image == ""
+
+	labelParts := make([]string, 0, len(labels))
+	valParts := make([]string, 0, len(labels))
+
+	for i := range numFields {
+		if i == 0 && skipImage {
+			continue
+		}
+
+		labelParts = append(labelParts, labels[i])
+		valParts = append(valParts, m.values[i].View().Content)
+	}
+
+	labelBlock := lipgloss.JoinVertical(lipgloss.Left, labelParts...)
 	labelCol := lipgloss.NewStyle().
 		Width(labelWidth).
 		Foreground(m.th.AccordionLabel).
 		Background(bg).
 		Render(labelBlock)
 
-	valStrs := make([]string, numFields)
-	for i := range numFields {
-		valStrs[i] = m.values[i].View().Content
-	}
-
-	valBlock := lipgloss.JoinVertical(lipgloss.Left, valStrs...)
+	valBlock := lipgloss.JoinVertical(lipgloss.Left, valParts...)
 	valCol := lipgloss.NewStyle().
 		Width(vw).
 		Foreground(m.th.AccordionValue).
