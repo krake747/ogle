@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -16,15 +17,16 @@ import (
 )
 
 const (
-	dash             = "—"
-	shortIDLen       = 12
-	labelWidth       = 14
-	secsPerMinute    = 60
-	secsPerHour      = 3600
-	listMinTermWidth = 80
-	listRatio        = 30
-	pctDivisor       = 100
-	numFields        = 5
+	dash                = "—"
+	shortIDLen          = 12
+	labelWidth          = 14
+	secsPerMinute       = 60
+	secsPerHour         = 3600
+	listMinTermWidth    = 80
+	listRatio           = 30
+	pctDivisor          = 100
+	numFields           = 5
+	zoneAccordionHeader = "accordion-header"
 )
 
 // Model is the accordion component state.
@@ -39,10 +41,13 @@ type Model struct {
 	lastRaws     [numFields]string
 	lastColours  [numFields]color.Color
 	lastWidth    int
+	zm           *zone.Manager
+	collapsed    bool
 }
 
-// New returns a Model with the given project, dimensions, and theme.
-func New(project *domain.Project, w, h int, th *theme.Theme) Model {
+// New returns a Model with the given project, dimensions, theme, and zone
+// manager.
+func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) Model {
 	selectedName := ""
 	if len(project.Services) > 0 {
 		selectedName = project.Services[0].Name
@@ -60,6 +65,8 @@ func New(project *domain.Project, w, h int, th *theme.Theme) Model {
 		lastRaws:     [numFields]string{},
 		lastColours:  [numFields]color.Color{},
 		lastWidth:    -1,
+		zm:           zm,
+		collapsed:    false,
 	}
 	for i := range m.values {
 		m.values[i] = value.New("", th.AccordionValue, th.AccordionBackground, m.valueWidth())
@@ -96,6 +103,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 
 		return m.syncValues()
+
+	case tea.MouseClickMsg:
+		if m.zm != nil && m.zm.Get(zoneAccordionHeader).InBounds(msg) {
+			m.collapsed = !m.collapsed
+		}
+
+		return m, nil
 	}
 
 	var cmds []tea.Cmd
@@ -118,6 +132,22 @@ func (m Model) View() tea.View {
 
 	vw := m.valueWidth()
 	bg := m.th.AccordionBackground
+
+	indicator := "▲"
+	if m.collapsed {
+		indicator = "▼"
+	}
+
+	headerStr := lipgloss.NewStyle().
+		Width(labelWidth + vw).
+		Foreground(m.th.AccordionLabel).
+		Background(m.th.AccordionBackground).
+		Render(" " + indicator + " Service Details")
+	headerStr = m.zm.Mark(zoneAccordionHeader, headerStr)
+
+	if m.collapsed {
+		return tea.NewView(headerStr)
+	}
 
 	labels := []string{
 		"Image:        ",
@@ -156,10 +186,12 @@ func (m Model) View() tea.View {
 		Background(bg).
 		Render(valBlock)
 
-	return tea.NewView(lipgloss.JoinHorizontal(lipgloss.Top,
-		labelCol,
-		valCol,
-	))
+	fullContent := lipgloss.JoinVertical(lipgloss.Top,
+		headerStr,
+		lipgloss.JoinHorizontal(lipgloss.Top, labelCol, valCol),
+	)
+
+	return tea.NewView(fullContent)
 }
 
 func (m Model) syncValues() (Model, tea.Cmd) {
