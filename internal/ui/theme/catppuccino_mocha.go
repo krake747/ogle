@@ -32,6 +32,7 @@ var (
 	mochaBase      = lipgloss.Color("#1e1e2e")
 	mochaMantle    = lipgloss.Color("#181825")
 	mochaCrust     = lipgloss.Color("#11111b")
+	mochaWhite     = lipgloss.Color("#ffffff")
 )
 
 // CatppuccinoMocha returns a theme based on the Catppuccin Mocha palette.
@@ -66,7 +67,7 @@ func CatppuccinoMocha() *Theme {
 		TopbarBackground:               mochaCrust,
 		TopbarBrandText:                mochaSubtext0,
 		TopbarContextText:              mochaSubtext0,
-		TopbarStatusText:               mochaText,
+		TopbarStatusText:               mochaWhite,
 		CarouselFocused:                mochaSubtext0,
 		CarouselBlurred:                mochaOverlay0,
 		CarouselBackground:             mochaCrust,

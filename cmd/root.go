@@ -190,7 +190,10 @@ func init() {
 		StringVar(&pprofAddr, "pprof-addr", "", "pprof HTTP server address (e.g. localhost:6060)")
 
 	rootCmd.Flags().
-		String("theme", "", `theme name; built-ins: "default", "catppuccino_mocha" (env: OGLE_THEME)`)
+		String("theme", "", fmt.Sprintf(
+			`theme name; built-ins: "%s" (env: OGLE_THEME)`,
+			strings.Join(theme.BuiltinNames(), `", "`),
+		))
 
 	rootCmd.Flags().
 		Int("log-buffer-cap", 0, "maximum log lines buffered per service (env: OGLE_LOG_BUFFER_CAP; default 1000)")

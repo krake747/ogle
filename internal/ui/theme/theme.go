@@ -142,8 +142,18 @@ func builtinByName(name string) *Theme {
 	switch name {
 	case "default", "":
 		return Default()
+	case "catppuccino_frappe":
+		return CatppuccinoFrappe()
+	case "catppuccino_latte":
+		return CatppuccinoLatte()
+	case "catppuccino_macchiato":
+		return CatppuccinoMacchiato()
 	case "catppuccino_mocha":
 		return CatppuccinoMocha()
+	case "solarized_dark":
+		return SolarizedDark()
+	case "solarized_light":
+		return SolarizedLight()
 	default:
 		return nil
 	}

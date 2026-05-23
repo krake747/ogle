@@ -4,7 +4,15 @@ import "charm.land/lipgloss/v2"
 
 // BuiltinNames returns the names of all built-in themes in display order.
 func BuiltinNames() []string {
-	return []string{"default", "catppuccino_mocha"}
+	return []string{
+		"default",
+		"catppuccino_frappe",
+		"catppuccino_latte",
+		"catppuccino_macchiato",
+		"catppuccino_mocha",
+		"solarized_dark",
+		"solarized_light",
+	}
 }
 
 // ANSI 16-colour palette for the Default theme
@@ -64,7 +72,7 @@ func Default() *Theme {
 		TopbarBackground:               defaultBlack,
 		TopbarBrandText:                defaultBrightBlack,
 		TopbarContextText:              defaultBrightBlack,
-		TopbarStatusText:               defaultWhite,
+		TopbarStatusText:               defaultBrightWhite,
 		CarouselFocused:                defaultWhite,
 		CarouselBlurred:                defaultBrightBlack,
 		CarouselBackground:             defaultBlack,
