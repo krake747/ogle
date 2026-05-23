@@ -21,15 +21,12 @@ const (
 	rows                 = 2
 	cols                 = 3
 	pageSize             = rows * cols
-	chevronCount         = 2
 	listRatio            = 30
 	listMinTermWidth     = 80
 	pctDivisor           = 100
 	maxCardH             = 12
 	terminalCellAspect   = 2
 	doubleClickThreshold = 350 * time.Millisecond
-	zonePrev             = "carousel-prev"
-	zoneNext             = "carousel-next"
 	zoneDotFmt           = "carousel-dot-%d"
 	zoneCardFmt          = "carousel-card-%d"
 )
@@ -70,10 +67,15 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		cards[i] = card.New(project.Services[p.Page*p.PerPage+i], w, h, th)
 	}
 
+	dotCount := 0
+	if p.TotalPages > 1 {
+		dotCount = p.TotalPages
+	}
+
 	focus := 0
 
 	if n > 0 {
-		focus = 1
+		focus = dotCount
 		cards[0], _ = cards[0].Update(card.FocusMsg{})
 	}
 
@@ -92,6 +94,14 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		lastClickTime: time.Time{},
 		lastClickIdx:  -1,
 	}
+}
+
+func (m Model) dotCount() int {
+	if m.paginator.TotalPages > 1 {
+		return m.paginator.TotalPages
+	}
+
+	return 0
 }
 
 // Init satisfies tea.Model.
@@ -162,22 +172,29 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 
 func (m Model) handleTab() (Model, tea.Cmd) {
 	prevFocus := m.focus
+	d := m.dotCount()
 	total := m.totalSlots()
 	m.focus = (m.focus + 1) % total
 
-	// skip empty grid slots that have no card
-	for m.focus >= 1 && m.focus <= pageSize && !m.slotHasCard(m.focus) {
+	for {
+		onActiveDot := m.focus < d && m.focus == m.paginator.Page
+		onEmptyCard := m.focus >= d && m.focus < d+pageSize && !m.slotHasCard(m.focus)
+
+		if !onActiveDot && !onEmptyCard {
+			break
+		}
+
 		m.focus = (m.focus + 1) % total
 	}
 
-	if prevFocus >= 1 && prevFocus <= pageSize && m.slotHasCard(prevFocus) {
-		idx := prevFocus - 1
+	if prevFocus >= d && prevFocus < d+pageSize && m.slotHasCard(prevFocus) {
+		idx := prevFocus - d
 		updated, _ := m.cards[idx].Update(card.BlurMsg{})
 		m.cards[idx] = updated
 	}
 
-	if m.focus >= 1 && m.focus <= pageSize && m.slotHasCard(m.focus) {
-		idx := m.focus - 1
+	if m.focus >= d && m.focus < d+pageSize && m.slotHasCard(m.focus) {
+		idx := m.focus - d
 		updated, cmd := m.cards[idx].Update(card.FocusMsg{})
 		m.cards[idx] = updated
 
@@ -190,34 +207,20 @@ func (m Model) handleTab() (Model, tea.Cmd) {
 }
 
 func (m Model) handleEnter() (Model, tea.Cmd) {
-	switch m.focus {
-	case 0:
-		if m.paginator.OnLastPage() {
-			m.paginator.Page = 0
-		} else {
-			m.paginator.NextPage()
-		}
+	d := m.dotCount()
 
-		return m.rebuildCards()
-
-	case m.totalSlots() - 1:
-		if m.paginator.OnFirstPage() {
-			m.paginator.Page = m.paginator.TotalPages - 1
-		} else {
-			m.paginator.PrevPage()
-		}
+	if m.focus < d {
+		m.paginator.Page = m.focus
 
 		return m.rebuildCards()
 	}
 
-	// enter on an empty slot is a no-op
-	if m.focus >= 1 && m.focus <= pageSize && !m.slotHasCard(m.focus) {
+	if m.focus >= d && m.focus < d+pageSize && !m.slotHasCard(m.focus) {
 		return m, nil
 	}
 
-	// enter on a card toggles start/stop
-	if m.focus >= 1 && m.focus <= pageSize {
-		idx := m.focus - 1
+	if m.focus >= d && m.focus < d+pageSize {
+		idx := m.focus - d
 		name := m.cardServiceName(idx)
 
 		return m, m.toggleServiceCmd(name)
@@ -227,26 +230,6 @@ func (m Model) handleEnter() (Model, tea.Cmd) {
 }
 
 func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
-	switch {
-	case m.zm.Get(zonePrev).InBounds(msg):
-		if m.paginator.OnFirstPage() {
-			m.paginator.Page = m.paginator.TotalPages - 1
-		} else {
-			m.paginator.PrevPage()
-		}
-
-		return m.rebuildCards()
-
-	case m.zm.Get(zoneNext).InBounds(msg):
-		if m.paginator.OnLastPage() {
-			m.paginator.Page = 0
-		} else {
-			m.paginator.NextPage()
-		}
-
-		return m.rebuildCards()
-	}
-
 	for i := range m.paginator.TotalPages {
 		if m.zm.Get(fmt.Sprintf(zoneDotFmt, i)).InBounds(msg) {
 			if m.paginator.Page == i {
@@ -271,7 +254,8 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 }
 
 func (m Model) handleCardClick(i int) (Model, tea.Cmd) {
-	newFocus := i + 1
+	d := m.dotCount()
+	newFocus := i + d
 
 	if m.focus == newFocus {
 		if i == m.lastClickIdx && time.Since(m.lastClickTime) < doubleClickThreshold {
@@ -284,8 +268,8 @@ func (m Model) handleCardClick(i int) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if m.focus >= 1 && m.focus <= pageSize {
-		idx := m.focus - 1
+	if m.focus >= d && m.focus < d+pageSize {
+		idx := m.focus - d
 		updated, _ := m.cards[idx].Update(card.BlurMsg{})
 		m.cards[idx] = updated
 	}
@@ -303,36 +287,28 @@ func (m Model) handleCardClick(i int) (Model, tea.Cmd) {
 }
 
 func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
+	d := m.dotCount()
 	hit := -1
 
-	switch {
-	case m.zm.Get(zonePrev).InBounds(msg):
-		hit = m.totalSlots() - 1
-
-	case m.zm.Get(zoneNext).InBounds(msg):
-		hit = 0
-
-	default:
-		for i := range m.paginator.TotalPages {
-			if m.zm.Get(fmt.Sprintf(zoneDotFmt, i)).InBounds(msg) {
-				if m.hoveredDot == i {
-					return m, nil
-				}
-
-				m.hoveredDot = i
-				m = m.unhoverCard()
-				m.hovered = -1
-
+	for i := range m.paginator.TotalPages {
+		if m.zm.Get(fmt.Sprintf(zoneDotFmt, i)).InBounds(msg) {
+			if m.hoveredDot == i {
 				return m, nil
 			}
+
+			m.hoveredDot = i
+			m = m.unhoverCard()
+			m.hovered = -1
+
+			return m, nil
 		}
+	}
 
-		for i := range m.cards {
-			if m.zm.Get(fmt.Sprintf(zoneCardFmt, i)).InBounds(msg) {
-				hit = i + 1
+	for i := range m.cards {
+		if m.zm.Get(fmt.Sprintf(zoneCardFmt, i)).InBounds(msg) {
+			hit = i + d
 
-				break
-			}
+			break
 		}
 	}
 
@@ -347,8 +323,8 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 	m = m.unhoverCard()
 	m.hovered = hit
 
-	if m.hovered >= 1 && m.hovered <= pageSize {
-		idx := m.hovered - 1
+	if m.hovered >= d && m.hovered < d+pageSize {
+		idx := m.hovered - d
 		updated, cmd := m.cards[idx].Update(card.HoverMsg{})
 		m.cards[idx] = updated
 
@@ -359,8 +335,9 @@ func (m Model) handleMouseMotion(msg tea.MouseMotionMsg) (Model, tea.Cmd) {
 }
 
 func (m Model) unhoverCard() Model {
-	if m.hovered >= 1 && m.hovered <= pageSize {
-		idx := m.hovered - 1
+	d := m.dotCount()
+	if m.hovered >= d && m.hovered < d+pageSize {
+		idx := m.hovered - d
 		updated, _ := m.cards[idx].Update(card.UnhoverMsg{})
 		m.cards[idx] = updated
 	}
@@ -396,14 +373,13 @@ func (m Model) View() tea.View {
 			} else {
 				innerW := cardW - card.BorderW
 				innerH := cardH - card.BorderW
-				emptyLabel := lipgloss.NewStyle().Foreground(m.th.Subtext).Render("-")
-				padded := lipgloss.Place(
-					innerW,
-					innerH,
-					lipgloss.Center,
-					lipgloss.Center,
-					emptyLabel,
-				)
+				padded := lipgloss.NewStyle().
+					Width(innerW).
+					Height(innerH).
+					Background(m.th.CarouselBackground).
+					Align(lipgloss.Center).
+					AlignVertical(lipgloss.Center).
+					Render("-")
 				cells[col] = lipgloss.NewStyle().
 					Width(cardW).
 					Height(cardH).
@@ -440,30 +416,6 @@ func (m Model) renderNavBar(carouselW int) string {
 	hoverFg := m.th.CarouselHover
 	navBg := m.th.CarouselNavBackground
 
-	rightChevronColour := unfocusedFg
-	if m.focus == 0 {
-		rightChevronColour = focusedFg
-	} else if m.hovered == 0 {
-		rightChevronColour = hoverFg
-	}
-
-	leftChevronColour := unfocusedFg
-	if m.focus == m.totalSlots()-1 {
-		leftChevronColour = focusedFg
-	} else if m.hovered == m.totalSlots()-1 {
-		leftChevronColour = hoverFg
-	}
-
-	leftChevron := lipgloss.NewStyle().
-		Foreground(leftChevronColour).
-		Background(navBg).
-		Render("◀")
-
-	rightChevron := lipgloss.NewStyle().
-		Foreground(rightChevronColour).
-		Background(navBg).
-		Render("▶")
-
 	totalPages := m.paginator.TotalPages
 	dots := make([]string, totalPages)
 
@@ -471,11 +423,13 @@ func (m Model) renderNavBar(carouselW int) string {
 		dotChar := "○"
 		dotColour := unfocusedFg
 
-		switch i {
-		case m.paginator.Page:
+		switch {
+		case m.paginator.Page == i:
 			dotChar = "•"
 			dotColour = focusedFg
-		case m.hoveredDot:
+		case m.focus == i:
+			dotColour = focusedFg
+		case m.hoveredDot == i:
 			dotColour = hoverFg
 		}
 
@@ -488,20 +442,11 @@ func (m Model) renderNavBar(carouselW int) string {
 		)
 	}
 
-	paginatorView := strings.Join(dots, "")
-
-	navContent := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		m.zm.Mark(zonePrev, leftChevron),
-		paginatorView,
-		m.zm.Mark(zoneNext, rightChevron),
-	)
-
 	return lipgloss.NewStyle().
 		Width(carouselW).
 		Align(lipgloss.Center).
 		Background(navBg).
-		Render(navContent)
+		Render(strings.Join(dots, ""))
 }
 
 func (m Model) rebuildCards() (Model, tea.Cmd) {
@@ -523,7 +468,7 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	m.focus = 1
+	m.focus = m.dotCount()
 	m.hovered = -1
 	m.hoveredDot = -1
 	m.lastClickTime = time.Time{}
@@ -542,11 +487,14 @@ func (m Model) rebuildCards() (Model, tea.Cmd) {
 }
 
 func (m Model) slotHasCard(slot int) bool {
-	if slot < 1 || slot > pageSize {
+	d := m.dotCount()
+
+	cardIdx := slot - d
+	if cardIdx < 0 || cardIdx >= pageSize {
 		return false
 	}
 
-	return slot-1 < len(m.cards)
+	return cardIdx < len(m.cards)
 }
 
 func (m Model) cardServiceName(idx int) string {
@@ -565,9 +513,5 @@ func (m Model) toggleServiceCmd(name string) tea.Cmd {
 }
 
 func (m Model) totalSlots() int {
-	if m.paginator.TotalPages > 1 {
-		return pageSize + chevronCount
-	}
-
-	return pageSize
+	return m.dotCount() + pageSize
 }
