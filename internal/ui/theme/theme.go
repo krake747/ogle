@@ -44,6 +44,7 @@ type Theme struct {
 	StatusBarBackground            color.Color // status bar background tint
 	TopbarBackground               color.Color // top bar background tint
 	TopbarBrandText                color.Color // "ogle" brand text foreground
+	TopbarBrandBackground          color.Color // "ogle" brand text background
 	TopbarContextText              color.Color // context/phase text foreground
 	TopbarStatusText               color.Color // daemon status text foreground
 	TopbarDisconnectedBackground   color.Color // red — "DISCONNECTED" badge
@@ -88,6 +89,7 @@ type userThemeFile struct {
 	StatusBarBackgroundColor            string `yaml:"statusBarBackgroundColor"`
 	TopbarBackgroundColor               string `yaml:"topbarBackgroundColor"`
 	TopbarBrandTextColor                string `yaml:"topbarBrandTextColor"`
+	TopbarBrandBackgroundColor          string `yaml:"topbarBrandBackgroundColor"`
 	TopbarContextTextColor              string `yaml:"topbarContextTextColor"`
 	TopbarStatusTextColor               string `yaml:"topbarStatusTextColor"`
 	TopbarDisconnectedBackgroundColor   string `yaml:"topbarDisconnectedBackgroundColor"`
@@ -229,6 +231,7 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.StatusBarBackgroundColor, dst: &result.StatusBarBackground},
 		{field: f.TopbarBackgroundColor, dst: &result.TopbarBackground},
 		{field: f.TopbarBrandTextColor, dst: &result.TopbarBrandText},
+		{field: f.TopbarBrandBackgroundColor, dst: &result.TopbarBrandBackground},
 		{field: f.TopbarContextTextColor, dst: &result.TopbarContextText},
 		{field: f.TopbarStatusTextColor, dst: &result.TopbarStatusText},
 		{field: f.TopbarDisconnectedBackgroundColor, dst: &result.TopbarDisconnectedBackground},

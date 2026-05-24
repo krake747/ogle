@@ -194,7 +194,9 @@ func (m Model) renderDaemonStatus() string {
 // Docker daemon status on the right, right-aligned via padding.
 func (m Model) View() tea.View {
 	bg := m.th.TopbarBackground
-	brandStyle := lipgloss.NewStyle().Foreground(m.th.TopbarBrandText).Background(bg)
+	brandStyle := lipgloss.NewStyle().
+		Foreground(m.th.TopbarBrandText).
+		Background(m.th.TopbarBrandBackground)
 	contextStyle := lipgloss.NewStyle().Foreground(m.th.TopbarContextText).Background(bg)
 	spacerStyle := lipgloss.NewStyle().Background(bg)
 
