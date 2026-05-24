@@ -68,3 +68,9 @@ notice:
 	@echo "Generating NOTICE file..."
 	@go-licenses report . --template=notice.tpl --include_tests > NOTICE
 	@echo "NOTICE file updated"
+
+.PHONY: tools
+tools:
+	go install github.com/evilmartians/lefthook@latest
+	go install github.com/conventionalcommit/commitlint@latest
+	go install github.com/vektra/mockery/v3@latest

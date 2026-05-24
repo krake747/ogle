@@ -1,3 +1,0 @@
-echo "⚙️   Started commit-msg checks..."
-pnpm commitlint --edit "$1"
-echo "✅  Finished commit-msg checks"

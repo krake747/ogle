@@ -1,0 +1,22 @@
+pre-commit:
+  parallel: true
+  commands:
+    lint:
+      glob: "*.go"
+      run: make lint
+    notice:
+      glob: "go.{mod,sum}"
+      run: go-licenses report . --template=notice.tpl --include_tests > NOTICE && git add NOTICE
+    docs:
+      glob: "cmd/**/*.go"
+      run: go run internal/tools/docgen/main.go --out ./docs/cli --format markdown && git add docs/cli/
+
+commit-msg:
+  commands:
+    commitlint:
+      run: cat {1} | commitlint lint
+
+pre-push:
+  commands:
+    test:
+      run: make test
