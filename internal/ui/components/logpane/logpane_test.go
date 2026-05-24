@@ -18,21 +18,20 @@ func TestUpdate(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		setup func(*testing.T) logpane.Model
+		setup func() logpane.Model
 
 		// act
 		msg tea.Msg
 
 		// assert
 		expectedMsg tea.Msg
-		// check runs after initial Update and receives the updated model
 		check func(*testing.T, logpane.Model)
 	}
 
 	cases := []testCase{
 		{
 			name: "LogLinesAvailable drains channel and appends lines",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 3)
 				ch <- "line a"
 				ch <- "line b"
@@ -51,7 +50,7 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "LogLinesAvailable with closed channel sets lineCh to nil",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string)
 				close(ch)
 				return logpane.New(theme.Default(), 120, 100, 100, ch)
@@ -66,7 +65,7 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "LogLinesAvailable scrolls viewport to bottom if was at bottom",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 100)
 				for i := 0; i < 10; i++ {
 					ch <- "line content"
@@ -89,7 +88,7 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "ToggleLogWrap toggles wrap and restores scroll position",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 1)
 				longLine := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 				ch <- longLine
@@ -110,7 +109,7 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "WindowSizeMsg recalculates dimensions",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 1)
 				ch <- "hello"
 				return logpane.New(theme.Default(), 100, 100, 100, ch)
@@ -121,7 +120,7 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "theme.Changed updates theme pointer",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 1)
 				ch <- "hello"
 				return logpane.New(theme.Default(), 120, 100, 100, ch)
@@ -138,7 +137,7 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.setup(t)
+			m := tc.setup()
 			m, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
@@ -161,7 +160,7 @@ func TestView(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		setup func(*testing.T) logpane.Model
+		setup func() logpane.Model
 
 		// assert
 		expectedResult string
@@ -170,14 +169,14 @@ func TestView(t *testing.T) {
 	cases := []testCase{
 		{
 			name: "empty log content renders border",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				return logpane.New(theme.Default(), 120, 100, 100, make(chan string, 1))
 			},
 			expectedResult: "╭",
 		},
 		{
 			name: "non-empty log content shows lines",
-			setup: func(t *testing.T) logpane.Model {
+			setup: func() logpane.Model {
 				ch := make(chan string, 2)
 				ch <- "visible line"
 				ch <- "another line"
@@ -193,7 +192,7 @@ func TestView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.setup(t)
+			m := tc.setup()
 
 			if tc.expectedResult == "" {
 				assert.Empty(t, m.View().Content)
