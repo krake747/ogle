@@ -26,5 +26,4 @@ ogle version [flags]
 
 ### SEE ALSO
 
-* [ogle](ogle.md)	 - A TUI for monitoring Docker Compose projects.
-
+* [ogle](ogle.md)  - A TUI for monitoring Docker Compose projects.

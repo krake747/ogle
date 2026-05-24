@@ -4,14 +4,17 @@
 
 ## Context
 
-The watcher (`internal/services/watcher`) monitors a directory for changes to known compose filenames. Two situations require a watcher that never emits events:
+The watcher (`internal/services/watcher`) monitors a directory for changes to known compose filenames. Two situations
+require a watcher that never emits events:
 
 1. **Testing** — unit tests for the app or downstream components should not require fsnotify or a real filesystem.
-2. **startup Watching state** — when the watcher fails to initialise (permissions, missing CWD), the Watching state uses a NullWatcher so the UI can render without crashing.
+2. **startup Watching state** — when the watcher fails to initialise (permissions, missing CWD), the Watching state uses
+a NullWatcher so the UI can render without crashing.
 
 ## Decision
 
-A `NullWatcher` adapter satisfies the `Watcher` interface. It never delivers events. It is implemented as `internal/services/watcher/null.go`.
+A `NullWatcher` adapter satisfies the `Watcher` interface. It never delivers events. It is implemented as
+`internal/services/watcher/null.go`.
 
 ```go
 type NullWatcher struct{}

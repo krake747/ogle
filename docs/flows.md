@@ -53,7 +53,10 @@ fsnotify event (create/write in CWD)
 
 ## Watcher Lifetime
 
-The watcher is created at app startup and runs for the entire process lifetime — including while the dashboard is active. `app.Init()` starts `watcher.Next()` and the app re-subscribes after every `FileAvailabilityChanged` by returning another `watcher.Next()` Cmd from `Update`. The active sub-model (startup flow or dashboard) receives the message via `app.Update`'s dispatch logic.
+The watcher is created at app startup and runs for the entire process lifetime — including while the dashboard is
+active. `app.Init()` starts `watcher.Next()` and the app re-subscribes after every `FileAvailabilityChanged` by
+returning another `watcher.Next()` Cmd from `Update`. The active sub-model (startup flow or dashboard) receives the
+message via `app.Update`'s dispatch logic.
 
 ---
 
@@ -75,7 +78,8 @@ app.Init()
 └── startup.Init() (or direct)    → kicks off scan (or immediate parse for -f case)
 ```
 
-If `-f` was given (already validated in `cmd/root.go`), the initial scan is skipped and the startup flow receives the path directly.
+If `-f` was given (already validated in `cmd/root.go`), the initial scan is skipped and the startup flow receives the
+path directly.
 
 ### Message dispatch
 
@@ -99,13 +103,15 @@ A simple model (82 lines, no State pattern). Key behaviour:
 - On `tea.WindowSizeMsg`: forward to fileSelect sub-model
 - All other messages: forward to fileSelect sub-model
 
-The startup flow does not own scan/validate logic — those happen via `scanner.ScanAll()` and `parser.Validate()` in the watching/fileselect components before a `FileSelected` msg reaches this flow.
+The startup flow does not own scan/validate logic — those happen via `scanner.ScanAll()` and `parser.Validate()` in the
+watching/fileselect components before a `FileSelected` msg reaches this flow.
 
 ---
 
 ## Watching View (`internal/ui/components/watching`)
 
-Rendered by the app's `appWatching` phase. Also used when the dashboard transitions to the Disconnected state (file disappeared at runtime).
+Rendered by the app's `appWatching` phase. Also used when the dashboard transitions to the Disconnected state (file
+disappeared at runtime).
 
 ```text
 watchingIdle    — monitoring CWD; no valid files present
@@ -125,7 +131,8 @@ The watching view accepts a mode that controls the message shown:
 | `cold`         | Watching for a compose file…              |
 | `disconnected` | Disconnected — waiting for `<filename>`   |
 
-In disconnected mode, `FileAvailabilityChanged` is only acted on if the specific filename that was being monitored is present in `Files`.
+In disconnected mode, `FileAvailabilityChanged` is only acted on if the specific filename that was being monitored is
+present in `Files`.
 
 ---
 
@@ -140,7 +147,8 @@ fileselectError     — Parse failed for the confirmed selection
                       inline notice beneath the list; list remains active
 ```
 
-On a new `FileAvailabilityChanged` the list is refreshed. If the previously errored file is no longer present, the error notice is cleared.
+On a new `FileAvailabilityChanged` the list is refreshed. If the previously errored file is no longer present, the error
+notice is cleared.
 
 ---
 
@@ -152,7 +160,8 @@ The dashboard is a flat model (no sub-states). It:
 
 - Dispatches `StatePollTick` to the service panel and emits a `docker.Ps()` Cmd
 - Routes `ServiceStop/Start/Restart/Rebuild/ActionCompleted` to `handleServiceAction`
-- Handles `FileAvailabilityChanged` — if the project file is still present, re-parses and updates; if absent, sends a msg that triggers `app` to transition to `appWatching`
+- Handles `FileAvailabilityChanged` — if the project file is still present, re-parses and updates; if absent, sends a
+msg that triggers `app` to transition to `appWatching`
 - Forwards all messages to its sub-models (accordion, carousel, panel, settings)
 - Toggles settings overlay via `SettingsVisibilityChanged`
 

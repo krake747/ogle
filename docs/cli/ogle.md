@@ -19,5 +19,4 @@ ogle [flags]
 
 ### SEE ALSO
 
-* [ogle version](ogle_version.md)	 - Print version information
-
+* [ogle version](ogle_version.md)  - Print version information
