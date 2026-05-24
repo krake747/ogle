@@ -39,91 +39,91 @@ func TestView(t *testing.T) {
 
 	type testCase struct {
 		name           string
-		setup          func(m accordion.Model) accordion.Model
+		setup          func() accordion.Model
 		expectedResult string
 	}
 
 	cases := []testCase{
 		{
 			name: "empty when no services",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(&domain.Project{}, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "",
 		},
 		{
 			name: "empty when width is zero",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 0, 24, theme.Default(), nil)
 			},
 			expectedResult: "",
 		},
 		{
 			name: "expanded header indicator",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "▼",
 		},
 		{
 			name: "image label rendered",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Image:",
 		},
 		{
 			name: "container id label rendered",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Container ID:",
 		},
 		{
 			name: "created label rendered",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Created:",
 		},
 		{
 			name: "state label rendered",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "State:",
 		},
 		{
 			name: "ports label rendered",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Ports:",
 		},
 		{
 			name: "image value from service def",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "nginx:latest",
 		},
 		{
 			name: "ports value from service def",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "80:80, 443:443",
 		},
 		{
 			name: "placeholders when runtime is nil",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: dash,
 		},
 		{
 			name: "container id truncated from runtime",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
@@ -141,7 +141,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "state string from runtime",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
@@ -159,7 +159,7 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "created age from runtime",
-			setup: func(m accordion.Model) accordion.Model {
+			setup: func() accordion.Model {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
@@ -181,7 +181,7 @@ func TestView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.setup(accordion.Model{})
+			m := tc.setup()
 			_ = m.Init()
 
 			if tc.expectedResult == "" {
