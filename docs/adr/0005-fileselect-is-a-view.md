@@ -1,6 +1,8 @@
 # ADR-0005: fileselect is a view, not a top-level package
 
-**Status:** Accepted
+**Status:** Superseded
+**Superseded by:** Code evolution — fileselect moved from `internal/ui/views/` to `internal/ui/components/fileselect/` during a UI components refactor. Its role as a Bubble Tea sub-model controlled by the startup flow remains unchanged.
+**Date:** 2026-05-24
 
 ## Context
 

@@ -1,6 +1,8 @@
 # ADR-0008: Parse cancellation via context.CancelFunc on the Parsing state
 
-**Status:** Proposed
+**Status:** Superseded
+**Superseded by:** Decision not to implement context cancellation for parsing. The startup flow is synchronous (parse on `FileSelected`) and the dashboard re-parses inline on `FileAvailabilityChanged`. No concurrent parses exist, so cancellation is unnecessary.
+**Date:** 2026-05-24
 
 ## Context
 

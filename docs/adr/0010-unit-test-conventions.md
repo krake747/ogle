@@ -1,6 +1,6 @@
 # ADR-0010: Unit test conventions
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

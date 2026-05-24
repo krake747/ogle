@@ -1,6 +1,8 @@
 # ADR-0009: Watcher middleware in internal/watcher/middleware/
 
-**Status:** Proposed
+**Status:** Superseded
+**Superseded by:** Decision not to implement watcher middleware. The `Watcher` interface exists and would support a decorator pattern, but logging was handled elsewhere (via `slog` in `app.go`). No current need for additional watcher behaviours.
+**Date:** 2026-05-24
 
 ## Context
 

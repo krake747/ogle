@@ -1,6 +1,8 @@
 # ADR-0007: State pattern for startup flow; states in a sub-package
 
-**Status:** Accepted
+**Status:** Superseded
+**Superseded by:** Decision to keep the startup flow as a simple model. After implementation, the startup flow proved simple enough (82 lines, 4 states with straightforward transitions) that the State pattern overhead was unnecessary. The current code uses a `Model` with direct message dispatch and delegates to a single `fileSelect` sub-model.
+**Date:** 2026-05-24
 
 ## Context
 

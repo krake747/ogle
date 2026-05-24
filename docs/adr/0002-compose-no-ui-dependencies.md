@@ -1,6 +1,8 @@
 # ADR-0002: compose package has no UI dependencies; ScanAll/Validate split from Parse
 
-**Status:** Accepted
+**Status:** Superseded
+**Superseded by:** Code evolution — the `compose` package was split into `scanner`, `parser`, and `docker` packages. The principle (infrastructure packages have no UI dependencies) still holds; only the package name changed.
+**Date:** 2026-05-24
 
 ## Context
 

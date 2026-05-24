@@ -1,6 +1,8 @@
 # ADR-0011: UI model test conventions
 
-**Status:** Proposed
+**Status:** Superseded
+**Superseded by:** Decision not to implement UI model test conventions broadly. Only `servicehost` gained tests; the conventions described (state machine driving, view substring assertions, constructor injection) remain aspirational for future UI test work.
+**Date:** 2026-05-24
 
 ## Context
 

@@ -1,4 +1,6 @@
-// Package dashboard implements the project dashboard flow.
+// Package dashboard implements the project dashboard flow. Dispatches 10+
+// message types to sub-models (accordion, carousel, servicepanel, settings)
+// and handles service actions, state polling, and file availability changes.
 package dashboard
 
 import (

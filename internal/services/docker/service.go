@@ -1,4 +1,7 @@
 // Package docker provides the Docker daemon connectivity layer for ogle.
+// The Docker interface abstracts all daemon interactions: connection, state
+// polling (Ps), and service actions (Stop, Start, Restart, Rebuild). Service
+// is the production adapter; mocks are generated via mockery.
 package docker
 
 import (

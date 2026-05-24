@@ -1,3 +1,5 @@
+// Package msgs defines all inter-component tea.Msg types used across the
+// Bubble Tea runtime. Types only — no logic, no imports beyond domain.
 package msgs
 
 import (

@@ -19,4 +19,50 @@
           ‘                                    '\:·´'              '¨                    `*´¯              
 ```
 
-*ogle* is a TUI for monitoring Docker Compose projects.
+*ogle* is a terminal UI for observing and operating Docker Compose projects — no setup required.
+
+## Requirements
+
+- Go 1.22+ (to build from source)
+- Docker daemon (for log streaming and service actions)
+- A Docker Compose file (auto-discovered or specified with `-f`)
+
+## Installation
+
+```sh
+go install github.com/ma-tf/ogle@latest
+```
+
+Or download a pre-built binary from the [releases page](https://github.com/ma-tf/ogle/releases).
+
+## Quick Start
+
+```sh
+# Auto-discover compose.yaml in current directory
+ogle
+
+# Specify a compose file explicitly
+ogle -f docker-compose.yml
+```
+
+## Keybindings
+
+| Key | Action |
+|---|---|
+| `q` / `ctrl+c` | Quit |
+| `?` | Toggle help |
+| `↑`/`↓` | Navigate service list |
+| `←`/`→` | Scroll log pane horizontally |
+| `enter` | Select/activate |
+| `/` | Filter services by name |
+| `r` | Reload compose file |
+| `s` | Open Settings overlay |
+| `w` | Toggle log line wrap |
+
+## Documentation
+
+- [Architecture](docs/arch.md)
+- [Flows](docs/flows.md)
+- [Domain glossary](docs/CONTEXT.md)
+- [Test coverage](docs/test-coverage.md)
+- [Architecture Decision Records](docs/adr/)
