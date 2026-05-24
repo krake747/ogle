@@ -77,6 +77,7 @@ func CatppuccinoFrappe() *Theme {
 		CarouselNavBackground:          frappeCrust,
 		CarouselHover:                  frappeText,
 		CarouselEmpty:                  frappeSurface0,
+		CardHoverBackground:            frappeSurface0,
 		LogPaneBackground:              frappeCrust,
 		BodyBackground:                 frappeBase,
 		AccordionLabel:                 frappeSubtext0,

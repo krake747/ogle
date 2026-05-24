@@ -67,6 +67,7 @@ func SolarizedDark() *Theme {
 		CarouselNavBackground:          solarizedBase03,
 		CarouselHover:                  solarizedBase0,
 		CarouselEmpty:                  solarizedBase02,
+		CardHoverBackground:            solarizedBase02,
 		LogPaneBackground:              solarizedBase03,
 		BodyBackground:                 solarizedBase03,
 		AccordionLabel:                 solarizedBase01,

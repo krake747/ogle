@@ -76,6 +76,7 @@ type Theme struct {
 	CarouselNavBackground          color.Color // background behind the nav bar
 	CarouselHover                  color.Color // border/chevron color when hovered (not focused)
 	CarouselEmpty                  color.Color // border colour for empty placeholder cards
+	CardHoverBackground            color.Color // card background when hovered
 	AccordionLabel                 color.Color // accordion label colour (e.g. "Image:")
 	AccordionValue                 color.Color // accordion value colour
 	AccordionBackground            color.Color // accordion background fill
@@ -120,6 +121,7 @@ type userThemeFile struct {
 	CarouselNavBackgroundColor          string `yaml:"carouselNavBackgroundColor"`
 	CarouselHoverColor                  string `yaml:"carouselHoverColor"`
 	CarouselEmptyColor                  string `yaml:"carouselEmptyColor"`
+	CardHoverBackgroundColor            string `yaml:"cardHoverBackgroundColor"`
 	LogPaneBackgroundColor              string `yaml:"logPaneBackgroundColor"`
 	AccordionLabelColor                 string `yaml:"accordionLabelColor"`
 	AccordionValueColor                 string `yaml:"accordionValueColor"`
@@ -262,6 +264,7 @@ func applyColorOverrides(result *Theme, f userThemeFile) {
 		{field: f.CarouselNavBackgroundColor, dst: &result.CarouselNavBackground},
 		{field: f.CarouselHoverColor, dst: &result.CarouselHover},
 		{field: f.CarouselEmptyColor, dst: &result.CarouselEmpty},
+		{field: f.CardHoverBackgroundColor, dst: &result.CardHoverBackground},
 		{field: f.LogPaneBackgroundColor, dst: &result.LogPaneBackground},
 		{field: f.AccordionLabelColor, dst: &result.AccordionLabel},
 		{field: f.AccordionValueColor, dst: &result.AccordionValue},

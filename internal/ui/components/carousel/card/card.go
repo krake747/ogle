@@ -279,7 +279,7 @@ func (m Model) View() tea.View {
 	case m.focused:
 		bg = m.th.SelectedBackground
 	case m.hovered:
-		bg = m.th.HoverBackground
+		bg = m.th.CardHoverBackground
 	}
 
 	content := lipgloss.NewStyle().

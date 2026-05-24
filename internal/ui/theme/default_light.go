@@ -47,6 +47,7 @@ func DefaultLight() *Theme {
 		CarouselNavBackground:          defaultWhite,
 		CarouselHover:                  defaultBlack,
 		CarouselEmpty:                  defaultBrightBlack,
+		CardHoverBackground:            defaultBrightBlack,
 		LogPaneBackground:              defaultWhite,
 		BodyBackground:                 defaultWhite,
 		AccordionLabel:                 defaultDarkGrey,
