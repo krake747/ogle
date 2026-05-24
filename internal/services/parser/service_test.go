@@ -1,7 +1,6 @@
 package parser_test
 
 import (
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -104,7 +103,7 @@ func TestParse(t *testing.T) {
 				require.NoError(t, os.WriteFile(tc.path, []byte(tc.yaml), 0o600))
 			}
 
-			svc := parser.New(t.Context(), slog.New(slog.NewTextHandler(os.Stderr, nil)))
+			svc := parser.New()
 			result, err := svc.Parse(tc.path)
 
 			if tc.expectedError != nil {

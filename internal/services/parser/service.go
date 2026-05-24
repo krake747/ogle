@@ -3,10 +3,8 @@ package parser
 
 import (
 	"cmp"
-	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -28,7 +26,6 @@ const (
 	portPartsHostContainer = 2 // parts count for host:container format
 )
 
-//nolint:exhaustruct // compile-time assertion that Service satisfies Parser.
 var _ Parser = Service{}
 
 // Parser validates and parses Compose Files into Projects.
@@ -51,17 +48,11 @@ type composeFile struct {
 }
 
 // Service exposes compose file validation and parsing.
-type Service struct {
-	ctx    context.Context
-	logger *slog.Logger
-}
+type Service struct{}
 
-// New constructs a Service with the given logger.
-func New(ctx context.Context, logger *slog.Logger) Service {
-	return Service{
-		ctx:    ctx,
-		logger: logger,
-	}
+// New constructs a Service.
+func New() Service {
+	return Service{}
 }
 
 // Parse reads and parses the compose file at path into a Project. path must

@@ -61,6 +61,7 @@ func New(
 	configDir string,
 	w, h int,
 	docker svcdocker.Docker,
+	p parser.Parser,
 ) tea.Model {
 	selectedName := ""
 	if len(project.Services) > 0 {
@@ -70,7 +71,7 @@ func New(
 	return Model{
 		ctx:             ctx,
 		log:             log,
-		parser:          parser.New(ctx, log),
+		parser:          p,
 		project:         project,
 		th:              th,
 		zm:              zm,
@@ -290,7 +291,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.configDir, m.w, m.h, m.docker)
+	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.configDir, m.w, m.h, m.docker, m.parser)
 
 	return newDash, newDash.Init()
 }

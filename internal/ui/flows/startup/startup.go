@@ -1,9 +1,6 @@
 package startup
 
 import (
-	"context"
-	"log/slog"
-
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
 
@@ -24,14 +21,13 @@ type Model struct {
 
 // New constructs a startup Model.
 func New(
-	ctx context.Context,
-	logger *slog.Logger,
 	w, h int,
 	zm *zone.Manager,
 	th *theme.Theme,
+	p parser.Parser,
 ) Model {
 	return Model{
-		parser:     parser.New(ctx, logger),
+		parser:     p,
 		fileSelect: fileselect.New(nil, w, h, zm, th),
 		zm:         zm,
 		th:         th,

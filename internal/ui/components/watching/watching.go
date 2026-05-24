@@ -4,9 +4,7 @@
 package watching
 
 import (
-	"context"
 	"fmt"
-	"log/slog"
 	"slices"
 
 	"charm.land/bubbles/v2/key"
@@ -32,8 +30,6 @@ const (
 type Model struct {
 	parser   parser.Parser
 	File     string
-	ctx      context.Context
-	log      *slog.Logger
 	th       *theme.Theme
 	st       state
 	parseErr error
@@ -43,17 +39,14 @@ type Model struct {
 
 // New returns a Model watching for file to reappear.
 func New(
-	ctx context.Context,
-	logger *slog.Logger,
 	file string,
 	w, h int,
 	th *theme.Theme,
+	p parser.Parser,
 ) Model {
 	return Model{
-		parser:   parser.New(ctx, logger),
+		parser:   p,
 		File:     file,
-		ctx:      ctx,
-		log:      logger,
 		th:       th,
 		st:       stateIdle,
 		parseErr: nil,

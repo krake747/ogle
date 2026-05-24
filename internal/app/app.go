@@ -58,6 +58,7 @@ type Model struct {
 	theme       *theme.Theme
 	zm          *zone.Manager
 	docker      svcdocker.Docker
+	parser      parser.Parser
 	watcher     watcher.Watcher
 
 	topbar    topbar.Model
@@ -97,6 +98,7 @@ func New(
 	}
 
 	dockerSvc := svcdocker.New()
+	parseSvc := parser.New()
 
 	var (
 		project *domain.Project
@@ -109,7 +111,7 @@ func New(
 
 	if projectFile != "" {
 		var errParse error
-		if project, errParse = parser.New(ctx, log).Parse(projectFile); errParse != nil {
+		if project, errParse = parseSvc.Parse(projectFile); errParse != nil {
 			_ = wtr.Close()
 
 			return Model{}, nil, fmt.Errorf("parse project file: %w", errParse)
@@ -129,6 +131,7 @@ func New(
 			width,
 			height,
 			dockerSvc,
+			parseSvc,
 		)
 	}
 
@@ -141,11 +144,12 @@ func New(
 		theme:       th,
 		zm:          zm,
 		docker:      dockerSvc,
+		parser:      parseSvc,
 		watcher:     wtr,
 		topbar:      topbar.New(ctx, connection.New(), th, dockerSvc),
 		helpbar:     helpbar.New(th),
 		statusbar:   statusbar.New(th),
-		startup:     startup.New(ctx, log, width, height, zm, th),
+		startup:     startup.New(width, height, zm, th, parseSvc),
 		dashboard:   dash,
 		watching:    nil,
 		phase:       currentPhase,
@@ -202,6 +206,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.width,
 			m.height,
 			m.docker,
+			m.parser,
 		)
 		m.phase = phaseDashboard
 
@@ -238,7 +243,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleFileAvailabilityChanged(msg)
 
 	case msgs.FileRemoved:
-		m.watching = watching.New(m.ctx, m.log, msg.File, m.width, m.height, m.theme)
+		m.watching = watching.New(msg.File, m.width, m.height, m.theme, m.parser)
 		m.phase = phaseWatching
 
 		return m, tea.Batch(
