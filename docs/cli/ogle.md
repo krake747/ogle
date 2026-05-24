@@ -1,14 +1,14 @@
-## ogle
+# ogle
 
 A TUI for monitoring Docker Compose projects.
 
-```
+```sh
 ogle [flags]
 ```
 
-### Options
+## Options
 
-```
+```sh
       --config string         config file (default is $HOME/.ogle/config)
   -h, --help                  help for ogle
       --log-buffer-cap int    maximum log lines buffered per service (env: OGLE_LOG_BUFFER_CAP; default 1000)
@@ -17,6 +17,6 @@ ogle [flags]
       --theme string          theme name; built-ins: "default", "default_light", "catppuccino_frappe", "catppuccino_latte", "catppuccino_macchiato", "catppuccino_mocha", "solarized_dark", "solarized_light" (env: OGLE_THEME)
 ```
 
-### SEE ALSO
+## SEE ALSO
 
-* [ogle version](ogle_version.md)  - Print version information
+* [ogle version](ogle_version.md)   - Print version information

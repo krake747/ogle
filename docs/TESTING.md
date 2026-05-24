@@ -1,62 +1,50 @@
 # Testing
 
-Conventions established through a design interview on 2026-05-24. All decisions below are resolved; do not re-open
-without a specific technical reason.
+Conventions established 2026-05-24. Do not re-open without a technical reason.
 
 ---
 
 ## Service-layer unit tests
 
-These conventions apply to all unit tests in `internal/services/*` (parser, scanner, watcher, docker) and any other
-package with pure-function subjects.
+Applies to `internal/services/*` and any pure-function subject package.
 
 ### Package style
 
-`package foo_test` (black-box) throughout. Tests interact only with the public API.
-
-If a test needs to assert on unexported state, export the necessary type or function with a `// Exported for testing.`
-comment rather than switching to a white-box package.
+- `package foo_test` (black-box) throughout.
 
 ### Assertions
 
-`testify/require` for preconditions and single-path assertions. `testify/assert` for independent multi-field checks. No
-raw `if err != nil { t.Fatal(...) }`.
+- `testify/require` for preconditions and single-path assertions.
+- `testify/assert` for independent multi-field checks.
+- No raw `t.Fatal`.
 
 ### Data-driven tables
 
-Use a `testCase` struct scoped to each test function. Single-test functions (flat named subtests) are allowed but
-require approval.
-
-Fields are grouped with `// arrange` and `// assert` section comments.
-
-**Naming:** All assertion fields must use the `expected` prefix, never `want`. Examples: `expectedResult`,
- `expectedError`, `expectedProject`. Single-value fields that hold the expected output should be named `expectedResult`.
+- `testCase` struct scoped to each test function.
+- Fields grouped with `// arrange` / `// assert` section comments.
+- Assertion fields use `expected` prefix, never `want`.
 
 ```go
 type testCase struct {
- name string
- // arrange
- input string
- setup func(t *testing.T, tc *testCase, dir string)
+    name string
+    // arrange
+    input string
+    setup func(tc *testCase)
 
- // assert
- expected      domain.Project
- expectedError error
+    // assert
+    expectedResult string
+    expectedError  error
 }
 ```
 
 ### Struct equality
 
-Assert on the full returned struct with `require.Equal`. Do not assert on named fields selectively — partial assertions
-hide regressions in unexamined fields.
-
-Fields whose value cannot be known at table-definition time (e.g. file paths from `t.TempDir()`) are patched inside the
-`setup` callback, not hardcoded in the table.
+- Assert full struct via `require.Equal`.
+- Non-deterministic fields (e.g. temp dir paths) patched in `setup`, not hardcoded.
 
 ### Error assertions
 
-Store the expected sentinel as `expectedError error` on `testCase`. Assert with `require.ErrorIs`. Never use `wantErr
-bool` — it cannot distinguish between wrong sentinels.
+- `expectedError error` field. Assert with `require.ErrorIs`. Never `wantErr bool`.
 
 ```go
 if tc.expectedError != nil {
@@ -68,193 +56,119 @@ require.NoError(t, err)
 
 ### Setup callback
 
-Signature: `func(t *testing.T, tc *testCase, dir string)`. The test loop creates one `t.TempDir()` per subtest and
-passes it to `setup`. The callback must not use `t.Fatal` — it receives the subtest's `*testing.T` for proper failure
-isolation.
+- Signature: `func(tc *testCase)`. Patches fields unknown at table-definition time.
+- Must not use `t.Fatal`.
 
 ### Fixtures
 
-Inline only. No `testdata/` directory. Small input data (e.g. YAML strings, filenames) is a field on `testCase`. Keeps
-the full test case — input and expected output — readable in one place.
-
-File writes are performed in the test loop after `setup` runs, guarded by whether the relevant input field is non-empty:
+- Inline only. No `testdata/` directory.
 
 ```go
-if tc.yaml != "" {
-    require.NoError(t, os.WriteFile(tc.path, []byte(tc.yaml), 0o600))
+if tc.input != "" {
+    require.NoError(t, os.WriteFile(tc.path, []byte(tc.input), 0o600))
 }
 ```
 
 ### Parallelism
 
-`t.Parallel()` at the top of every test function and every `t.Run` subtest. Each subtest operates on its own
-`t.TempDir()` — shared mutable state across cases is not permitted.
+- `t.Parallel()` on every test function and `t.Run` subtest.
+- Each subtest uses its own `t.TempDir()`.
 
 ### Mocks
 
-Generated via [mockery](https://vektra.github.io/mockery/). Named `MockFoo` in package `mocks`, constructed via
-`NewMockFoo(t)`. Live in a `mocks/` subdirectory per package. Generated files must not be edited manually. Mocks are
-kept even when currently unused — the seam exists for future tests.
+- Generated via [mockery](https://vektra.github.io/mockery/). `MockFoo` in `mocks/` package.
+- Never edited manually. Kept even when unused — seam exists for future tests.
 
 ---
 
 ## UI model tests
 
-These conventions apply to testing Bubble Tea `tea.Model` state machines (components, flows). All service-layer
-conventions apply as the baseline; only the deltas are documented here.
+Baseline: service-layer conventions apply. Only deltas documented here.
 
 ### State machine driving
 
-Call `Init()` or `Update(msg)` and receive `(model, cmd)`. For multi-step flows, feed the returned `tea.Msg` from one
-transition into the next `Update()` call.
+- `Init()` or `Update(msg)` → `(model, cmd)`.
+- Feed returned `tea.Msg` into next `Update()`.
 
 ```go
-m, cmd := m.Update(msgs.DaemonConnected{})
+m, cmd := m.Update(SomeMsg{})
 ```
 
 ### Command assertions
 
-Call the returned `tea.Cmd` to obtain the `tea.Msg`, then assert on it directly. Mandatory when the cmd type is
-deterministic.
+- Call returned `tea.Cmd` to get `tea.Msg`, then assert on the msg.
+- Mandatory when cmd type is deterministic. Skip for non-deterministic (e.g. `tea.Tick`).
 
 ```go
-m, cmd := m.Update(msgs.DaemonConnected{})
+m, cmd := m.Update(SomeMsg{})
 require.NotNil(t, cmd)
 result := cmd()
-msg, ok := result.(msgs.SomeMsg)
+msg, ok := result.(SomeOtherMsg)
 require.True(t, ok)
 require.Equal(t, expectedField, msg.Field)
 ```
 
-Skip cmd-calling only for inherently non-deterministic cmds (e.g. `tea.Tick`).
+### TestUpdate
 
-### View tests
-
-`TestView` functions verify only the rendered output. State is arranged via
-message sequences in a `setup` closure; commands are discarded.
-
-**Setup pattern:**
+- `msg` is never nil. `View()` never called. Assert only on `expectedMsg tea.Msg`.
+- `expectedMsg` nil → `require.Nil(t, cmd)`. Non-nil → `require.Equal(t, tc.expectedMsg, cmd())`.
 
 ```go
-setup func(m Model) Model    // nil means no arrangement needed
+type testCase struct {
+    name string
+    // arrange
+    input string
+
+    // act
+    msg tea.Msg
+
+    // assert
+    expectedMsg tea.Msg
+}
 ```
 
-- Model is constructed via `New` inside the loop. `Init()` is called before
-  setup.
-- `nil` setup means the initial state is the test subject.
-- Cmds are discarded with `_` — command assertions belong in `TestUpdate`.
+```go
+m, cmd := m.Update(tc.msg)
 
-**Assertion style:**
+if tc.expectedMsg != nil {
+    require.NotNil(t, cmd)
+    require.Equal(t, tc.expectedMsg, cmd())
+} else {
+    require.Nil(t, cmd)
+}
+```
 
-A single `expectedResult string` field. The assertion branches on emptiness:
+### TestView
 
-- `""` → `assert.Empty(t, m.View().Content)`
-- non-empty → `assert.Contains(t, m.View().Content, tt.expectedResult)`
-
-The plain text is checked within the ANSI-styled output; exact string equality
-is not attempted.
-
-**Repeated strings** across test cases are extracted to a function-scoped
-`const` block.
+- `Update()` never called in loop body — setup does it.
+- `expectedResult string`: `""` → `assert.Empty`, else `assert.Contains`.
+- No cmd capture.
 
 ```go
-for _, tt := range tests {
-    t.Run(tt.name, func(t *testing.T) {
-        t.Parallel()
+type testCase struct {
+    name string
+    // arrange
+    input string
+    setup func(m Model) Model
 
-        m := status.New(th)
-        _ = m.Init()
+    // assert
+    expectedResult string
+}
+```
 
-        if tt.setup != nil {
-            m = tt.setup(m)
-        }
+```go
+if tt.setup != nil {
+    m = tt.setup(m)
+}
 
-        if tt.expectedResult == "" {
-            assert.Empty(t, m.View().Content)
-        } else {
-            assert.Contains(t, m.View().Content, tt.expectedResult)
-        }
-    })
+if tt.expectedResult == "" {
+    assert.Empty(t, m.View().Content)
+} else {
+    assert.Contains(t, m.View().Content, tt.expectedResult)
 }
 ```
 
 ### Constructor injection
 
-Every component receives its dependencies as constructor parameters. No model constructs infrastructure internally.
-`app.go` is exempted.
-
----
-
-## Example
-
-```go
-package parser_test
-
-import (
- "os"
- "path/filepath"
- "testing"
-
- "github.com/stretchr/testify/require"
-
- "github.com/ma-tf/ogle/internal/domain"
- "github.com/ma-tf/ogle/internal/services/parser"
-)
-
-func TestParse(t *testing.T) {
- t.Parallel()
-
- type testCase struct {
-  name string
-  // arrange
-  yaml  string
-  setup func(t *testing.T, tc *testCase, dir string)
-  path  string
-
-  // assert
-  expected      domain.Project
-  expectedError error
- }
-
- cases := []testCase{
-  {
-   name: "valid file with name field",
-   yaml: "name: myproject\nservices:\n  web:\n    image: nginx\n",
-   setup: func(t *testing.T, tc *testCase, dir string) {
-    tc.path = filepath.Join(dir, "compose.yaml")
-    tc.expected.File = tc.path
-   },
-   expected: domain.Project{
-    Name: "myproject",
-    Services: []domain.ServiceDef{
-     {Name: "web", Image: "nginx"},
-    },
-   },
-  },
- }
-
- for _, tc := range cases {
-  t.Run(tc.name, func(t *testing.T) {
-   t.Parallel()
-
-   tc.setup(t, &tc, t.TempDir())
-
-   if tc.yaml != "" {
-    require.NoError(t, os.WriteFile(tc.path, []byte(tc.yaml), 0o600))
-   }
-
-   svc := parser.New()
-   result, err := svc.Parse(tc.path)
-
-   if tc.expectedError != nil {
-    require.ErrorIs(t, err, tc.expectedError)
-    require.Nil(t, result)
-    return
-   }
-
-   require.NoError(t, err)
-   require.Equal(t, tc.expected, *result)
-  })
- }
-}
-```
+- All dependencies as constructor parameters.
+- No model constructs infrastructure internally. `app.go` exempted.
