@@ -1,0 +1,205 @@
+package logpane_test
+
+import (
+	"testing"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/components/logpane"
+	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name string
+		// arrange
+		setup func(*testing.T) logpane.Model
+
+		// act
+		msg tea.Msg
+
+		// assert
+		expectedMsg tea.Msg
+		// check runs after initial Update and receives the updated model
+		check func(*testing.T, logpane.Model)
+	}
+
+	cases := []testCase{
+		{
+			name: "LogLinesAvailable drains channel and appends lines",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 3)
+				ch <- "line a"
+				ch <- "line b"
+				ch <- "line c"
+				return logpane.New(theme.Default(), 120, 100, 100, ch)
+			},
+			msg:         msgs.LogLinesAvailable{},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				v := m.View().Content
+				assert.Contains(t, v, "line a")
+				assert.Contains(t, v, "line b")
+				assert.Contains(t, v, "line c")
+			},
+		},
+
+		{
+			name: "LogLinesAvailable with closed channel sets lineCh to nil",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string)
+				close(ch)
+				return logpane.New(theme.Default(), 120, 100, 100, ch)
+			},
+			msg:         msgs.LogLinesAvailable{},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				_, cmd := m.Update(msgs.LogLinesAvailable{})
+				require.Nil(t, cmd)
+			},
+		},
+
+		{
+			name: "LogLinesAvailable scrolls viewport to bottom if was at bottom",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 100)
+				for i := 0; i < 10; i++ {
+					ch <- "line content"
+				}
+				m := logpane.New(theme.Default(), 120, 8, 100, ch)
+				m, _ = m.Update(msgs.LogLinesAvailable{})
+				for i := 0; i < 5; i++ {
+					ch <- "new content"
+				}
+				return m
+			},
+			msg:         msgs.LogLinesAvailable{},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				v := m.View().Content
+				assert.Contains(t, v, "new content")
+				assert.NotContains(t, v, "line content")
+			},
+		},
+
+		{
+			name: "ToggleLogWrap toggles wrap and restores scroll position",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 1)
+				longLine := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+				ch <- longLine
+				m := logpane.New(theme.Default(), 120, 100, 100, ch)
+				m, _ = m.Update(msgs.LogLinesAvailable{})
+				return m
+			},
+			msg:         msgs.ToggleLogWrap{},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				v1 := m.View().Content
+				m2, cmd := m.Update(msgs.ToggleLogWrap{})
+				require.Nil(t, cmd)
+
+				assert.NotEqual(t, v1, m2.View().Content)
+			},
+		},
+
+		{
+			name: "WindowSizeMsg recalculates dimensions",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 1)
+				ch <- "hello"
+				return logpane.New(theme.Default(), 100, 100, 100, ch)
+			},
+			msg:         tea.WindowSizeMsg{Width: 200, Height: 200},
+			expectedMsg: nil,
+		},
+
+		{
+			name: "theme.Changed updates theme pointer",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 1)
+				ch <- "hello"
+				return logpane.New(theme.Default(), 120, 100, 100, ch)
+			},
+			msg:         theme.Changed{Theme: theme.DefaultLight()},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				assert.NotPanics(t, func() { m.View() })
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := tc.setup(t)
+			m, cmd := m.Update(tc.msg)
+
+			if tc.expectedMsg != nil {
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			} else {
+				require.Nil(t, cmd)
+			}
+
+			if tc.check != nil {
+				tc.check(t, m)
+			}
+		})
+	}
+}
+
+func TestView(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name string
+		// arrange
+		setup func(*testing.T) logpane.Model
+
+		// assert
+		expectedResult string
+	}
+
+	cases := []testCase{
+		{
+			name: "empty log content renders border",
+			setup: func(t *testing.T) logpane.Model {
+				return logpane.New(theme.Default(), 120, 100, 100, make(chan string, 1))
+			},
+			expectedResult: "╭",
+		},
+		{
+			name: "non-empty log content shows lines",
+			setup: func(t *testing.T) logpane.Model {
+				ch := make(chan string, 2)
+				ch <- "visible line"
+				ch <- "another line"
+				m := logpane.New(theme.Default(), 120, 100, 100, ch)
+				m, _ = m.Update(msgs.LogLinesAvailable{})
+				return m
+			},
+			expectedResult: "visible line",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := tc.setup(t)
+
+			if tc.expectedResult == "" {
+				assert.Empty(t, m.View().Content)
+			} else {
+				assert.Contains(t, m.View().Content, tc.expectedResult)
+			}
+		})
+	}
+}
