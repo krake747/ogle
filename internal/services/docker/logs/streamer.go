@@ -18,5 +18,4 @@ type Streamer interface {
 // Compile-time assertions.
 var (
 	_ Streamer = (*LogStreamer)(nil)
-	_ Streamer = NullLogStreamer{}
 )

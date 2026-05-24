@@ -31,3 +31,20 @@ For deeper context the agent can pull on demand:
 | [docs/flows.md](./docs/flows.md) | State machines, screen transitions |
 | [docs/charm-ecosystem.md](./docs/charm-ecosystem.md) | Charm library compatibility notes |
 | [docs/TESTING.md](./docs/TESTING.md) | Unit test and UI model test conventions |
+| [docs/agents/issue-tracker.md](./docs/agents/issue-tracker.md) | GitHub issue tracker conventions |
+| [docs/agents/triage-labels.md](./docs/agents/triage-labels.md) | Triage role-to-label mapping |
+| [docs/agents/domain.md](./docs/agents/domain.md) | Domain doc consumer rules |
+
+## Agent skills
+
+### Issue tracker
+
+Issues tracked on GitHub Issues via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical role labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context repo. See `docs/agents/domain.md`.
