@@ -25,9 +25,7 @@ func newCard(name string) card.Model {
 	return card.New(domain.ServiceDef{Name: name}, testW, testH, theme.Default())
 }
 
-// ---------------------------------------------------------------------------
 // Update tests
-// ---------------------------------------------------------------------------
 
 func TestUpdate_FocusMsg_Matching_SetsFocused(t *testing.T) {
 	t.Parallel()
@@ -53,6 +51,18 @@ func TestUpdate_FocusMsg_NonMatching_NoOp(t *testing.T) {
 
 	require.Nil(t, cmd)
 	assert.Equal(t, viewBefore, m.View().Content)
+}
+
+func TestUpdate_FocusMsg_Matching_WithScroll_StartsScroll(t *testing.T) {
+	t.Parallel()
+
+	m := newCard(testLongName)
+	m, cmd := m.Update(card.FocusMsg{ServiceName: testLongName})
+
+	require.NotNil(t, cmd, "long name should schedule initial scroll tick")
+	scrollMsg := cmd()
+	_, ok := scrollMsg.(card.ScrollTick)
+	require.True(t, ok, "cmd should produce a ScrollTick message")
 }
 
 func TestUpdate_BlurMsg_Matching_ClearsFocus(t *testing.T) {
@@ -137,8 +147,8 @@ func TestUpdate_ServicesPolled_NilErr_StoresRuntime(t *testing.T) {
 	})
 
 	require.Nil(t, cmd)
-	// Runtime data changes border colour from muted to state-based
-	assert.NotEqual(t, viewBefore, m.View().Content)
+	assert.NotEqual(t, viewBefore, m.View().Content,
+		"runtime data should change border colour from muted to state-based")
 }
 
 func TestUpdate_ServicesPolled_WithErr_NoChange(t *testing.T) {
@@ -304,7 +314,7 @@ func TestUpdate_WindowSizeMsg_FocusedWithScroll_Reschedules(t *testing.T) {
 	t.Parallel()
 
 	m := newCard(testLongName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName}) // focused=true, cmd scheduled
+	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
 
 	m, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
 
@@ -320,17 +330,15 @@ func TestUpdate_ThemeChanged_UpdatesTheme(t *testing.T) {
 	m, cmd := m.Update(theme.Changed{Theme: theme.Default()})
 
 	require.Nil(t, cmd)
-	// Same theme values should give same view
-	assert.Equal(t, viewBefore, m.View().Content)
+	assert.Equal(t, viewBefore, m.View().Content,
+		"same theme values should produce the same view")
 }
 
-// ---------------------------------------------------------------------------
 // ScrollTick tests
 //
 // These tests involve real time delays (scrollIdleInterval = 2500ms) because
 // nextScrollTime is set in the past via the FocusMsg path, and ScrollTick's
 // gen field is unexported so we must obtain messages through tickScroll cmd().
-// ---------------------------------------------------------------------------
 
 func TestUpdate_ScrollTick_AdvancesAndSchedulesNext(t *testing.T) {
 	t.Parallel()
@@ -372,9 +380,7 @@ func TestUpdate_ScrollTick_StaleGen_NoOp(t *testing.T) {
 	require.Nil(t, cmd3, "stale generation should produce no command")
 }
 
-// ---------------------------------------------------------------------------
 // View tests
-// ---------------------------------------------------------------------------
 
 func TestView_ShortName_Focused(t *testing.T) {
 	t.Parallel()
@@ -469,14 +475,4 @@ func TestView_EmptyOnZeroDimensions(t *testing.T) {
 	assert.Contains(t, view.Content, testShortName)
 }
 
-func TestUpdate_FocusMsg_Matching_WithScroll_StartsScroll(t *testing.T) {
-	t.Parallel()
 
-	m := newCard(testLongName)
-	m, cmd := m.Update(card.FocusMsg{ServiceName: testLongName})
-
-	require.NotNil(t, cmd, "long name should schedule initial scroll tick")
-	scrollMsg := cmd()
-	_, ok := scrollMsg.(card.ScrollTick)
-	require.True(t, ok, "cmd should produce a ScrollTick message")
-}
