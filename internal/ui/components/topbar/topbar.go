@@ -12,7 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
-	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
+	"github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -38,6 +38,7 @@ type Model struct {
 	phase       Phase
 	projectFile string
 	conn        *connection.Machine
+	docker      docker.Docker
 	spn         spinner.Model
 	th          *theme.Theme
 	width       int
@@ -45,12 +46,13 @@ type Model struct {
 }
 
 // New returns a Model in PhaseStartup with no project file.
-func New(ctx context.Context, conn *connection.Machine, th *theme.Theme) Model {
+func New(ctx context.Context, conn *connection.Machine, th *theme.Theme, d docker.Docker) Model {
 	return Model{
 		phase:       PhaseStartup,
 		projectFile: "",
 		ctx:         ctx,
 		conn:        conn,
+		docker:      d,
 		spn:         spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 		th:          th,
 		width:       0,
@@ -60,7 +62,7 @@ func New(ctx context.Context, conn *connection.Machine, th *theme.Theme) Model {
 // Init fires the initial Docker connect, grace-period tick, and spinner tick.
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		svcdocker.Connect(m.ctx),
+		m.docker.Connect(m.ctx),
 		tea.Tick(gracePeriodDuration, func(_ time.Time) tea.Msg {
 			return msgs.DaemonGraceExpired{}
 		}),
@@ -110,7 +112,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.DaemonTick:
 		if m.conn.ConnectState() == connection.ConnectStateUnavailable {
 			if m.conn.IsRetryDue(time.Now().UTC()) {
-				cmds = append(cmds, svcdocker.Connect(m.ctx))
+				cmds = append(cmds, m.docker.Connect(m.ctx))
 			} else {
 				cmds = append(cmds, daemonTickCmd())
 			}
@@ -125,12 +127,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.DaemonPoll:
 		if m.conn.ConnectState() == connection.ConnectStateConnected {
-			cmds = append(cmds, svcdocker.Connect(m.ctx))
+			cmds = append(cmds, m.docker.Connect(m.ctx))
 		}
 	}
 
 	if m.conn.IsRetryDue(time.Now().UTC()) {
-		cmds = append(cmds, svcdocker.Connect(m.ctx))
+		cmds = append(cmds, m.docker.Connect(m.ctx))
 	}
 
 	return m, tea.Batch(cmds...)

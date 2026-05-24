@@ -21,6 +21,7 @@ import (
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/profiling"
+	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/watcher"
@@ -57,6 +58,7 @@ type Model struct {
 	log         *slog.Logger
 	theme       *theme.Theme
 	zm          *zone.Manager
+	docker      svcdocker.Docker
 	watcher     watcher.Watcher
 
 	topbar    topbar.Model
@@ -95,6 +97,8 @@ func New(
 		return Model{}, nil, fmt.Errorf("create watcher: %w", errWatch)
 	}
 
+	dockerSvc := svcdocker.New()
+
 	var (
 		project *domain.Project
 		dash    tea.Model
@@ -125,6 +129,7 @@ func New(
 			filepath.Dir(configPath),
 			width,
 			height,
+			dockerSvc,
 		)
 	}
 
@@ -136,8 +141,9 @@ func New(
 		log:         log,
 		theme:       th,
 		zm:          zm,
+		docker:      dockerSvc,
 		watcher:     wtr,
-		topbar:      topbar.New(ctx, connection.New(), th),
+		topbar:      topbar.New(ctx, connection.New(), th, dockerSvc),
 		helpbar:     helpbar.New(th),
 		statusbar:   statusbar.New(th),
 		startup:     startup.New(ctx, log, width, height, zm, th),
@@ -196,6 +202,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			filepath.Dir(m.configPath),
 			m.width,
 			m.height,
+			m.docker,
 		)
 		m.phase = phaseDashboard
 

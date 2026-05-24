@@ -43,7 +43,7 @@ func runAction(
 }
 
 // Stop returns a Cmd that runs `docker compose -f <file> -p <project> stop <service>`.
-func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
+func (s *Service) Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "stop", serviceName,
@@ -56,7 +56,7 @@ func Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 
 // Start returns a Cmd that runs `docker compose -f <file> -p <project> up -d <service>`.
 // Handles both exited and not-created states.
-func Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
+func (s *Service) Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "-d", serviceName,
@@ -68,7 +68,7 @@ func Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 }
 
 // Restart returns a Cmd that runs `docker compose -f <file> -p <project> restart <service>`.
-func Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
+func (s *Service) Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "restart", serviceName,
@@ -81,7 +81,7 @@ func Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd
 
 // Rebuild returns a Cmd that runs `docker compose -f <file> -p <project> up --build -d <service>`.
 // Compose handles the stop/recreate lifecycle.
-func Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
+func (s *Service) Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx,

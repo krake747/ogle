@@ -37,6 +37,7 @@ type Model struct {
 	th        *theme.Theme
 	zm        *zone.Manager
 	configDir string
+	docker    svcdocker.Docker
 
 	accordion       accordion.Model
 	carousel        carousel.Model
@@ -59,6 +60,7 @@ func New(
 	zm *zone.Manager,
 	configDir string,
 	w, h int,
+	docker svcdocker.Docker,
 ) tea.Model {
 	selectedName := ""
 	if len(project.Services) > 0 {
@@ -73,6 +75,7 @@ func New(
 		th:              th,
 		zm:              zm,
 		configDir:       configDir,
+		docker:          docker,
 		accordion:       accordion.New(project, w, accordionHeight, th, zm),
 		carousel:        carousel.New(project, w, h, th, zm),
 		panel:           servicepanel.New(project, th, w, h, cfg.LogBufferCap),
@@ -110,7 +113,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.panel, panCmd = m.panel.Update(msg)
 
 		return m, tea.Batch(
-			svcdocker.Ps(m.ctx, m.project.File, m.project.Name),
+			m.docker.Ps(m.ctx, m.project.File, m.project.Name),
 			panCmd,
 		)
 
@@ -232,28 +235,28 @@ func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 		statusCmd = func() tea.Msg {
 			return msgs.DisplayStatus{Msg: msg.ServiceName + " stopping"}
 		}
-		svcCmd = svcdocker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		svcCmd = m.docker.Stop(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceStart:
 		m.carousel, carouselCmd = m.carousel.Update(msg)
 		statusCmd = func() tea.Msg {
 			return msgs.DisplayStatus{Msg: msg.ServiceName + " starting"}
 		}
-		svcCmd = svcdocker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		svcCmd = m.docker.Start(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRestart:
 		m.carousel, carouselCmd = m.carousel.Update(msg)
 		statusCmd = func() tea.Msg {
 			return msgs.DisplayStatus{Msg: msg.ServiceName + " restarting"}
 		}
-		svcCmd = svcdocker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		svcCmd = m.docker.Restart(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceRebuild:
 		m.carousel, carouselCmd = m.carousel.Update(msg)
 		statusCmd = func() tea.Msg {
 			return msgs.DisplayStatus{Msg: msg.ServiceName + " rebuilding"}
 		}
-		svcCmd = svcdocker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
+		svcCmd = m.docker.Rebuild(m.ctx, m.project.File, m.project.Name, msg.ServiceName)
 
 	case msgs.ServiceActionCompleted:
 		m.carousel, carouselCmd = m.carousel.Update(msg)
@@ -287,7 +290,7 @@ func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.configDir, m.w, m.h)
+	newDash := New(m.ctx, p, m.log, m.th, m.cfg, m.zm, m.configDir, m.w, m.h, m.docker)
 
 	return newDash, newDash.Init()
 }

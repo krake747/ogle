@@ -1,7 +1,4 @@
 // Package docker provides the Docker daemon connectivity layer for ogle.
-// It exposes a Connect cmd that pings the daemon and returns either
-// msgs.DaemonConnected or msgs.DaemonUnavailable. The retry loop is driven
-// externally by the Dashboard via tea.Every — this package is a pure cmd factory.
 package docker
 
 import (
@@ -16,6 +13,30 @@ import (
 
 	"github.com/ma-tf/ogle/internal/msgs"
 )
+
+// Docker interacts with the Docker daemon for connectivity, state polling,
+// and service actions. All methods return tea.Cmd values that the Bubble Tea
+// runtime executes asynchronously.
+//
+//mockery:generate: true
+type Docker interface {
+	Connect(ctx context.Context) tea.Cmd
+	Ps(ctx context.Context, composeFile, projectName string) tea.Cmd
+	Stop(ctx context.Context, composeFile, projectName, serviceName string) tea.Cmd
+	Start(ctx context.Context, composeFile, projectName, serviceName string) tea.Cmd
+	Restart(ctx context.Context, composeFile, projectName, serviceName string) tea.Cmd
+	Rebuild(ctx context.Context, composeFile, projectName, serviceName string) tea.Cmd
+}
+
+// Service implements Docker using the Docker Unix socket and docker compose CLI.
+type Service struct{}
+
+// New returns a Service ready for use.
+func New() *Service {
+	return &Service{}
+}
+
+var _ Docker = (*Service)(nil)
 
 var ErrUnexpectedPingStatus = errors.New("docker ping returned unexpected status")
 
@@ -34,7 +55,7 @@ const (
 // The context passed to the returned Cmd controls the request lifetime.
 // Connect itself does not start a long-running goroutine — callers are
 // responsible for scheduling retries.
-func Connect(ctx context.Context) tea.Cmd {
+func (s *Service) Connect(ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		transport := &http.Transport{
 			DialContext: func(dialCtx context.Context, _, _ string) (net.Conn, error) {

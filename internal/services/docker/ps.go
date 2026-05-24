@@ -27,7 +27,7 @@ type psLine struct {
 
 // Ps returns a Cmd that runs docker compose ps and returns a ServicesPolled
 // message with the parsed runtime data for every service.
-func Ps(ctx context.Context, composeFile, projectName string) tea.Cmd {
+func (s *Service) Ps(ctx context.Context, composeFile, projectName string) tea.Cmd {
 	return func() tea.Msg {
 		cmd := exec.CommandContext(
 			ctx,
