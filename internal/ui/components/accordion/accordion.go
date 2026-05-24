@@ -283,7 +283,7 @@ func (m Model) computeFieldContent() ([numFields]string, [numFields]color.Color)
 
 	stateColour := m.th.AccordionValue
 	if m.runtime != nil {
-		stateColour = colourForState(m.runtime.State, m.th)
+		stateColour = m.th.ColourForState(m.runtime.State)
 	}
 
 	portsStr := strings.Join(def.Ports, ", ")
@@ -329,22 +329,5 @@ func formatAge(d time.Duration) string {
 		return fmt.Sprintf("%dm ago", secs/secsPerMinute)
 	default:
 		return fmt.Sprintf("%dh ago", secs/secsPerHour)
-	}
-}
-
-func colourForState(s domain.ServiceState, th *theme.Theme) color.Color {
-	switch s {
-	case domain.ServiceStateRunning:
-		return th.StateRunning
-	case domain.ServiceStateExited, domain.ServiceStateDead:
-		return th.StateExited
-	case domain.ServiceStatePaused:
-		return th.StatePaused
-	case domain.ServiceStateRestarting:
-		return th.StateTransient
-	case domain.ServiceStateNotCreated, domain.ServiceStateUnknown:
-		return th.StateMuted
-	default:
-		return th.StateMuted
 	}
 }

@@ -12,11 +12,31 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"go.yaml.in/yaml/v3"
+
+	"github.com/ma-tf/ogle/internal/domain"
 )
 
 // ErrUnknownTheme is returned by Load when the name does not match any
 // built-in theme and no user file exists for it.
 var ErrUnknownTheme = errors.New("unknown theme")
+
+// ColourForState maps a Service State to the theme colour for that state.
+func (t *Theme) ColourForState(s domain.ServiceState) color.Color {
+	switch s {
+	case domain.ServiceStateRunning:
+		return t.StateRunning
+	case domain.ServiceStateExited, domain.ServiceStateDead:
+		return t.StateExited
+	case domain.ServiceStatePaused:
+		return t.StatePaused
+	case domain.ServiceStateRestarting:
+		return t.StateTransient
+	case domain.ServiceStateNotCreated, domain.ServiceStateUnknown:
+		return t.StateMuted
+	default:
+		return t.StateMuted
+	}
+}
 
 // Theme holds the complete set of themeable style values for the UI layer.
 // BorderFocused and BorderBlurred pre-compose lipgloss.NormalBorder(); call

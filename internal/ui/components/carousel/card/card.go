@@ -295,7 +295,7 @@ func (m Model) View() tea.View {
 	case m.inFlight:
 		borderFg = m.th.StateTransient
 	case m.runtime != nil:
-		borderFg = colourForState(m.runtime.State, m.th)
+		borderFg = m.th.ColourForState(m.runtime.State)
 	}
 
 	return tea.NewView(lipgloss.NewStyle().
