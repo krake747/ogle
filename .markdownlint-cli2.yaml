@@ -7,3 +7,4 @@ config:
 ignores:
   - node_modules
   - docs/deprecated
+  - .sandcastle
