@@ -4,6 +4,12 @@ pre-commit:
     lint:
       glob: "*.go"
       run: make lint
+    lint-md:
+      glob: "*.md"
+      run: make lint-md
+    generate:
+      glob: "*.go"
+      run: go tool mockery 2>&1 | tail -1 && git diff --exit-code || { echo "Mockery mocks out of date. Run 'make generate' and commit the changes."; exit 1; }
     notice:
       glob: "go.{mod,sum}"
       run: go-licenses report . --template=notice.tpl --include_tests > NOTICE && git add NOTICE
@@ -17,6 +23,17 @@ commit-msg:
       run: cat {1} | commitlint lint
 
 pre-push:
+  parallel: true
   commands:
     test:
       run: make test
+    verify-generated:
+      run: |
+        go tool mockery 2>&1 | tail -1
+        git diff --exit-code --name-only || { echo "Mockery mocks out of date. Run 'make generate' and commit."; exit 1; }
+        go-licenses report . --template=notice.tpl --include_tests > /tmp/NOTICE.check
+        diff /tmp/NOTICE.check NOTICE > /dev/null 2>&1 || { echo "NOTICE out of date. Run 'make notice' and commit."; rm /tmp/NOTICE.check; exit 1; }
+        rm -f /tmp/NOTICE.check
+        go run internal/tools/docgen/main.go --out /tmp/docs/cli --format markdown
+        diff -r /tmp/docs/cli ./docs/cli > /dev/null 2>&1 || { echo "CLI docs out of date. Run 'make docs' and commit."; rm -rf /tmp/docs/cli; exit 1; }
+        rm -rf /tmp/docs/cli
