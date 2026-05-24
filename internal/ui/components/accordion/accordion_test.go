@@ -1,0 +1,270 @@
+package accordion_test
+
+import (
+	"testing"
+	"time"
+
+	tea "charm.land/bubbletea/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/ma-tf/ogle/internal/domain"
+	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/ui/components/accordion"
+	"github.com/ma-tf/ogle/internal/ui/components/accordion/value"
+	"github.com/ma-tf/ogle/internal/ui/theme"
+)
+
+const dash = "—"
+
+var testProject = &domain.Project{
+	Name: "testproj",
+	File: "/path/to/compose.yaml",
+	Services: []domain.ServiceDef{
+		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80", "443:443"}},
+	},
+}
+
+var multiServiceProject = &domain.Project{
+	Name: "testproj",
+	File: "/path/to/compose.yaml",
+	Services: []domain.ServiceDef{
+		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80"}},
+		{Name: "api", Image: "api:latest", Ports: []string{"8080:8080"}},
+	},
+}
+
+func TestView(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name           string
+		setup          func(m accordion.Model) accordion.Model
+		expectedResult string
+	}
+
+	cases := []testCase{
+		{
+			name: "empty when no services",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(&domain.Project{}, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "",
+		},
+		{
+			name: "empty when width is zero",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 0, 24, theme.Default(), nil)
+			},
+			expectedResult: "",
+		},
+		{
+			name: "expanded header indicator",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "▼",
+		},
+		{
+			name: "image label rendered",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "Image:",
+		},
+		{
+			name: "container id label rendered",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "Container ID:",
+		},
+		{
+			name: "created label rendered",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "Created:",
+		},
+		{
+			name: "state label rendered",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "State:",
+		},
+		{
+			name: "ports label rendered",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "Ports:",
+		},
+		{
+			name: "image value from service def",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "nginx:latest",
+		},
+		{
+			name: "ports value from service def",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: "80:80, 443:443",
+		},
+		{
+			name: "placeholders when runtime is nil",
+			setup: func(m accordion.Model) accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
+			},
+			expectedResult: dash,
+		},
+		{
+			name: "container id truncated from runtime",
+			setup: func(m accordion.Model) accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						"web": {
+							ContainerID: "abc123def4567890",
+							State:       domain.ServiceStateRunning,
+							Status:      "Up 2 hours",
+							CreatedAt:   time.Now().Add(-2 * time.Hour),
+						},
+					},
+				})
+				return m
+			},
+			expectedResult: "abc123def456",
+		},
+		{
+			name: "state string from runtime",
+			setup: func(m accordion.Model) accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						"web": {
+							ContainerID: "abc123def4567890",
+							State:       domain.ServiceStateRunning,
+							Status:      "Up 2 hours",
+							CreatedAt:   time.Now().Add(-2 * time.Hour),
+						},
+					},
+				})
+				return m
+			},
+			expectedResult: "Up 2 hours",
+		},
+		{
+			name: "created age from runtime",
+			setup: func(m accordion.Model) accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						"web": {
+							ContainerID: "abc123def4567890",
+							State:       domain.ServiceStateRunning,
+							Status:      "Up 2 hours",
+							CreatedAt:   time.Now().Add(-2 * time.Hour),
+						},
+					},
+				})
+				return m
+			},
+			expectedResult: "h ago",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := tc.setup(accordion.Model{})
+			_ = m.Init()
+
+			if tc.expectedResult == "" {
+				assert.Empty(t, m.View().Content)
+			} else {
+				assert.Contains(t, m.View().Content, tc.expectedResult)
+			}
+		})
+	}
+}
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name        string
+		msg         tea.Msg
+		expectedMsg tea.Msg
+	}
+
+	cases := []testCase{
+		{
+			name:        "ServiceSelected triggers sync",
+			msg:         msgs.ServiceSelected{ServiceName: "api"},
+			expectedMsg: value.StartMsg{Gen: 1},
+		},
+		{
+			name: "ServicesPolled stores runtime and triggers sync",
+			msg: msgs.ServicesPolled{
+				Runtimes: map[string]*domain.ServiceRuntimeData{
+					"web": {
+						ContainerID: "abc123def456",
+						State:       domain.ServiceStateRunning,
+						Status:      "Up 2 hours",
+					},
+				},
+			},
+			expectedMsg: value.StartMsg{Gen: 1},
+		},
+		{
+			name: "ServicesPolled error does not update runtime",
+			msg: msgs.ServicesPolled{
+				Err: assert.AnError,
+			},
+			expectedMsg: value.StartMsg{Gen: 1},
+		},
+		{
+			name:        "WindowSizeMsg updates dimensions and triggers sync",
+			msg:         tea.WindowSizeMsg{Width: 200, Height: 50},
+			expectedMsg: value.StartMsg{Gen: 1},
+		},
+		{
+			name:        "theme.Changed updates theme and triggers sync",
+			msg:         theme.Changed{Theme: theme.DefaultLight()},
+			expectedMsg: value.StartMsg{Gen: 1},
+		},
+		{
+			name:        "MouseClickMsg no-op with nil zone manager",
+			msg:         tea.MouseClickMsg{},
+			expectedMsg: nil,
+		},
+		{
+			name:        "MouseMotionMsg no-op with nil zone manager",
+			msg:         tea.MouseMotionMsg{},
+			expectedMsg: nil,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := accordion.New(multiServiceProject, 100, 24, theme.Default(), nil)
+			_ = m.Init()
+
+			_, cmd := m.Update(tc.msg)
+
+			if tc.expectedMsg != nil {
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			} else {
+				require.Nil(t, cmd)
+			}
+		})
+	}
+}
