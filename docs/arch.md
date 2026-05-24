@@ -2,7 +2,7 @@
 
 ## Package Structure
 
-```
+```text
 internal/
 ├── app/                              # root flow orchestrator (owns watcher lifecycle)
 │   └── app.go
@@ -71,7 +71,7 @@ internal/
 
 ## Dependency Graph
 
-```
+```text
 cmd → app
 app → ui/flows/startup, ui/flows/dashboard, msgs, services/watcher, services/docker, config
 ui/flows/startup → services/parser, services/scanner, ui/components/fileselect, msgs, ui/theme

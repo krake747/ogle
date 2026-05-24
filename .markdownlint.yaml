@@ -1,0 +1,12 @@
+# markdownlint configuration
+# https://github.com/DanielAnson/markdownlint
+
+# Line length — 100 for prose; skip tables and code blocks
+MD013:
+  line_length: 100
+  tables: false
+  code_blocks: false
+
+# Table style — disabled. Tables display correctly in rendered form.
+# MD060 conflicts with mixed table styles across the codebase.
+MD060: false

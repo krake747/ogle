@@ -8,7 +8,7 @@ Documents the state machines, screen states, and transition logic for the TUI.
 
 ### With `-f <path>` (Explicit File)
 
-```
+```text
 -f given
 ├── path is a directory          → hard exit: "path is a directory, expected a file"
 ├── file does not exist          → hard exit: "file not found: <path>"
@@ -20,7 +20,7 @@ Hard exits happen in `cmd/root.go` before the TUI is initialised.
 
 ### Without `-f` (File Discovery)
 
-```
+```text
 no -f
 └── ScanAll(CWD) + Validate() each candidate
     ├── 0 valid files            → Watching screen (cold start)
@@ -32,7 +32,7 @@ Validity requires both conditions: file exists on disk **and** parses as valid c
 
 ### Runtime: file disappears (Disconnected)
 
-```
+```text
 dashboard → watched file deleted or moved
 └── Watching screen ("disconnected — waiting for <filename>")
     └── watches for the SAME filename to reappear
@@ -41,7 +41,7 @@ dashboard → watched file deleted or moved
 
 ### Watching screen: file appears (cold start)
 
-```
+```text
 fsnotify event (create/write in CWD)
 └── re-run ScanAll() + Validate()
     ├── 0 valid  → stay on Watching screen
@@ -61,7 +61,7 @@ The watcher is created at app startup and runs for the entire process lifetime �
 
 The app manages three phases:
 
-```
+```text
 appStartup    — startup flow is the active sub-model
 appDashboard  — dashboard flow is active (post-ProjectLoaded)
 appWatching   — watching flow is active (disconnected, waiting for file to reappear)
@@ -69,7 +69,7 @@ appWatching   — watching flow is active (disconnected, waiting for file to rea
 
 ### Init (two Cmds in parallel)
 
-```
+```text
 app.Init()
 ├── watcher.Next()                → begins perpetual watcher subscription
 └── startup.Init() (or direct)    → kicks off scan (or immediate parse for -f case)
@@ -79,7 +79,7 @@ If `-f` was given (already validated in `cmd/root.go`), the initial scan is skip
 
 ### Message dispatch
 
-```
+```text
 app.Update(msg)
 ├── msgs.ProjectLoaded           → transition startup → dashboard
 ├── msgs.FileAvailabilityChanged → re-subscribe watcher, dispatch to startup or dashboard
@@ -107,7 +107,7 @@ The startup flow does not own scan/validate logic — those happen via `scanner.
 
 Rendered by the app's `appWatching` phase. Also used when the dashboard transitions to the Disconnected state (file disappeared at runtime).
 
-```
+```text
 watchingIdle    — monitoring CWD; no valid files present
 watchingNotice  — a file appeared but failed Validate (exists, invalid YAML)
                   transient inline message: "compose.yaml found but could not be parsed"
@@ -133,7 +133,7 @@ In disconnected mode, `FileAvailabilityChanged` is only acted on if the specific
 
 Rendered by the startup flow in the `Selecting` state (Project Selector).
 
-```
+```text
 fileselectBrowsing  — list of valid files, cursor navigating
 fileselectError     — Parse failed for the confirmed selection
                       (file was valid at list time, broken by the time Parse ran)
@@ -190,7 +190,7 @@ The dashboard is a flat model (no sub-states). It:
 
 ## Runtime: file disappears (full trace)
 
-```
+```text
 dashboard (appDashboard)
 └── FileAvailabilityChanged{Files} where project file ∉ Files
     └── app → appWatching

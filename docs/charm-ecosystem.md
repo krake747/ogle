@@ -35,6 +35,7 @@ A form library: field focus cycling, Tab/Shift-Tab navigation, Enter/Esc confirm
 rendering. **Prefer it over hand-rolling any new interactive overlay that resembles a form.**
 
 Current fit in ogle:
+
 - The **Settings** overlay (`states/settings.go`) is a 273-line hand-rolled state machine
   covering the same concerns. `huh.Select` maps cleanly to the Theme field; the
   step-based arrow-key UX for Poll Interval and Log Buffer Cap does not have a native huh

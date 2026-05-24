@@ -100,7 +100,7 @@ _Avoid_: Manual file, specified file
 
 **Watching**:
 The startup state where File Discovery found no valid Compose Files and ogle is monitoring the working directory for one to appear.
-_Avoid_: Waiting, idle — also distinct from **Disconnected**, which waits for a *specific* file to return
+_Avoid_: Waiting, idle — also distinct from **Disconnected**, which waits for a _specific_ file to return
 
 **Watcher Error**:
 A recoverable failure state where ogle cannot monitor the working directory (e.g., permissions problem, directory missing). The user is shown an error message and must explicitly retry.
@@ -145,27 +145,27 @@ _Avoid_: Disconnected (reserved for the Compose File disappearing), daemon unrea
 
 > **Dev:** "If the user has two compose files, which Project do they load?"
 > **Domain expert:** "The **Project Selector** appears. They pick one and the **Dashboard** opens."
-
+>
 > **Dev:** "What happens if they edit the compose file while the Dashboard is open?"
 > **Domain expert:** "**Live Reload** — the Dashboard re-parses it silently. If the file disappears entirely, the Dashboard goes **Disconnected** and waits for that specific file to come back."
-
+>
 > **Dev:** "Can you stop a service from the Dashboard?"
 > **Domain expert:** "Yes — trigger a **Service Action** (stop). It runs in the background; the UI stays responsive. **State Polling** picks up the state change in the next poll cycle."
-
+>
 > **Dev:** "There's a container running that isn't in the compose file anymore — what is it?"
 > **Domain expert:** "An **Orphan**. It shows up in the Dashboard alongside the Services but it's not part of the **Project**."
-
+>
 > **Dev:** "The Docker daemon crashed. What does the user see?"
 > **Domain expert:** "The **Service Inspector** shows a placeholder: 'Docker unavailable — retrying in Xs…'. The service list freezes at the last-known **Service States**. **Service Actions** are gone from the help bar. Once Docker recovers, everything resumes automatically."
-
+>
 > **Dev:** "Is the service 'healthy'?"
 > **Domain expert:** "That depends which concept you mean. **Service Health** is the Docker health check result — `healthy` or `unhealthy`. **Service State** is whether the container is `running`, `exited`, etc. A service can be `running` but `unhealthy`."
-
+>
 > **Dev:** "How long has this service been up?"
 > **Domain expert:** "Check the **State Age** — it shows how long the service has been in its current state. If it's running, you see 'up 2h'. If it's exited, you see 'exited 3m ago'."
 
 ## Flagged ambiguities
 
-- **"Zero configuration"** was initially proposed in the aim statement. Resolved: ogle supports optional configuration via config files and environment variables, so the accurate claim is *"no setup required"* — it works out of the box but can be configured.
+- **"Zero configuration"** was initially proposed in the aim statement. Resolved: ogle supports optional configuration via config files and environment variables, so the accurate claim is _"no setup required"_ — it works out of the box but can be configured.
 - **"Container" vs "Service"** — ogle uses **Service** as the user-facing term that spans both the Compose File declaration and its runtime container. "Container" is reserved for implementation-level precision (e.g., when targeting a specific container ID for log streaming or Docker API calls).
 - **"Disconnected" vs "Docker Unavailable"** — "Disconnected" is reserved exclusively for the Compose File disappearing. "Docker Unavailable" is the term for the Docker daemon being unreachable. They are distinct states with different recovery paths and different UI treatments.

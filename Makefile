@@ -29,6 +29,19 @@ lint:
 	go vet ./...
 	golangci-lint run ./...
 
+.PHONY: lint-md
+lint-md:
+	@if ! command -v markdownlint-cli >/dev/null 2>&1; then \
+		echo "markdownlint-cli not found. Install: npm install -g markdownlint-cli"; \
+		exit 1; \
+	fi
+	markdownlint-cli --config .markdownlint.yaml \
+		--ignore node_modules \
+		--ignore docs/deprecated \
+		--ignore docs/plans/archive \
+		--ignore docs/cli \
+		'**/*.md'
+
 .PHONY: fmt
 fmt:
 	golangci-lint format ./...

@@ -27,7 +27,7 @@
 		},
 		"[markdown]": {
 			"editor.formatOnSave": true,
-			"editor.defaultFormatter": "oxc.oxc-vscode"
+			"editor.defaultFormatter": "DavidAnson.vscode-markdownlint"
 		},
 		"[json]": {
 			"editor.formatOnSave": true,
@@ -44,7 +44,6 @@
 		"[shellscript]": {
 			"editor.formatOnSave": true
 		},
-		"shellcheck.run": "onSave",
 		"[makefile]": {
 			"editor.insertSpaces": false,
 			"editor.tabSize": 4

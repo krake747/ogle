@@ -1,20 +1,27 @@
 # Agent Instructions
 
-## Plan archiving
+ogle — A terminal UI for observing and operating Docker Compose projects, no setup required.
 
-When you finish implementing a plan from `docs/plans/` and the build passes, move the plan file to `docs/plans/archive/`. Do not commit the move — leave that to the user.
+## Commands
 
-## Code comments
+| Command | What it does |
+|---|---|
+| `make generate` | Regenerate mockery mocks |
+| `make test` | Run tests with race detector |
+| `make lint` | `go vet ./...` + `golangci-lint run ./...` |
+| `make build` | Build to `./bin/ogle` |
 
-Only write a comment when it explains *why* — motivation, constraint, or
-non-obvious consequence. Never write comments that restate what the code
-visibly does. If a comment would read like a prose description of the next
-line, omit it.
+## Progressive disclosure
 
-## Agent skills
+For deeper context the agent can pull on demand:
 
-The following project-specific skills are available in `.agents/skills/`:
-
-| Skill | Description | Trigger |
-|---|---|---|
-| `plan-to-file` | Captures a grill session as a durable plan file | After a design interview, when the user wants to write the plan to disk |
+| File | Contents |
+|---|---|
+| [docs/TOOLCHAIN.md](./docs/TOOLCHAIN.md) | Go version, mockery, golangci-lint |
+| [docs/CONVENTIONS.md](./docs/CONVENTIONS.md) | Coding conventions |
+| [docs/plans/WORKFLOW.md](./docs/plans/WORKFLOW.md) | Plan workflow |
+| [docs/SKILLS.md](./docs/SKILLS.md) | Available agent skills |
+| [docs/CONTEXT.md](./docs/CONTEXT.md) | Domain terminology — Service, Project, Dashboard, etc. |
+| [docs/arch.md](./docs/arch.md) | Package structure, dependency graph |
+| [docs/flows.md](./docs/flows.md) | State machines, screen transitions |
+| [docs/charm-ecosystem.md](./docs/charm-ecosystem.md) | Charm library compatibility notes |
