@@ -27,7 +27,10 @@ raw `if err != nil { t.Fatal(...) }`.
 Use a `testCase` struct scoped to each test function. Single-test functions (flat named subtests) are allowed but
 require approval.
 
-Fields are grouped with `// arrange` and `// assert` section comments. Use `expected` terminology, never `want`.
+Fields are grouped with `// arrange` and `// assert` section comments.
+
+**Naming:** All assertion fields must use the `expected` prefix, never `want`. Examples: `expectedResult`,
+ `expectedError`, `expectedProject`. Single-value fields that hold the expected output should be named `expectedResult`.
 
 ```go
 type testCase struct {
@@ -125,15 +128,54 @@ require.Equal(t, expectedField, msg.Field)
 
 Skip cmd-calling only for inherently non-deterministic cmds (e.g. `tea.Tick`).
 
-### View assertions
+### View tests
 
-`require.Contains(t, m.View(), "expected content")`. No golden files, no full-string equality.
+`TestView` functions verify only the rendered output. State is arranged via
+message sequences in a `setup` closure; commands are discarded.
 
-Asserting on colour outputs: compute the expected colour from the theme, not from a hardcoded string.
+**Setup pattern:**
 
 ```go
-expected := lipgloss.NewStyle().Foreground(th.StateRunning).Render("")
-require.Contains(t, m.View(), expected)
+setup func(m Model) Model    // nil means no arrangement needed
+```
+
+- Model is constructed via `New` inside the loop. `Init()` is called before
+  setup.
+- `nil` setup means the initial state is the test subject.
+- Cmds are discarded with `_` — command assertions belong in `TestUpdate`.
+
+**Assertion style:**
+
+A single `expectedResult string` field. The assertion branches on emptiness:
+
+- `""` → `assert.Empty(t, m.View().Content)`
+- non-empty → `assert.Contains(t, m.View().Content, tt.expectedResult)`
+
+The plain text is checked within the ANSI-styled output; exact string equality
+is not attempted.
+
+**Repeated strings** across test cases are extracted to a function-scoped
+`const` block.
+
+```go
+for _, tt := range tests {
+    t.Run(tt.name, func(t *testing.T) {
+        t.Parallel()
+
+        m := status.New(th)
+        _ = m.Init()
+
+        if tt.setup != nil {
+            m = tt.setup(m)
+        }
+
+        if tt.expectedResult == "" {
+            assert.Empty(t, m.View().Content)
+        } else {
+            assert.Contains(t, m.View().Content, tt.expectedResult)
+        }
+    })
+}
 ```
 
 ### Constructor injection
