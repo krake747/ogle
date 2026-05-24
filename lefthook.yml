@@ -35,5 +35,6 @@ pre-push:
         diff /tmp/NOTICE.check NOTICE > /dev/null 2>&1 || { echo "NOTICE out of date. Run 'make notice' and commit."; rm /tmp/NOTICE.check; exit 1; }
         rm -f /tmp/NOTICE.check
         go run internal/tools/docgen/main.go --out /tmp/docs/cli --format markdown
+        go run internal/tools/docgen/main.go --out /tmp/docs/cli/man --format man
         diff -r /tmp/docs/cli ./docs/cli > /dev/null 2>&1 || { echo "CLI docs out of date. Run 'make docs' and commit."; rm -rf /tmp/docs/cli; exit 1; }
         rm -rf /tmp/docs/cli
