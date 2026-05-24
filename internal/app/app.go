@@ -15,7 +15,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/term"
 	zone "github.com/lrstanley/bubblezone/v2"
-	"go.yaml.in/yaml/v3"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/domain"
@@ -288,18 +287,11 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 	m.cfg.Theme = msg.Theme
 	m.cfg.LogBufferCap = msg.LogBufferCap
 
-	data, marshalErr := yaml.Marshal(&m.cfg)
-	if marshalErr != nil {
+	if saveErr := config.Save(m.configPath, m.cfg); saveErr != nil {
 		m.log.WarnContext(
 			m.ctx,
-			"settings: failed to marshal config",
-			slog.Any("err", marshalErr),
-		)
-	} else if writeErr := os.WriteFile(m.configPath, data, 0o600); writeErr != nil {
-		m.log.WarnContext(
-			m.ctx,
-			"settings: failed to write config file",
-			slog.Any("err", writeErr),
+			"settings: failed to save config",
+			slog.Any("err", saveErr),
 		)
 	}
 

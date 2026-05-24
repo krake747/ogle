@@ -12,7 +12,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/go-viper/mapstructure/v2"
 	"github.com/lmittmann/tint"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -23,7 +22,6 @@ import (
 )
 
 const (
-	defaultLogBufferCap    = 1000
 	pprofReadHeaderTimeout = 5 * time.Second
 	pprofReadTimeout       = 60 * time.Second
 	pprofWriteTimeout      = 60 * time.Second
@@ -85,20 +83,13 @@ var (
 				projectFile = abs
 			}
 
-			configPath := ""
-			if cf := viper.ConfigFileUsed(); cf != "" {
-				configPath = cf
-			} else {
-				home, err := os.UserHomeDir()
-				if err != nil {
-					logger.WarnContext(
-						ctx,
-						"could not determine home directory for config file",
-						slog.Any("err", err),
-					)
-				} else {
-					configPath = filepath.Join(home, ".ogle", "config.yaml")
-				}
+			configPath, err := config.ResolvePath(viper.ConfigFileUsed())
+			if err != nil {
+				logger.WarnContext(
+					ctx,
+					"could not determine config file path",
+					slog.Any("err", err),
+				)
 			}
 
 			th, themeErr := theme.Load(cfg.Theme, filepath.Dir(configPath))
@@ -129,8 +120,8 @@ var (
 				go func() {
 					logger.InfoContext(ctx, "pprof listening", slog.String("addr", pprofAddr))
 
-					if err := srv.ListenAndServe(); err != nil {
-						logger.WarnContext(ctx, "pprof server stopped", slog.Any("err", err))
+					if srvErr := srv.ListenAndServe(); srvErr != nil {
+						logger.WarnContext(ctx, "pprof server stopped", slog.Any("err", srvErr))
 					}
 				}()
 			}
@@ -205,8 +196,6 @@ func initialiseConfig(cmd *cobra.Command) error {
 	viper.SetEnvPrefix("OGLE")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
-	viper.SetDefault("theme", "default")
-	viper.SetDefault("logBufferCap", defaultLogBufferCap)
 
 	if cfgFile != "" {
 		// Use config file from the flag.
@@ -255,11 +244,12 @@ func initialiseConfig(cmd *cobra.Command) error {
 		return fmt.Errorf("bind OGLE_LOG_BUFFER_CAP env: %w", err)
 	}
 
-	if err := viper.Unmarshal(&cfg, func(dc *mapstructure.DecoderConfig) {
-		dc.TagName = "yaml"
-	}); err != nil {
-		return fmt.Errorf("failed to unmarshal config: %w", err)
+	loaded, err := config.Load(viper.GetViper())
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
+
+	cfg = loaded
 
 	return nil
 }

@@ -16,9 +16,9 @@ License URL: https://github.com/charmbracelet/bubbletea/blob/v2.0.6/LICENSE
 
 --------------------------------------------------------------------------------
 Package: charm.land/lipgloss/v2
-Version: v2.0.2
+Version: v2.0.3
 License: MIT
-License URL: https://github.com/charmbracelet/lipgloss/blob/v2.0.2/LICENSE
+License URL: https://github.com/charmbracelet/lipgloss/blob/v2.0.3/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/atotto/clipboard
@@ -34,9 +34,9 @@ License URL: https://github.com/charmbracelet/colorprofile/blob/v0.4.3/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/charmbracelet/ultraviolet
-Version: v0.0.0-20260416155717-489999b90468
+Version: v0.0.0-20260511121909-c840852527f3
 License: MIT
-License URL: https://github.com/charmbracelet/ultraviolet/blob/489999b90468/LICENSE
+License URL: https://github.com/charmbracelet/ultraviolet/blob/c840852527f3/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/charmbracelet/x/ansi
@@ -76,9 +76,9 @@ License URL: https://github.com/clipperhouse/uax29/blob/v2.7.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/fsnotify/fsnotify
-Version: v1.9.0
+Version: v1.10.1
 License: BSD-3-Clause
-License URL: https://github.com/fsnotify/fsnotify/blob/v1.9.0/LICENSE
+License URL: https://github.com/fsnotify/fsnotify/blob/v1.10.1/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/go-viper/mapstructure/v2
@@ -124,9 +124,9 @@ License URL: https://github.com/muesli/cancelreader/blob/v0.2.2/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/pelletier/go-toml/v2
-Version: v2.2.4
+Version: v2.3.1
 License: MIT
-License URL: https://github.com/pelletier/go-toml/blob/v2.2.4/LICENSE
+License URL: https://github.com/pelletier/go-toml/blob/v2.3.1/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/rivo/uniseg
@@ -142,9 +142,9 @@ License URL: https://github.com/sagikazarmark/locafero/blob/v0.12.0/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/sahilm/fuzzy
-Version: v0.1.1
+Version: v0.1.2
 License: MIT
-License URL: https://github.com/sahilm/fuzzy/blob/v0.1.1/LICENSE
+License URL: https://github.com/sahilm/fuzzy/blob/v0.1.2/LICENSE
 
 --------------------------------------------------------------------------------
 Package: github.com/spf13/afero
@@ -202,14 +202,14 @@ License URL: https://cs.opensource.google/go/x/sync/+/v0.20.0:LICENSE
 
 --------------------------------------------------------------------------------
 Package: golang.org/x/sys/unix
-Version: v0.43.0
+Version: v0.45.0
 License: BSD-3-Clause
-License URL: https://cs.opensource.google/go/x/sys/+/v0.43.0:LICENSE
+License URL: https://cs.opensource.google/go/x/sys/+/v0.45.0:LICENSE
 
 --------------------------------------------------------------------------------
 Package: golang.org/x/text
-Version: v0.34.0
+Version: v0.37.0
 License: BSD-3-Clause
-License URL: https://cs.opensource.google/go/x/text/+/v0.34.0:LICENSE
+License URL: https://cs.opensource.google/go/x/text/+/v0.37.0:LICENSE
 
 
