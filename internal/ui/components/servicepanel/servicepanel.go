@@ -50,7 +50,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	cmds := make([]tea.Cmd, 0, len(m.hosts)+1)
 
 	switch msg := msg.(type) {
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.theme = msg.Theme
 
 	case msgs.DaemonConnected:

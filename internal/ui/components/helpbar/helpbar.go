@@ -66,7 +66,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.help.SetWidth(msg.Width)
 	case msgs.BindingsMsg:
 		m.keymap = msg.Keymap
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 		m.help = m.applyStyles()
 	}

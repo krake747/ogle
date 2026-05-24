@@ -45,7 +45,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 
 	case msgs.DisplayError:

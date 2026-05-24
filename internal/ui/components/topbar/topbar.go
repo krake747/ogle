@@ -89,7 +89,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		m.projectFile = msg.File
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 
 	case msgs.DaemonConnected:

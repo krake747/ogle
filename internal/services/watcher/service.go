@@ -23,6 +23,8 @@ var ErrCreateWatcher = errors.New("create watcher")
 
 // Watcher monitors a directory for filesystem changes and delivers
 // msgs.FileAvailabilityChanged snapshots to the Bubble Tea runtime.
+//
+//mockery:generate: true
 type Watcher interface {
 	// Dir returns the directory being monitored.
 	Dir() string

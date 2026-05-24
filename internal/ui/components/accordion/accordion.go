@@ -89,7 +89,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 		return m.syncValues()
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 
 		return m.syncValues()

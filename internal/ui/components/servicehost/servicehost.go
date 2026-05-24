@@ -69,7 +69,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.LogLinesAvailable, msgs.LogStreamError, msgs.LogStreamContainerNotFound:
 		cmds = append(cmds, m.streamer.Next())
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.theme = msg.Theme
 	}
 

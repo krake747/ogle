@@ -141,7 +141,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseClickMsg:
 		return m.handleMouseClick(msg)
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 		m.delegate.SetTheme(msg.Theme)
 		m.list.Styles.StatusBar = m.list.Styles.StatusBar.Background(

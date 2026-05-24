@@ -209,7 +209,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case msgs.SettingsApplied:
 		return m.handleSettingsApplied(msg)
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.theme = msg.Theme
 
 	case profiling.ProfilesDumped:
@@ -296,7 +296,7 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 		)
 	}
 
-	return m, func() tea.Msg { return msgs.ThemeChanged{Theme: m.theme} }
+	return m, func() tea.Msg { return theme.Changed{Theme: m.theme} }
 }
 
 func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (Model, tea.Cmd) {

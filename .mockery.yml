@@ -27,3 +27,4 @@ packages:
       Streamer:
   github.com/ma-tf/ogle/internal/services/parser:
   github.com/ma-tf/ogle/internal/services/scanner:
+  github.com/ma-tf/ogle/internal/services/watcher:

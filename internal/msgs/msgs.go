@@ -4,7 +4,6 @@ import (
 	"charm.land/bubbles/v2/help"
 
 	"github.com/ma-tf/ogle/internal/domain"
-	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 type (
@@ -117,7 +116,7 @@ type (
 	}
 )
 
-// StatePollTick is emitted by the inspector's poll loop to trigger a compose ps poll.
+// StatePollTick is emitted by servicepanel's poll loop to trigger a compose ps poll.
 type StatePollTick struct{}
 
 // ServicesPolled is emitted by the docker service after a "docker compose ps"
@@ -133,13 +132,6 @@ type (
 	SettingsApplied struct {
 		Theme        string
 		LogBufferCap int
-	}
-
-	// ThemeChanged is emitted by app.Model after a new theme has been loaded.
-	// It carries the resolved *theme.Theme so every component can update its
-	// stored pointer without each needing to call theme.Load independently.
-	ThemeChanged struct {
-		Theme *theme.Theme
 	}
 
 	// SettingsVisibilityChanged is emitted by settings when the user closes the

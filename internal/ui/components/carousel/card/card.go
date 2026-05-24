@@ -150,7 +150,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case msgs.ServiceActionCompleted:
 		m = m.handleActionCompleted(msg)
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 	}
 

@@ -128,7 +128,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.w = msg.Width
 		m.h = msg.Height
 
-	case msgs.ThemeChanged:
+	case theme.Changed:
 		m.th = msg.Theme
 		m.paginator.ActiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselFocused).Render("•")
 		m.paginator.InactiveDot = lipgloss.NewStyle().Foreground(m.th.CarouselBlurred).Render("○")
