@@ -21,8 +21,9 @@ func TestUpdate(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		msg   tea.Msg
 		setup func(m servicepanel.Model) servicepanel.Model
+		// act
+		msg tea.Msg
 		// assert
 		expectedCmdNonNil bool
 	}
