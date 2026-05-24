@@ -1,8 +1,6 @@
 package scanner_test
 
 import (
-	"bytes"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,24 +17,10 @@ const (
 	filenameDockerComposeYAML = "docker-compose.yaml"
 )
 
-func newTestLogger() *slog.Logger {
-	buf := &bytes.Buffer{}
-
-	return slog.New(slog.NewTextHandler(buf, &slog.HandlerOptions{
-		ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
-			if a.Key == slog.TimeKey {
-				return slog.Attr{}
-			}
-
-			return a
-		},
-	}))
-}
-
 func TestKnownFilenames(t *testing.T) {
 	t.Parallel()
 
-	svc := scanner.New(newTestLogger())
+	svc := scanner.New()
 
 	t.Run("returns canonical filenames in priority order", func(t *testing.T) {
 		t.Parallel()
@@ -152,7 +136,7 @@ func TestScanAll(t *testing.T) {
 				}
 			}
 
-			svc := scanner.New(newTestLogger())
+			svc := scanner.New()
 			result := svc.ScanAll(tc.dir)
 
 			if tc.expected == nil {

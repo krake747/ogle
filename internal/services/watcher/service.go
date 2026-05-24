@@ -58,7 +58,7 @@ type Service struct {
 // loop. extraFile is an additional basename to track (e.g. a manually
 // specified project file). Pass "" to only track the scanner's known filenames.
 // On failure, nil is returned alongside the error.
-func New(dir string, logger *slog.Logger, extraFile string) (Watcher, error) {
+func New(dir string, logger *slog.Logger, extraFile string, sc scanner.Scanner) (Watcher, error) {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, fmt.Errorf("%w: fsnotify: %w", ErrCreateWatcher, err)
@@ -69,8 +69,6 @@ func New(dir string, logger *slog.Logger, extraFile string) (Watcher, error) {
 
 		return nil, fmt.Errorf("%w: add watch: %w", ErrCreateWatcher, errors.Join(addErr, closeErr))
 	}
-
-	sc := scanner.New(logger)
 
 	w := &Service{
 		fw:      fw,

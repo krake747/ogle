@@ -23,6 +23,7 @@ import (
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
 	"github.com/ma-tf/ogle/internal/ui/components/statusbar"
@@ -92,13 +93,14 @@ func New(
 		return Model{}, nil, fmt.Errorf("resolve watch directory: %w", err)
 	}
 
-	wtr, errWatch := watcher.New(watchDir, log, projectFile)
+	dockerSvc := svcdocker.New()
+	parseSvc := parser.New()
+	scanSvc := scanner.New()
+
+	wtr, errWatch := watcher.New(watchDir, log, projectFile, scanSvc)
 	if errWatch != nil {
 		return Model{}, nil, fmt.Errorf("create watcher: %w", errWatch)
 	}
-
-	dockerSvc := svcdocker.New()
-	parseSvc := parser.New()
 
 	var (
 		project *domain.Project
