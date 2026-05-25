@@ -62,13 +62,18 @@ message via `app.Update`'s dispatch logic.
 
 ## Root Orchestrator (`internal/app/app.go`)
 
-The app manages three phases:
+The app manages three phases plus a cross-phase About overlay:
 
 ```text
 appStartup    — startup flow is the active sub-model
 appDashboard  — dashboard flow is active (post-ProjectLoaded)
 appWatching   — watching flow is active (disconnected, waiting for file to reappear)
 ```
+
+The About overlay is a cross-phase UI layer that can be opened from any phase via F1 or
+brand-click; it is rendered on top of the current view using the compositor. While the overlay
+is open, phase-specific input is blocked. Close keys: F1, esc, q (q does not quit when about
+is open).
 
 ### Init (two Cmds in parallel)
 
@@ -90,6 +95,9 @@ app.Update(msg)
 ├── tea.WindowSizeMsg            → forward to active sub-model
 ├── theme.Changed                → update pointer, forward to active sub-model
 ├── msgs.SettingsApplied         → update config, forward to dashboard
+├── tea.KeyPressMsg              → handleKeyPress (help toggle ?, about overlay F1/esc/q, quit, profile)
+├── tea.MouseClickMsg            → handleMouseClick (brand zone → about overlay)
+├── msgs.AboutVisibilityChanged  → track showingAbout flag
 └── other msgs                   → forward to active sub-model
 ```
 
@@ -185,17 +193,49 @@ msg that triggers `app` to transition to `appWatching`
 | `ServiceRebuild`                 | `carousel/card` (user action)   | `dashboard` → `handleServiceAction`         |
 | `ServiceActionCompleted`         | `svcdocker`                     | `dashboard`, `carousel/card`                |
 | `LogLinesAvailable{}`            | `LogStreamer`                   | `logpane` (via `servicehost`)               |
-| `LogStreamError{Err}`            | `LogStreamer`                   | `servicehost` (re-subscribes streamer)      |
-| `LogStreamContainerNotFound`     | `LogStreamer`                   | `servicehost` (re-subscribes streamer)      |
+| `LogStreamError{Err}`            | `LogStreamer`                   | `servicehost` (closes streamer, schedules retry via `tea.Tick(2s, LogStreamRetryTick{})`) |
+| `LogStreamContainerNotFound`     | `LogStreamer`                   | `servicehost` (closes streamer, schedules retry via `tea.Tick(2s, LogStreamRetryTick{})`) |
+| `LogStreamRetryTick{}`           | `servicehost` (timer)           | `servicehost` (restarts streamer after error) |
 | `ServiceSelected{ServiceName}`   | `carousel` (hover/focus)        | `dashboard`, `accordion`, `servicehost`     |
 | `SettingsApplied{Theme,LBCap}`   | `settings`                      | `dashboard`                                 |
 | `SettingsVisibilityChanged`      | `settings`                      | `dashboard`                                 |
+| `AboutVisibilityChanged{Visible}`| `app`                           | `app` (tracks showingAbout flag)            |
 | `ToggleLogWrap`                  | `dashboard` (keybinding)        | `logpane`                                   |
 | `BindingsMsg{Keymap}`            | various flows                   | `helpbar`                                   |
 | `DisplayError{Err}`              | any component                   | `statusbar` (auto-clear after 3s)           |
 | `DisplayStatus{Msg}`             | any component                   | `statusbar` (auto-clear after 3s)           |
 | `ClearStatusMsg{}`               | `statusbar` (timer)             | `statusbar`                                 |
 | `theme.Changed`                  | external (theme switcher)       | all components with theme pointer           |
+
+---
+
+## About Overlay
+
+The About overlay shows version information, ASCII art, and a GitHub URL. It is a
+cross-phase UI layer — accessible from any phase (startup, dashboard, or watching).
+
+| Trigger | Action |
+|---------|--------|
+| `F1`    | Open / Close the About overlay |
+| Brand click (mouse) | Open the About overlay |
+| `esc` or `q` | Close the About overlay (q does not quit when about is open) |
+
+The overlay is rendered using the compositor on top of the current view. While the
+overlay is open, phase-specific key handling is blocked. The overlay is implemented
+in `internal/ui/components/about/`.
+
+## Help Toggle
+
+The help bar supports two modes:
+
+| Mode | Description |
+|------|-------------|
+| Compact (default) | Shows up to 5 essential key bindings in a single line |
+| Full | Shows organised columns of all available key bindings |
+
+Press `?` to toggle between compact and full help. The toggle is handled at the app
+level before any phase sees the key press. The help bar is implemented in
+`internal/ui/components/helpbar/`.
 
 ---
 

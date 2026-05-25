@@ -108,6 +108,19 @@ action.
 _Avoid_: Config, preferences — also distinct from instant keybinding toggles (e.g., Orphan Toggle) which take effect
 immediately with no overlay
 
+**Help Toggle**:
+The user action that switches the help bar between compact mode (up to 5 essential key bindings) and full mode
+(organised columns of all available key bindings). Activated with `?` on any screen. The toggle is handled at the
+app level before any phase sees the key press.
+_Avoid_: Show help, help mode
+
+**About**:
+An overlay that displays ogle version information, ASCII art logo, and a GitHub URL. Opened with `F1` or by
+clicking the brand text (the word "ogle" in the top bar). Closed with `F1`, `esc`, or `q`. The About overlay is
+a cross-phase UI layer — available from any phase (startup, dashboard, or watching). While open, phase-specific
+key handling is blocked.
+_Avoid_: Version dialog, info popup
+
 ### Startup
 
 **File Discovery**:

@@ -46,3 +46,8 @@ ogle
 # Specify a compose file explicitly
 ogle -f docker-compose.yml
 ```
+
+From there:
+- Press `?` to toggle between compact and full help
+- Press `F1` (or click the brand text) to open the About overlay
+- Use arrow keys / tab to navigate, `ctrl+c` to quit
