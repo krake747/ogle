@@ -12,7 +12,7 @@ Documents the state machines, screen states, and transition logic for the TUI.
 -f given
 ├── path is a directory          → hard exit: "path is a directory, expected a file"
 ├── file does not exist          → hard exit: "file not found: <path>"
-├── file fails Validate()        → hard exit: "invalid compose file: <error>"
+├── file fails Parse()           → hard exit: "invalid compose file: <error>"
 └── valid                        → dashboard
 ```
 
@@ -22,7 +22,7 @@ Hard exits happen in `cmd/root.go` before the TUI is initialised.
 
 ```text
 no -f
-└── ScanAll(CWD) + Validate() each candidate
+└── ScanAll(CWD) + Parse() each candidate
     ├── 0 valid files            → Watching screen (cold start)
     ├── 1 valid file             → dashboard
     └── 2+ valid files           → Project Selector → dashboard
@@ -43,7 +43,7 @@ dashboard → watched file deleted or moved
 
 ```text
 fsnotify event (create/write in CWD)
-└── re-run ScanAll() + Validate()
+└── re-run ScanAll() + Parse()
     ├── 0 valid  → stay on Watching screen
     ├── 1 valid  → dashboard
     └── 2+ valid → Project Selector → dashboard
@@ -103,7 +103,7 @@ A simple model (82 lines, no State pattern). Key behaviour:
 - On `tea.WindowSizeMsg`: forward to fileSelect sub-model
 - All other messages: forward to fileSelect sub-model
 
-The startup flow does not own scan/validate logic — those happen via `scanner.ScanAll()` and `parser.Validate()` in the
+The startup flow does not own scan/parse logic — those happen via `scanner.ScanAll()` and `parser.Parse()` in the
 watching/fileselect components before a `FileSelected` msg reaches this flow.
 
 ---

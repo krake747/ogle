@@ -38,7 +38,7 @@ func (s Service) KnownFilenames() []string {
 
 // ScanAll returns the absolute paths of all known compose filenames that exist
 // in dir, in priority order. Files that do not exist are silently omitted. No
-// YAML validation is performed; call parser.Service.Validate on each path
+// YAML validation is performed; call parser.Service.Parse on each path
 // before use.
 func (s Service) ScanAll(dir string) []string {
 	var found []string
