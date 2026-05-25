@@ -26,336 +26,351 @@ func newCard(name string) card.Model {
 	return card.New(domain.ServiceDef{Name: name}, testW, testH, theme.Default())
 }
 
-// Update tests
+// ---------------------------------------------------------------------------
+// TestInit
+// ---------------------------------------------------------------------------
 
-func TestUpdate_FocusMsg_Matching_SetsFocused(t *testing.T) {
+func TestInit(t *testing.T) {
 	t.Parallel()
 
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(card.FocusMsg{ServiceName: testShortName})
-
-	require.Nil(t, cmd, "short name should not schedule scroll")
-
-	viewAfter := m.View().Content
-	assert.NotEqual(t, viewBefore, viewAfter, "focused background should differ")
-	assert.Contains(t, viewAfter, testShortName)
-}
-
-func TestUpdate_FocusMsg_NonMatching_NoOp(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(card.FocusMsg{ServiceName: otherService})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_FocusMsg_Matching_WithScroll_StartsScroll(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testLongName)
-	_, cmd := m.Update(card.FocusMsg{ServiceName: testLongName})
-
-	require.NotNil(t, cmd, "long name should schedule initial scroll tick")
-	scrollMsg := cmd()
-	_, ok := scrollMsg.(card.ScrollTick)
-	require.True(t, ok, "cmd should produce a ScrollTick message")
-}
-
-func TestUpdate_BlurMsg_Matching_ClearsFocus(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
-	focusedView := m.View().Content
-
-	m, cmd := m.Update(card.BlurMsg{ServiceName: testShortName})
-
-	require.Nil(t, cmd)
-
-	blurredView := m.View().Content
-	assert.NotEqual(t, focusedView, blurredView, "blur should revert background")
-	assert.Contains(t, blurredView, testShortName)
-}
-
-func TestUpdate_BlurMsg_NonMatching_NoOp(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
-	focusedView := m.View().Content
-
-	m, cmd := m.Update(card.BlurMsg{ServiceName: otherService})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, focusedView, m.View().Content)
-}
-
-func TestUpdate_HoverMsg_Matching_SetsHovered(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(card.HoverMsg{ServiceName: testShortName})
-
-	require.Nil(t, cmd)
-
-	viewAfter := m.View().Content
-	assert.NotEqual(t, viewBefore, viewAfter, "hover background should differ")
-	assert.Contains(t, viewAfter, testShortName)
-}
-
-func TestUpdate_HoverMsg_NonMatching_NoOp(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(card.HoverMsg{ServiceName: otherService})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_UnhoverMsg_Matching_ClearsHovered(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(card.HoverMsg{ServiceName: testShortName})
-	hoveredView := m.View().Content
-
-	m, cmd := m.Update(card.UnhoverMsg{ServiceName: testShortName})
-
-	require.Nil(t, cmd)
-
-	unhoveredView := m.View().Content
-	assert.NotEqual(t, hoveredView, unhoveredView, "unhover should revert background")
-	assert.Contains(t, unhoveredView, testShortName)
-}
-
-func TestUpdate_ServicesPolled_NilErr_StoresRuntime(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-
-	viewBefore := m.View().Content
-	m, cmd := m.Update(msgs.ServicesPolled{
-		Runtimes: map[string]*domain.ServiceRuntimeData{
-			testShortName: {State: domain.ServiceStateRunning},
-		},
-	})
-
-	require.Nil(t, cmd)
-	assert.NotEqual(t, viewBefore, m.View().Content,
-		"runtime data should change border colour from muted to state-based")
-}
-
-func TestUpdate_ServicesPolled_WithErr_NoChange(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(msgs.ServicesPolled{
-		Err: assert.AnError,
-	})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_ServicesPolled_EmptyName_NoChange(t *testing.T) {
-	t.Parallel()
-
-	m := card.New(domain.ServiceDef{}, testW, testH, theme.Default())
-	m, _ = m.Update(msgs.ServiceStart{ServiceName: ""})
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(msgs.ServicesPolled{
-		Runtimes: map[string]*domain.ServiceRuntimeData{
-			"": {State: domain.ServiceStateRunning},
-		},
-	})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_ServiceAction_SetsInFlight(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
+	type testCase struct {
 		name string
-		msg  func(string) tea.Msg
-	}{
+		// assert
+		expectCmd bool
+	}
+
+	cases := []testCase{
 		{
-			name: "ServiceStart",
-			msg:  func(n string) tea.Msg { return msgs.ServiceStart{ServiceName: n} },
-		},
-		{
-			name: "ServiceStop",
-			msg:  func(n string) tea.Msg { return msgs.ServiceStop{ServiceName: n} },
-		},
-		{
-			name: "ServiceRestart",
-			msg:  func(n string) tea.Msg { return msgs.ServiceRestart{ServiceName: n} },
-		},
-		{
-			name: "ServiceRebuild",
-			msg:  func(n string) tea.Msg { return msgs.ServiceRebuild{ServiceName: n} },
+			name:      "returns nil cmd",
+			expectCmd: false,
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			name := tc.name + "-svc"
-			m := newCard(name)
-			viewBefore := m.View().Content
+			m := newCard(testShortName)
+			cmd := m.Init()
 
-			m, cmd := m.Update(tc.msg(name))
-
-			require.Nil(t, cmd)
-
-			viewAfter := m.View().Content
-			assert.NotEqual(t, viewBefore, viewAfter, "in-flight border should differ")
-			assert.Contains(t, viewAfter, name)
+			if tc.expectCmd {
+				require.NotNil(t, cmd)
+			} else {
+				require.Nil(t, cmd)
+			}
 		})
 	}
 }
 
-func TestUpdate_ServiceAction_NonMatching_NoChange(t *testing.T) {
+// ---------------------------------------------------------------------------
+// TestUpdate
+// ---------------------------------------------------------------------------
+
+func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
+	type testCase struct {
+		name string
+		// arrange
+		setup func(m card.Model) card.Model
+		// act
+		msg tea.Msg
+		// assert
+		assert func(t *testing.T, m card.Model, cmd tea.Cmd)
+	}
 
-	m, cmd := m.Update(msgs.ServiceStart{ServiceName: otherService})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_ServiceActionCompleted_ClearsInFlightAndUpdates(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
-	inflightView := m.View().Content
-
-	m, cmd := m.Update(msgs.ServiceActionCompleted{
-		ServiceName: testShortName,
-		Action:      domain.ServiceActionStart,
-	})
-
-	require.Nil(t, cmd)
-
-	completedView := m.View().Content
-	assert.NotEqual(t, inflightView, completedView,
-		"view should change when in-flight cleared and runtime set")
-}
-
-func TestUpdate_ServiceActionCompleted_NonMatching_NoChange(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(msgs.ServiceActionCompleted{
-		ServiceName: otherService,
-		Action:      domain.ServiceActionStart,
-	})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content)
-}
-
-func TestUpdate_ServiceActionCompleted_Error_ClearsInFlightKeepsState(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
-	inflightView := m.View().Content
-
-	m, cmd := m.Update(msgs.ServiceActionCompleted{
-		ServiceName: testShortName,
-		Action:      domain.ServiceActionStart,
-		Err:         assert.AnError,
-	})
-
-	require.Nil(t, cmd)
-
-	errorView := m.View().Content
-	assert.NotEqual(t, inflightView, errorView,
-		"view should change when in-flight cleared")
-}
-
-func TestUpdate_ServiceActionCompleted_Stop_SetsExitedState(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	m, _ = m.Update(msgs.ServicesPolled{
-		Runtimes: map[string]*domain.ServiceRuntimeData{
-			testShortName: {State: domain.ServiceStateRunning},
+	cases := []testCase{
+		// FocusMsg
+		{
+			name: "FocusMsg matching sets focused",
+			msg:  card.FocusMsg{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd, "short name should not schedule scroll")
+				assert.Contains(t, m.View().Content, testShortName)
+			},
 		},
-	})
-	m, _ = m.Update(msgs.ServiceStop{ServiceName: testShortName})
+		{
+			name: "FocusMsg matching with scroll starts scroll",
+			setup: func(m card.Model) card.Model {
+				return newCard(testLongName)
+			},
+			msg: card.FocusMsg{ServiceName: testLongName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd, "long name should schedule initial scroll tick")
+				scrollMsg := cmd()
+				_, ok := scrollMsg.(card.ScrollTick)
+				require.True(t, ok, "cmd should produce a ScrollTick message")
+			},
+		},
+		{
+			name: "FocusMsg non-matching no-op",
+			msg:  card.FocusMsg{ServiceName: otherService},
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
 
-	m, cmd := m.Update(msgs.ServiceActionCompleted{
-		ServiceName: testShortName,
-		Action:      domain.ServiceActionStop,
-	})
+		// BlurMsg
+		{
+			name: "BlurMsg matching clears focus",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+				return m
+			},
+			msg: card.BlurMsg{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "BlurMsg non-matching no-op",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+				return m
+			},
+			msg: card.BlurMsg{ServiceName: otherService},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
 
-	require.Nil(t, cmd)
-	assert.NotEmpty(t, m.View().Content)
+		// HoverMsg
+		{
+			name: "HoverMsg matching sets hovered",
+			msg:  card.HoverMsg{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "HoverMsg non-matching no-op",
+			msg:  card.HoverMsg{ServiceName: otherService},
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+
+		// UnhoverMsg
+		{
+			name: "UnhoverMsg matching clears hovered",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(card.HoverMsg{ServiceName: testShortName})
+				return m
+			},
+			msg: card.UnhoverMsg{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+
+		// ServicesPolled
+		{
+			name: "ServicesPolled stores runtime data",
+			msg: msgs.ServicesPolled{
+				Runtimes: map[string]*domain.ServiceRuntimeData{
+					testShortName: {State: domain.ServiceStateRunning},
+				},
+			},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServicesPolled with err no change",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						testShortName: {State: domain.ServiceStateRunning},
+					},
+				})
+				return m
+			},
+			msg: msgs.ServicesPolled{Err: assert.AnError},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+		{
+			name: "ServicesPolled empty name no change",
+			setup: func(m card.Model) card.Model {
+				return card.New(domain.ServiceDef{}, testW, testH, theme.Default())
+			},
+			msg: msgs.ServicesPolled{
+				Runtimes: map[string]*domain.ServiceRuntimeData{
+					"": {State: domain.ServiceStateRunning},
+				},
+			},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+
+		// ServiceAction
+		{
+			name: "ServiceStart sets in-flight",
+			msg:  msgs.ServiceStart{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceStop sets in-flight",
+			msg:  msgs.ServiceStop{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceRestart sets in-flight",
+			msg:  msgs.ServiceRestart{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceRebuild sets in-flight",
+			msg:  msgs.ServiceRebuild{ServiceName: testShortName},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceAction non-matching no change",
+			setup: func(m card.Model) card.Model {
+				return newCard(otherService)
+			},
+			msg: msgs.ServiceStart{ServiceName: testShortName},
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+
+		// ServiceActionCompleted
+		{
+			name: "ServiceActionCompleted clears in-flight and updates",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
+				return m
+			},
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: testShortName,
+				Action:      domain.ServiceActionStart,
+			},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceActionCompleted with error clears in-flight keeps state",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
+				return m
+			},
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: testShortName,
+				Action:      domain.ServiceActionStart,
+				Err:         assert.AnError,
+			},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+		{
+			name: "ServiceActionCompleted stop sets exited state",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						testShortName: {State: domain.ServiceStateRunning},
+					},
+				})
+				m, _ = m.Update(msgs.ServiceStop{ServiceName: testShortName})
+				return m
+			},
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: testShortName,
+				Action:      domain.ServiceActionStop,
+			},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.NotEmpty(t, m.View().Content)
+			},
+		},
+		{
+			name: "ServiceActionCompleted non-matching no change",
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: otherService,
+				Action:      domain.ServiceActionStart,
+			},
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+
+		// WindowSizeMsg
+		{
+			name: "WindowSizeMsg updates dimensions",
+			msg:  tea.WindowSizeMsg{Width: 300, Height: 60},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd, "short name should not schedule scroll")
+			},
+		},
+		{
+			name: "WindowSizeMsg focused with scroll reschedules",
+			setup: func(m card.Model) card.Model {
+				m = newCard(testLongName)
+				m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
+				return m
+			},
+			msg: tea.WindowSizeMsg{Width: 200, Height: 60},
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd, "focused scrollable card should reschedule tick on resize")
+			},
+		},
+
+		// theme.Changed
+		{
+			name: "theme.Changed updates theme",
+			setup: func(m card.Model) card.Model {
+				return newCard(testShortName)
+			},
+			msg: theme.Changed{Theme: theme.Default()},
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := newCard(testShortName)
+
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
+
+			m, cmd := m.Update(tc.msg)
+
+			tc.assert(t, m, cmd)
+		})
+	}
 }
 
-func TestUpdate_WindowSizeMsg_UpdatesDimensions(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(tea.WindowSizeMsg{Width: 300, Height: 60})
-
-	require.Nil(t, cmd, "short name should not schedule scroll")
-
-	viewAfter := m.View().Content
-	assert.NotEqual(t, viewBefore, viewAfter, "different dimensions produce different card size")
-}
-
-func TestUpdate_WindowSizeMsg_FocusedWithScroll_Reschedules(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testLongName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
-
-	_, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
-
-	require.NotNil(t, cmd, "focused scrollable card should reschedule tick on resize")
-}
-
-func TestUpdate_ThemeChanged_UpdatesTheme(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, cmd := m.Update(theme.Changed{Theme: theme.Default()})
-
-	require.Nil(t, cmd)
-	assert.Equal(t, viewBefore, m.View().Content,
-		"same theme values should produce the same view")
-}
-
-// ScrollTick tests
+// ---------------------------------------------------------------------------
+// TestUpdate — ScrollTick (timing-sensitive, separate from main table)
+// ---------------------------------------------------------------------------
 //
 // These tests involve real time delays (scrollIdleInterval = 2500ms) because
 // nextScrollTime is set in the past via the FocusMsg path, and ScrollTick's
@@ -368,10 +383,8 @@ func TestUpdate_ScrollTick_AdvancesAndSchedulesNext(t *testing.T) {
 	m, cmd1 := m.Update(card.FocusMsg{ServiceName: testLongName})
 	require.NotNil(t, cmd1, "long name should schedule initial scroll tick")
 
-	// cmd1() blocks for scrollIdleInterval (2.5s) then returns ScrollTick{gen: 1}
 	scrollMsg := cmd1()
 
-	// Ensure we're safely past nextScrollTime before sending
 	time.Sleep(50 * time.Millisecond)
 
 	_, cmd2 := m.Update(scrollMsg)
@@ -385,15 +398,12 @@ func TestUpdate_ScrollTick_StaleGen_NoOp(t *testing.T) {
 
 	m := newCard(testLongName)
 
-	// First focus → focusGen=1
 	m, cmd1 := m.Update(card.FocusMsg{ServiceName: testLongName})
 	require.NotNil(t, cmd1)
 
-	// Second focus → focusGen=2 (cmd1 is now stale)
 	m, cmd2 := m.Update(card.FocusMsg{ServiceName: testLongName})
 	require.NotNil(t, cmd2)
 
-	// Get ScrollTick from first cmd (gen=1, but focusGen=2 → stale)
 	scrollMsg := cmd1()
 
 	time.Sleep(50 * time.Millisecond)
@@ -402,97 +412,90 @@ func TestUpdate_ScrollTick_StaleGen_NoOp(t *testing.T) {
 	require.Nil(t, cmd3, "stale generation should produce no command")
 }
 
-// View tests
+// ---------------------------------------------------------------------------
+// TestView
+// ---------------------------------------------------------------------------
 
-func TestView_ShortName_Focused(t *testing.T) {
+func TestView(t *testing.T) {
 	t.Parallel()
 
-	m := newCard(testShortName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+	type testCase struct {
+		name string
+		// arrange
+		setup func(m card.Model) card.Model
+		// assert
+		expectedResult string
+	}
 
-	view := m.View().Content
-	assert.NotEmpty(t, view)
-	assert.Contains(t, view, testShortName)
-}
-
-func TestView_ShortName_Unfocused(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-
-	view := m.View().Content
-	assert.NotEmpty(t, view)
-	assert.Contains(t, view, testShortName)
-}
-
-func TestView_LongName_Focused_Windowed(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testLongName)
-	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
-
-	window := testLongName[:18]
-	view := m.View().Content
-	assert.NotEmpty(t, view)
-	assert.Contains(t, view, window,
-		"focused card should show windowed portion of long name")
-}
-
-func TestView_LongName_Unfocused_Truncated(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testLongName)
-
-	truncated := testLongName[:17] + "…"
-	view := m.View().Content
-	assert.NotEmpty(t, view)
-	assert.Contains(t, view, truncated,
-		"unfocused card should show truncated name with ellipsis")
-}
-
-func TestView_InFlight_BorderColour(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
-
-	viewAfter := m.View().Content
-	assert.NotEmpty(t, viewAfter)
-	assert.Contains(t, viewAfter, testShortName)
-	assert.NotEqual(t, viewBefore, viewAfter,
-		"in-flight state should change border colour")
-}
-
-func TestView_RuntimeState_BorderColour(t *testing.T) {
-	t.Parallel()
-
-	m := newCard(testShortName)
-	viewBefore := m.View().Content
-
-	m, _ = m.Update(msgs.ServicesPolled{
-		Runtimes: map[string]*domain.ServiceRuntimeData{
-			testShortName: {State: domain.ServiceStateRunning},
+	cases := []testCase{
+		{
+			name:           "short name focused",
+			setup:          func(m card.Model) card.Model { m, _ = m.Update(card.FocusMsg{ServiceName: testShortName}); return m },
+			expectedResult: testShortName,
 		},
-	})
+		{
+			name:           "short name unfocused",
+			expectedResult: testShortName,
+		},
+		{
+			name: "long name focused windowed",
+			setup: func(_ card.Model) card.Model {
+				m := newCard(testLongName)
+				m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
+				return m
+			},
+			expectedResult: testLongName[:18],
+		},
+		{
+			name: "long name unfocused truncated",
+			setup: func(_ card.Model) card.Model {
+				return newCard(testLongName)
+			},
+			expectedResult: testLongName[:17] + "…",
+		},
+		{
+			name:           "in-flight border colour",
+			setup:          func(m card.Model) card.Model { m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName}); return m },
+			expectedResult: testShortName,
+		},
+		{
+			name: "runtime state border colour",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						testShortName: {State: domain.ServiceStateRunning},
+					},
+				})
+				return m
+			},
+			expectedResult: testShortName,
+		},
+		{
+			name: "zero dimensions",
+			setup: func(m card.Model) card.Model {
+				return card.New(domain.ServiceDef{Name: testShortName}, 0, 1, theme.Default())
+			},
+			expectedResult: testShortName[:5],
+		},
+	}
 
-	viewAfter := m.View().Content
-	assert.NotEmpty(t, viewAfter)
-	assert.Contains(t, viewAfter, testShortName)
-	assert.NotEqual(t, viewBefore, viewAfter,
-		"runtime state should change border colour from muted")
-}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestView_EmptyOnZeroDimensions(t *testing.T) {
-	t.Parallel()
+			m := newCard(testShortName)
 
-	m := card.New(domain.ServiceDef{Name: testShortName}, 0, 1, theme.Default())
-	view := m.View()
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
 
-	assert.NotNil(t, view)
-	// Even at zero input dimensions, the card has a minimum internal width
-	// due to listMinTermWidth clamping, so it always renders content.
-	assert.NotEmpty(t, view.Content)
-	assert.Contains(t, view.Content, testShortName[:5])
+			view := m.View().Content
+
+			if tc.expectedResult == "" {
+				assert.Empty(t, view)
+			} else {
+				assert.Contains(t, view, tc.expectedResult)
+			}
+		})
+	}
 }
