@@ -18,6 +18,10 @@ import (
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/app"
+	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
+	"github.com/ma-tf/ogle/internal/services/parser"
+	"github.com/ma-tf/ogle/internal/services/scanner"
+	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -123,7 +127,23 @@ var (
 				}()
 			}
 
-			model, cleanup, err := app.New(ctx, cfg, configPath, projectFile, logger, th)
+			dockerSvc := svcdocker.New()
+			parseSvc := parser.New()
+			scanSvc := scanner.New()
+
+			watchDir, err := filepath.Abs(filepath.Dir(projectFile))
+			if err != nil {
+				return fmt.Errorf("resolve watch directory: %w", err)
+			}
+
+			wtr, errWatch := watcher.New(watchDir, logger, projectFile, scanSvc)
+			if errWatch != nil {
+				return fmt.Errorf("create watcher: %w", errWatch)
+			}
+
+			model, cleanup, err := app.New(
+				ctx, cfg, configPath, projectFile, logger, th, dockerSvc, parseSvc, wtr,
+			)
 			if err != nil {
 				return fmt.Errorf("app init: %w", err)
 			}

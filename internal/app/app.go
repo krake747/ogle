@@ -23,7 +23,6 @@ import (
 	svcdocker "github.com/ma-tf/ogle/internal/services/docker"
 	"github.com/ma-tf/ogle/internal/services/docker/connection"
 	"github.com/ma-tf/ogle/internal/services/parser"
-	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/services/watcher"
 	"github.com/ma-tf/ogle/internal/ui/components/about"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
@@ -81,6 +80,10 @@ type Model struct {
 
 // New constructs the app Model. Watcher creation is synchronous; if it
 // fails the entire program exits with an error.
+//
+// dockerSvc, parseSvc, and wtr are injected for testability. The caller is
+// responsible for constructing the watcher (which requires a scanner.Scanner).
+// wtr.Close is returned as the cleanup function.
 func New(
 	ctx context.Context,
 	cfg config.Config,
@@ -88,24 +91,13 @@ func New(
 	projectFile string,
 	log *slog.Logger,
 	th *theme.Theme,
+	dockerSvc svcdocker.Docker,
+	parseSvc parser.Parser,
+	wtr watcher.Watcher,
 ) (Model, func() error, error) {
 	width, height, errSize := term.GetSize(os.Stdout.Fd())
 	if errSize != nil {
 		width, height = 0, 0
-	}
-
-	watchDir, err := filepath.Abs(filepath.Dir(projectFile))
-	if err != nil {
-		return Model{}, nil, fmt.Errorf("resolve watch directory: %w", err)
-	}
-
-	dockerSvc := svcdocker.New()
-	parseSvc := parser.New()
-	scanSvc := scanner.New()
-
-	wtr, errWatch := watcher.New(watchDir, log, projectFile, scanSvc)
-	if errWatch != nil {
-		return Model{}, nil, fmt.Errorf("create watcher: %w", errWatch)
 	}
 
 	var (

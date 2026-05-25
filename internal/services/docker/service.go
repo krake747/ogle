@@ -32,11 +32,15 @@ type Docker interface {
 }
 
 // Service implements Docker using the Docker Unix socket and docker compose CLI.
-type Service struct{}
+type Service struct {
+	commander Commander
+}
 
 // New returns a Service ready for use.
 func New() *Service {
-	return &Service{}
+	return &Service{
+		commander: realCommander{},
+	}
 }
 
 var _ Docker = (*Service)(nil)

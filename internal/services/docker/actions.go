@@ -13,6 +13,21 @@ import (
 	"github.com/ma-tf/ogle/internal/msgs"
 )
 
+// Commander abstracts [exec.CommandContext] for testability.
+//
+//mockery:generate: true
+type Commander interface {
+	CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd
+}
+
+// realCommander is the production Commander that delegates to [exec.CommandContext].
+type realCommander struct{}
+
+// CommandContext calls [exec.CommandContext].
+func (realCommander) CommandContext(ctx context.Context, name string, arg ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, name, arg...)
+}
+
 func runAction(
 	cmd *exec.Cmd,
 	action domain.ServiceAction,
@@ -45,7 +60,7 @@ func runAction(
 // Stop returns a Cmd that runs `docker compose -f <file> -p <project> stop <service>`.
 func (s *Service) Stop(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(
+		cmd := s.commander.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "stop", serviceName,
 		)
 		cmd.Dir = filepath.Dir(file)
@@ -58,7 +73,7 @@ func (s *Service) Stop(ctx context.Context, file, projectName, serviceName strin
 // Handles both exited and not-created states.
 func (s *Service) Start(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(
+		cmd := s.commander.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "up", "-d", serviceName,
 		)
 		cmd.Dir = filepath.Dir(file)
@@ -70,7 +85,7 @@ func (s *Service) Start(ctx context.Context, file, projectName, serviceName stri
 // Restart returns a Cmd that runs `docker compose -f <file> -p <project> restart <service>`.
 func (s *Service) Restart(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(
+		cmd := s.commander.CommandContext(
 			ctx, "docker", "compose", "-f", file, "-p", projectName, "restart", serviceName,
 		)
 		cmd.Dir = filepath.Dir(file)
@@ -83,7 +98,7 @@ func (s *Service) Restart(ctx context.Context, file, projectName, serviceName st
 // Compose handles the stop/recreate lifecycle.
 func (s *Service) Rebuild(ctx context.Context, file, projectName, serviceName string) tea.Cmd {
 	return func() tea.Msg {
-		cmd := exec.CommandContext(
+		cmd := s.commander.CommandContext(
 			ctx,
 			"docker", "compose",
 			"-f", file,
