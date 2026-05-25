@@ -68,7 +68,7 @@ func TestUpdate_UpDown_CyclesFocusField(t *testing.T) {
 	require.Nil(t, cmd)
 
 	// Left on cap field → decrements cap.
-	m, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	applied = extractSettingsApplied(t, cmd)
 	assert.Equal(t, 1000, applied.LogBufferCap)
 }
@@ -81,7 +81,7 @@ func TestUpdate_KeyRight_OnThemeField_CyclesTheme(t *testing.T) {
 	t.Parallel()
 
 	m := newModel()
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, "default_light", applied.Theme)
 	assert.Equal(t, 1000, applied.LogBufferCap)
@@ -91,7 +91,7 @@ func TestUpdate_KeyLeft_OnThemeField_CyclesThemeReverse(t *testing.T) {
 	t.Parallel()
 
 	m := newModel()
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, "solarized_light", applied.Theme)
 	assert.Equal(t, 1000, applied.LogBufferCap)
@@ -107,7 +107,7 @@ func TestUpdate_KeyRight_OnLogBufferCapField_Increments(t *testing.T) {
 	m := newModel()
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, "default", applied.Theme)
 	assert.Equal(t, 1500, applied.LogBufferCap)
@@ -119,7 +119,7 @@ func TestUpdate_KeyLeft_OnLogBufferCapField_Decrements(t *testing.T) {
 	m := newModel()
 	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, "default", applied.Theme)
 	assert.Equal(t, 500, applied.LogBufferCap)
@@ -135,7 +135,7 @@ func TestUpdate_KeyLeft_OnLogBufferCapField_ClampMin(t *testing.T) {
 		m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	}
 
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, 500, applied.LogBufferCap)
 }
@@ -150,7 +150,7 @@ func TestUpdate_KeyRight_OnLogBufferCapField_ClampMax(t *testing.T) {
 		m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	}
 
-	m, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	applied := extractSettingsApplied(t, cmd)
 	assert.Equal(t, 5000, applied.LogBufferCap)
 }
