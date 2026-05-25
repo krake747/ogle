@@ -44,7 +44,7 @@ Follow these Go test conventions (see docs/TESTING.md for full details):
 
 # FEEDBACK LOOPS
 
-Before committing, run `make lint` and `make test` to ensure the code passes linting and tests.
+Before committing, run `make tools` to install linting tools, then run `make lint` and `make test` to ensure the code passes linting and tests.
 
 # COMMIT
 
