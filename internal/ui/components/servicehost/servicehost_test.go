@@ -15,6 +15,19 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const testProject = "testproj"
+
+var svcDef = domain.ServiceDef{Name: "web"} //nolint:gochecknoglobals // shared test fixture
+
+func newModel(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
+	t.Helper()
+
+	s := logsmocks.NewMockStreamer(t)
+	s.EXPECT().Lines().Return((<-chan string)(make(chan string)))
+
+	return servicehost.New(theme.Default(), svcDef, testProject, 120, 100, 100, s), s
+}
+
 //nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
@@ -22,7 +35,7 @@ func TestUpdate(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		setup func(*testing.T) (servicehost.Model, *logsmocks.MockStreamer)
+		setup func(*testing.T) servicehost.Model
 
 		// act
 		msg tea.Msg
@@ -32,17 +45,12 @@ func TestUpdate(t *testing.T) {
 		check       func(*testing.T, servicehost.Model)
 	}
 
-	svcDef := domain.ServiceDef{Name: "web"}
-
 	cases := []testCase{
 		{
 			name: "ServiceSelected matching name sets selected",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+			setup: func(t *testing.T) servicehost.Model {
+				m, _ := newModel(t)
+				return m
 			},
 			msg:         msgs.ServiceSelected{ServiceName: "web"},
 			expectedMsg: nil,
@@ -54,13 +62,10 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "ServiceSelected non-matching name clears selected",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
+			setup: func(t *testing.T) servicehost.Model {
+				m, _ := newModel(t)
 				m, _ = m.Update(msgs.ServiceSelected{ServiceName: "web"})
-				return m, s
+				return m
 			},
 			msg:         msgs.ServiceSelected{ServiceName: "db"},
 			expectedMsg: nil,
@@ -72,16 +77,13 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "DaemonConnected starts streamer and emits Next cmd",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
+			setup: func(t *testing.T) servicehost.Model {
+				m, s := newModel(t)
 				s.EXPECT().Start(context.Background(), "testproj-web-1").Return()
 				s.EXPECT().Next().Return(func() tea.Msg {
 					return msgs.LogLinesAvailable{}
 				})
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+				return m
 			},
 			msg:         msgs.DaemonConnected{},
 			expectedMsg: msgs.LogLinesAvailable{},
@@ -89,15 +91,12 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "DaemonConnected when already started is no-op",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
+			setup: func(t *testing.T) servicehost.Model {
+				m, s := newModel(t)
 				s.EXPECT().Start(context.Background(), "testproj-web-1").Return()
 				s.EXPECT().Next().Return(func() tea.Msg { return nil })
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
 				m, _ = m.Update(msgs.DaemonConnected{})
-				return m, s
+				return m
 			},
 			msg:         msgs.DaemonConnected{},
 			expectedMsg: nil,
@@ -105,15 +104,12 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "LogLinesAvailable emits streamer.Next",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
+			setup: func(t *testing.T) servicehost.Model {
+				m, s := newModel(t)
 				s.EXPECT().Next().Return(func() tea.Msg {
 					return msgs.LogLinesAvailable{}
 				})
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+				return m
 			},
 			msg:         msgs.LogLinesAvailable{},
 			expectedMsg: msgs.LogLinesAvailable{},
@@ -121,15 +117,12 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "LogStreamError emits streamer.Next",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
+			setup: func(t *testing.T) servicehost.Model {
+				m, s := newModel(t)
 				s.EXPECT().Next().Return(func() tea.Msg {
 					return msgs.LogStreamError{Err: nil, ServiceName: "web"}
 				})
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+				return m
 			},
 			msg:         msgs.LogStreamError{Err: nil, ServiceName: "web"},
 			expectedMsg: msgs.LogStreamError{Err: nil, ServiceName: "web"},
@@ -137,12 +130,9 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "KeyPressMsg when not selected is no-op",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+			setup: func(t *testing.T) servicehost.Model {
+				m, _ := newModel(t)
+				return m
 			},
 			msg:         tea.KeyPressMsg{},
 			expectedMsg: nil,
@@ -150,12 +140,9 @@ func TestUpdate(t *testing.T) {
 
 		{
 			name: "theme.Changed updates stored theme",
-			setup: func(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
-				return m, s
+			setup: func(t *testing.T) servicehost.Model {
+				m, _ := newModel(t)
+				return m
 			},
 			msg:         theme.Changed{Theme: theme.DefaultLight()},
 			expectedMsg: nil,
@@ -166,7 +153,7 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m, _ := tc.setup(t)
+			m := tc.setup(t)
 			m, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
@@ -195,16 +182,12 @@ func TestView(t *testing.T) {
 		expectedResult string
 	}
 
-	svcDef := domain.ServiceDef{Name: "web"}
-
 	cases := []testCase{
 		{
 			name: "empty when not selected",
 			setup: func(t *testing.T) servicehost.Model {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				return servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
+				m, _ := newModel(t)
+				return m
 			},
 			expectedResult: "",
 		},
@@ -212,10 +195,7 @@ func TestView(t *testing.T) {
 		{
 			name: "log pane when selected",
 			setup: func(t *testing.T) servicehost.Model {
-				ch := make(chan string)
-				s := logsmocks.NewMockStreamer(t)
-				s.EXPECT().Lines().Return((<-chan string)(ch))
-				m := servicehost.New(theme.Default(), svcDef, "testproj", 120, 100, 100, s)
+				m, _ := newModel(t)
 				m, _ = m.Update(msgs.ServiceSelected{ServiceName: "web"})
 				return m
 			},
