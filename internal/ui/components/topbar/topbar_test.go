@@ -23,17 +23,17 @@ var (
 	later = time.Date(2020, 1, 1, 0, 0, 11, 0, time.UTC)
 )
 
-func newModel(t *testing.T) (topbar.Model, *mocks.MockDocker) {
+func newModel(t *testing.T) topbar.Model {
 	t.Helper()
 	mockD := mocks.NewMockDocker(t)
 	mockD.EXPECT().Connect(mock.Anything).
 		RunAndReturn(func(_ context.Context) tea.Cmd {
 			return func() tea.Msg { return msgs.DaemonConnected{} }
 		}).Maybe()
-	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD), mockD
+
+	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD)
 }
 
-//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -64,7 +64,8 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonUnavailable schedules retry command",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
+
 				return m
 			},
 			// act
@@ -76,7 +77,8 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonGraceExpired while connecting schedules retry command",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
+
 				return m
 			},
 			// act
@@ -88,8 +90,9 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonGraceExpired while connected produces no command",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
 				m.Update(msgs.DaemonConnected{})
+
 				return m
 			},
 			// act
@@ -99,9 +102,10 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonTick with retry due triggers reconnect",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
 				m.Update(msgs.DaemonUnavailable{})
-				m.SetNow(later)
+				topbar.SetNow(&m, later)
+
 				return m
 			},
 			// act
@@ -113,8 +117,9 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonTick with retry not due schedules next tick",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
 				m.Update(msgs.DaemonUnavailable{})
+
 				return m
 			},
 			// act
@@ -128,26 +133,26 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m, _ := newModel(t)
+			m := newModel(t)
 			if tc.setup != nil {
 				m = tc.setup(m)
 			}
 
 			_, cmd := m.Update(tc.msg)
 
-			if tc.expectedMsg != nil {
+			switch {
+			case tc.expectedMsg != nil:
 				require.NotNil(t, cmd)
 				require.Equal(t, tc.expectedMsg, cmd())
-			} else if tc.expectCmd {
+			case tc.expectCmd:
 				require.NotNil(t, cmd)
-			} else {
+			default:
 				require.Nil(t, cmd)
 			}
 		})
 	}
 }
 
-//nolint:funlen
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -170,6 +175,7 @@ func TestView(t *testing.T) {
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "dashboard", File: "compose.yaml"})
+
 				return m
 			},
 			// assert
@@ -180,6 +186,7 @@ func TestView(t *testing.T) {
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "watching", File: ""})
+
 				return m
 			},
 			// assert
@@ -194,6 +201,7 @@ func TestView(t *testing.T) {
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.DaemonConnected{})
+
 				return m
 			},
 			// assert
@@ -203,8 +211,9 @@ func TestView(t *testing.T) {
 			name: "unavailable daemon status shows DISCONNECTED with countdown",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				m.SetNow(early)
+				topbar.SetNow(&m, early)
 				m, _ = m.Update(msgs.DaemonUnavailable{})
+
 				return m
 			},
 			// assert
@@ -216,8 +225,8 @@ func TestView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m, _ := newModel(t)
-			m.SetNow(early)
+			m := newModel(t)
+			topbar.SetNow(&m, early)
 			_ = m.Init()
 
 			if tc.setup != nil {

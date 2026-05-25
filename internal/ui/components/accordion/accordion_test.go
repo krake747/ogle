@@ -15,14 +15,20 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const dash = "—"
+const (
+	dash        = "—"
+	imageNginx  = "nginx:latest"
+	containerID = "abc123def4567890"
+	upTwoHours  = "Up 2 hours"
+	serviceWeb  = "web"
+)
 
 //nolint:gochecknoglobals // shared test fixtures
 var testProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
 	Services: []domain.ServiceDef{
-		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80", "443:443"}},
+		{Name: serviceWeb, Image: imageNginx, Ports: []string{"80:80", "443:443"}},
 	},
 }
 
@@ -31,11 +37,12 @@ var multiServiceProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
 	Services: []domain.ServiceDef{
-		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80"}},
+		{Name: serviceWeb, Image: imageNginx, Ports: []string{"80:80"}},
 		{Name: "api", Image: "api:latest", Ports: []string{"8080:8080"}},
 	},
 }
 
+//nolint:funlen // test table with many cases
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -107,7 +114,7 @@ func TestView(t *testing.T) {
 			setup: func() accordion.Model {
 				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
-			expectedResult: "nginx:latest",
+			expectedResult: imageNginx,
 		},
 		{
 			name: "ports value from service def",
@@ -129,14 +136,15 @@ func TestView(t *testing.T) {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						"web": {
-							ContainerID: "abc123def4567890",
+						serviceWeb: {
+							ContainerID: containerID,
 							State:       domain.ServiceStateRunning,
-							Status:      "Up 2 hours",
+							Status:      upTwoHours,
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
+
 				return m
 			},
 			expectedResult: "abc123def456",
@@ -147,14 +155,15 @@ func TestView(t *testing.T) {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						"web": {
-							ContainerID: "abc123def4567890",
+						serviceWeb: {
+							ContainerID: containerID,
 							State:       domain.ServiceStateRunning,
-							Status:      "Up 2 hours",
+							Status:      upTwoHours,
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
+
 				return m
 			},
 			expectedResult: "Up 2 hours",
@@ -165,14 +174,15 @@ func TestView(t *testing.T) {
 				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						"web": {
-							ContainerID: "abc123def4567890",
+						serviceWeb: {
+							ContainerID: containerID,
 							State:       domain.ServiceStateRunning,
-							Status:      "Up 2 hours",
+							Status:      upTwoHours,
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
+
 				return m
 			},
 			expectedResult: "h ago",
@@ -214,10 +224,10 @@ func TestUpdate(t *testing.T) {
 			name: "ServicesPolled stores runtime and triggers sync",
 			msg: msgs.ServicesPolled{
 				Runtimes: map[string]*domain.ServiceRuntimeData{
-					"web": {
+					serviceWeb: {
 						ContainerID: "abc123def456",
 						State:       domain.ServiceStateRunning,
-						Status:      "Up 2 hours",
+						Status:      upTwoHours,
 					},
 				},
 			},

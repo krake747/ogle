@@ -13,8 +13,11 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const testFile = "test.yml"
+
 func newModel(t *testing.T, files []string) fileselect.Model {
 	t.Helper()
+
 	return fileselect.New(files, 100, 40, zone.New(), theme.Default())
 }
 
@@ -27,7 +30,6 @@ func TestInit(t *testing.T) {
 	require.Nil(t, cmd)
 }
 
-//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -47,9 +49,9 @@ func TestUpdate(t *testing.T) {
 	cases := []testCase{
 		{
 			name:        "KeyPress Enter with items emits FileSelected",
-			files:       []string{"test.yml"},
+			files:       []string{testFile},
 			msg:         tea.KeyPressMsg{Code: tea.KeyEnter},
-			expectedMsg: msgs.FileSelected{Path: "test.yml"},
+			expectedMsg: msgs.FileSelected{Path: testFile},
 		},
 		{
 			name:        "KeyPress Enter with empty list no-op",
@@ -58,14 +60,15 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:        "FileAvailabilityChanged single file auto-selects",
-			msg:         msgs.FileAvailabilityChanged{Files: []string{"test.yml"}},
-			expectedMsg: msgs.FileSelected{Path: "test.yml"},
+			msg:         msgs.FileAvailabilityChanged{Files: []string{testFile}},
+			expectedMsg: msgs.FileSelected{Path: testFile},
 		},
 		{
 			name:  "FileAvailabilityChanged multiple files updates list items",
 			files: []string{"original.yml"},
 			setup: func(m fileselect.Model) fileselect.Model {
 				m, _ = m.Update(msgs.FileAvailabilityChanged{Files: []string{"a.yml", "b.yml"}})
+
 				return m
 			},
 			msg:         tea.KeyPressMsg{Code: tea.KeyEnter},
@@ -73,7 +76,7 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:        "theme.Changed updates delegate and list styles",
-			files:       []string{"test.yml"},
+			files:       []string{testFile},
 			msg:         theme.Changed{Theme: theme.DefaultLight()},
 			expectedMsg: nil,
 		},
@@ -89,7 +92,7 @@ func TestUpdate(t *testing.T) {
 				m = tc.setup(m)
 			}
 
-			m, cmd := m.Update(tc.msg)
+			_, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
 				require.NotNil(t, cmd)
@@ -116,12 +119,12 @@ func TestView(t *testing.T) {
 	cases := []testCase{
 		{
 			name:           "renders file list with filenames",
-			files:          []string{"test.yml"},
-			expectedResult: "test.yml",
+			files:          []string{testFile},
+			expectedResult: testFile,
 		},
 		{
 			name:           "renders status bar item count",
-			files:          []string{"test.yml"},
+			files:          []string{testFile},
 			expectedResult: "1 file",
 		},
 	}

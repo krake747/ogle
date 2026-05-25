@@ -9,15 +9,18 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ma-tf/ogle/internal/domain"
-	logsmocks "github.com/ma-tf/ogle/internal/services/docker/logs/mocks"
 	"github.com/ma-tf/ogle/internal/msgs"
+	logsmocks "github.com/ma-tf/ogle/internal/services/docker/logs/mocks"
 	"github.com/ma-tf/ogle/internal/ui/components/servicehost"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const testProject = "testproj"
+const (
+	testProject = "testproj"
+	svcName     = "web"
+)
 
-var svcDef = domain.ServiceDef{Name: "web"} //nolint:gochecknoglobals // shared test fixture
+var svcDef = domain.ServiceDef{Name: svcName} //nolint:gochecknoglobals // shared test fixture
 
 func newModel(t *testing.T) (servicehost.Model, *logsmocks.MockStreamer) {
 	t.Helper()
@@ -49,10 +52,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "ServiceSelected matching name sets selected",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
+
 				return m
 			},
-			msg:         msgs.ServiceSelected{ServiceName: "web"},
+			msg:         msgs.ServiceSelected{ServiceName: svcName},
 			expectedMsg: nil,
 			check: func(t *testing.T, m servicehost.Model) {
 				t.Helper()
@@ -63,8 +68,10 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "ServiceSelected non-matching name clears selected",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
-				m, _ = m.Update(msgs.ServiceSelected{ServiceName: "web"})
+				m, _ = m.Update(msgs.ServiceSelected{ServiceName: svcName})
+
 				return m
 			},
 			msg:         msgs.ServiceSelected{ServiceName: "db"},
@@ -78,11 +85,13 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "DaemonConnected starts streamer and emits Next cmd",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, s := newModel(t)
-				s.EXPECT().Start(context.Background(), "testproj-web-1").Return()
+				s.EXPECT().Start(context.Background(), testProject+"-"+svcName+"-1").Return()
 				s.EXPECT().Next().Return(func() tea.Msg {
 					return msgs.LogLinesAvailable{}
 				})
+
 				return m
 			},
 			msg:         msgs.DaemonConnected{},
@@ -92,10 +101,13 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "DaemonConnected when already started is no-op",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, s := newModel(t)
-				s.EXPECT().Start(context.Background(), "testproj-web-1").Return()
+				s.EXPECT().Start(context.Background(), testProject+"-"+svcName+"-1").Return()
 				s.EXPECT().Next().Return(func() tea.Msg { return nil })
+
 				m, _ = m.Update(msgs.DaemonConnected{})
+
 				return m
 			},
 			msg:         msgs.DaemonConnected{},
@@ -105,10 +117,12 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "LogLinesAvailable emits streamer.Next",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, s := newModel(t)
 				s.EXPECT().Next().Return(func() tea.Msg {
 					return msgs.LogLinesAvailable{}
 				})
+
 				return m
 			},
 			msg:         msgs.LogLinesAvailable{},
@@ -118,20 +132,24 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "LogStreamError emits streamer.Next",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, s := newModel(t)
 				s.EXPECT().Next().Return(func() tea.Msg {
-					return msgs.LogStreamError{Err: nil, ServiceName: "web"}
+					return msgs.LogStreamError{Err: nil, ServiceName: svcName}
 				})
+
 				return m
 			},
-			msg:         msgs.LogStreamError{Err: nil, ServiceName: "web"},
-			expectedMsg: msgs.LogStreamError{Err: nil, ServiceName: "web"},
+			msg:         msgs.LogStreamError{Err: nil, ServiceName: svcName},
+			expectedMsg: msgs.LogStreamError{Err: nil, ServiceName: svcName},
 		},
 
 		{
 			name: "KeyPressMsg when not selected is no-op",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
+
 				return m
 			},
 			msg:         tea.KeyPressMsg{},
@@ -141,7 +159,9 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "theme.Changed updates stored theme",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
+
 				return m
 			},
 			msg:         theme.Changed{Theme: theme.DefaultLight()},
@@ -186,7 +206,9 @@ func TestView(t *testing.T) {
 		{
 			name: "empty when not selected",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
+
 				return m
 			},
 			expectedResult: "",
@@ -195,8 +217,10 @@ func TestView(t *testing.T) {
 		{
 			name: "log pane when selected",
 			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
 				m, _ := newModel(t)
-				m, _ = m.Update(msgs.ServiceSelected{ServiceName: "web"})
+				m, _ = m.Update(msgs.ServiceSelected{ServiceName: svcName})
+
 				return m
 			},
 			expectedResult: "╭",

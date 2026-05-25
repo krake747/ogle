@@ -15,14 +15,14 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-var (
-	services3 = []domain.ServiceDef{
-		{Name: "svc-alpha"},
-		{Name: "svc-beta"},
-		{Name: "svc-gamma"},
-	}
+const svcAlpha = "svc-alpha"
 
-	services8 = []domain.ServiceDef{
+func testServices3() []domain.ServiceDef {
+	return []domain.ServiceDef{{Name: svcAlpha}, {Name: "svc-beta"}, {Name: "svc-gamma"}}
+}
+
+func testServices8() []domain.ServiceDef {
+	return []domain.ServiceDef{
 		{Name: "svc-a"},
 		{Name: "svc-b"},
 		{Name: "svc-c"},
@@ -32,7 +32,7 @@ var (
 		{Name: "svc-g"},
 		{Name: "svc-h"},
 	}
-)
+}
 
 func newModel(t *testing.T, services []domain.ServiceDef) carousel.Model {
 	t.Helper()
@@ -58,13 +58,13 @@ func TestInit(t *testing.T) {
 	cases := []testCase{
 		{
 			name:         "first card focused and ServiceSelected emitted",
-			services:     services3,
+			services:     testServices3(),
 			expectCmd:    true,
-			expectedName: "svc-alpha",
+			expectedName: svcAlpha,
 		},
 		{
-			name:     "no cards returns nil cmd",
-			services: nil,
+			name:      "no cards returns nil cmd",
+			services:  nil,
 			expectCmd: false,
 		},
 	}
@@ -104,7 +104,7 @@ func TestInit(t *testing.T) {
 // TestUpdate
 // ---------------------------------------------------------------------------
 
-func TestUpdate(t *testing.T) {
+func TestUpdate(t *testing.T) { //nolint:funlen // long table-driven test cases
 	t.Parallel()
 
 	type testCase struct {
@@ -119,14 +119,15 @@ func TestUpdate(t *testing.T) {
 	cases := []testCase{
 		{
 			name:     "Tab cycles focus to next card slot",
-			services: services3,
+			services: testServices3(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
 				return m
 			},
 			msg: tea.KeyPressMsg{Code: tea.KeyTab},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 
 				msg := cmd()
@@ -136,7 +137,7 @@ func TestUpdate(t *testing.T) {
 
 				blurMsg, ok := batch[0]().(card.BlurMsg)
 				require.True(t, ok)
-				assert.Equal(t, "svc-alpha", blurMsg.ServiceName)
+				assert.Equal(t, svcAlpha, blurMsg.ServiceName)
 
 				focusMsg, ok := batch[1]().(card.FocusMsg)
 				require.True(t, ok)
@@ -149,56 +150,59 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:     "Enter on card without runtime emits ServiceStart",
-			services: services3,
+			services: testServices3(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
 				return m
 			},
 			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 
 				msg := cmd()
 				startMsg, ok := msg.(msgs.ServiceStart)
 				require.True(t, ok)
-				assert.Equal(t, "svc-alpha", startMsg.ServiceName)
+				assert.Equal(t, svcAlpha, startMsg.ServiceName)
 			},
 		},
 		{
 			name:     "Enter on running card emits ServiceStop",
-			services: services3,
+			services: testServices3(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						"svc-alpha": {State: domain.ServiceStateRunning},
+						svcAlpha: {State: domain.ServiceStateRunning},
 					},
 				})
 
 				return m
 			},
 			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 
 				msg := cmd()
 				stopMsg, ok := msg.(msgs.ServiceStop)
 				require.True(t, ok)
-				assert.Equal(t, "svc-alpha", stopMsg.ServiceName)
+				assert.Equal(t, svcAlpha, stopMsg.ServiceName)
 			},
 		},
 		{
 			name:     "PgDown changes page and focuses first card on new page",
-			services: services8,
+			services: testServices8(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
 				return m
 			},
 			msg: tea.KeyPressMsg{Code: tea.KeyPgDown},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 
 				msg := cmd()
@@ -217,28 +221,28 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name:     "PgUp on first page returns no cmd",
-			services: services8,
+			services: testServices8(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
 				return m
 			},
-			msg:  tea.KeyPressMsg{Code: tea.KeyPgUp},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+			msg:    tea.KeyPressMsg{Code: tea.KeyPgUp},
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) { t.Helper(); require.Nil(t, cmd) },
 		},
 		{
 			name:     "WindowSizeMsg returns no cmd",
-			services: services3,
+			services: testServices3(),
 			setup:    nil,
 			msg:      tea.WindowSizeMsg{Width: 200, Height: 100},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+			assert:   func(t *testing.T, _ carousel.Model, cmd tea.Cmd) { t.Helper(); require.Nil(t, cmd) },
 		},
 		{
 			name:     "theme.Changed returns no cmd",
-			services: services3,
+			services: testServices3(),
 			setup:    nil,
 			msg:      theme.Changed{Theme: theme.DefaultLight()},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+			assert:   func(t *testing.T, _ carousel.Model, cmd tea.Cmd) { t.Helper(); require.Nil(t, cmd) },
 		},
 		{
 			name:     "Enter on empty slot no-ops",
@@ -248,25 +252,26 @@ func TestUpdate(t *testing.T) {
 
 				return m
 			},
-			msg:  tea.KeyPressMsg{Code: tea.KeyEnter},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+			msg:    tea.KeyPressMsg{Code: tea.KeyEnter},
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) { t.Helper(); require.Nil(t, cmd) },
 		},
 		{
 			name:     "ServicesPolled stores runtime data",
-			services: services3,
+			services: testServices3(),
 			setup:    nil,
 			msg: msgs.ServicesPolled{
 				Runtimes: map[string]*domain.ServiceRuntimeData{
-					"svc-alpha": {State: domain.ServiceStateRunning, ContainerID: "abc123"},
+					svcAlpha: {State: domain.ServiceStateRunning, ContainerID: "abc123"},
 				},
 			},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 			},
 		},
 		{
 			name:     "Enter on dot changes page",
-			services: services8,
+			services: testServices8(),
 			setup: func(m carousel.Model) carousel.Model {
 				_ = m.Init()
 
@@ -280,7 +285,8 @@ func TestUpdate(t *testing.T) {
 				return m
 			},
 			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
-			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 
 				msg := cmd()
@@ -334,19 +340,19 @@ func TestView(t *testing.T) {
 	cases := []testCase{
 		{
 			name:           "card grid shows service names",
-			services:       services3,
+			services:       testServices3(),
 			setup:          nil,
 			expectedResult: "svc-beta",
 		},
 		{
 			name:           "nav bar hidden when single page",
-			services:       services3,
+			services:       testServices3(),
 			setup:          nil,
 			expectedResult: "",
 		},
 		{
 			name:           "nav bar shown when multiple pages",
-			services:       services8,
+			services:       testServices8(),
 			setup:          nil,
 			expectedResult: "•",
 		},

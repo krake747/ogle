@@ -26,8 +26,11 @@ const (
 type Phase int
 
 const (
+	// PhaseStartup is the initial startup phase.
 	PhaseStartup Phase = iota
+	// PhaseDashboard is the dashboard phase.
 	PhaseDashboard
+	// PhaseWatching is the file-watching phase.
 	PhaseWatching
 )
 

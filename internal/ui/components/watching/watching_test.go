@@ -24,7 +24,6 @@ func TestInit(t *testing.T) {
 	require.Nil(t, cmd)
 }
 
-//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -45,6 +44,7 @@ func TestUpdate(t *testing.T) {
 			name: "FileAvailabilityChanged with file present and parse success emits ProjectLoaded",
 			setup: func(p *mocks.MockParser) watching.Model {
 				p.EXPECT().Parse(testFile).Return(&domain.Project{Name: "test"}, nil)
+
 				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         msgs.FileAvailabilityChanged{Files: []string{testFile}},
@@ -54,6 +54,7 @@ func TestUpdate(t *testing.T) {
 			name: "FileAvailabilityChanged with parse error returns nil cmd",
 			setup: func(p *mocks.MockParser) watching.Model {
 				p.EXPECT().Parse(testFile).Return(nil, assert.AnError)
+
 				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         msgs.FileAvailabilityChanged{Files: []string{testFile}},
@@ -107,7 +108,7 @@ func TestUpdate(t *testing.T) {
 
 			p := mocks.NewMockParser(t)
 			m := tc.setup(p)
-			m, cmd := m.Update(tc.msg)
+			_, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
 				require.NotNil(t, cmd)
@@ -145,6 +146,7 @@ func TestView(t *testing.T) {
 				p.EXPECT().Parse(testFile).Return(nil, assert.AnError)
 				m := watching.New(testFile, 100, 50, theme.Default(), p)
 				m, _ = m.Update(msgs.FileAvailabilityChanged{Files: []string{testFile}})
+
 				return m
 			},
 			expectedResult: "Parse error",
@@ -154,6 +156,7 @@ func TestView(t *testing.T) {
 			setup: func(p *mocks.MockParser) watching.Model {
 				m := watching.New(testFile, 100, 50, theme.Default(), p)
 				m, _ = m.Update(theme.Changed{Theme: theme.DefaultLight()})
+
 				return m
 			},
 			expectedResult: "compose file unavailable",
