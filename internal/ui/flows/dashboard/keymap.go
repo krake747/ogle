@@ -24,8 +24,8 @@ type appKeymap struct{}
 
 func (k appKeymap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		carousel.Keymap{}.ShortHelp()[0], // tab - focus next
-		carousel.Keymap{}.ShortHelp()[1], // enter - start/stop
+		carousel.KeyTab,
+		carousel.KeyEnter,
 		keyRestart,
 		keyRebuild,
 		keyQuit,

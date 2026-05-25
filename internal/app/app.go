@@ -366,7 +366,7 @@ func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
 		return m, nil
 	}
 
-	if zone := m.zm.Get(topbar.BrandZone); zone != nil && zone.InBounds(msg) {
+	if brand := m.zm.Get(topbar.BrandZone); brand != nil && brand.InBounds(msg) {
 		m.showingAbout = true
 
 		return m, func() tea.Msg { return msgs.AboutVisibilityChanged{Visible: true} }
