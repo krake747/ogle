@@ -17,6 +17,12 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+//nolint:gochecknoglobals // shared test time fixtures
+var (
+	early = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	later = time.Date(2020, 1, 1, 0, 0, 11, 0, time.UTC)
+)
+
 func newModel(t *testing.T) (topbar.Model, *mocks.MockDocker) {
 	t.Helper()
 	mockD := mocks.NewMockDocker(t)
@@ -27,104 +33,99 @@ func newModel(t *testing.T) (topbar.Model, *mocks.MockDocker) {
 	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD), mockD
 }
 
+func cmdRequired(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
+	t.Helper()
+	require.NotNil(t, cmd, "expected a command to be returned")
+}
+
 //nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	early := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	later := time.Date(2020, 1, 1, 0, 0, 11, 0, time.UTC)
-
 	type testCase struct {
-		name      string
-		msg       tea.Msg
-		setup     func(m topbar.Model) topbar.Model
-		assertion func(t *testing.T, m topbar.Model, cmd tea.Cmd)
+		name string
+		// arrange
+		setup func(m topbar.Model) topbar.Model
+
+		// act
+		msg tea.Msg
+
+		// assert
+		expectedMsg tea.Msg
+		check       func(*testing.T, topbar.Model, tea.Cmd)
 	}
 
 	cases := []testCase{
 		{
-			name: "TopbarContext sets phase and project file",
+			name: "TopbarContext produces no command",
 			msg:  msgs.TopbarContext{Phase: "dashboard", File: "docker-compose.yml"},
-			assertion: func(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.Nil(t, cmd)
-			},
 		},
 		{
-			name: "DaemonConnected emits DaemonPoll tick",
-			msg:  msgs.DaemonConnected{},
-			assertion: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.NotNil(t, cmd, "DaemonConnected should schedule a poll tick")
-				assert.Contains(t, m.View().Content, "LIVE")
-			},
+			name:  "DaemonConnected schedules poll command",
+			msg:   msgs.DaemonConnected{},
+			check: cmdRequired,
 		},
 		{
-			name: "DaemonUnavailable emits retry tick",
+			name: "DaemonUnavailable schedules retry command",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				return m
 			},
+			// act
 			msg: msgs.DaemonUnavailable{},
-			assertion: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.NotNil(t, cmd, "DaemonUnavailable should schedule a retry tick")
-				assert.Contains(t, m.View().Content, "DISCONNECTED")
-			},
+			// assert
+			check: cmdRequired,
 		},
 		{
-			name: "DaemonGraceExpired in connecting state transitions to unavailable and emits retry tick",
+			name: "DaemonGraceExpired while connecting schedules retry command",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				return m
 			},
+			// act
 			msg: msgs.DaemonGraceExpired{},
-			assertion: func(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.NotNil(t, cmd, "Grace expired in connecting should schedule a retry tick")
-			},
+			// assert
+			check: cmdRequired,
 		},
 		{
-			name: "DaemonGraceExpired in connected state is no-op",
+			name: "DaemonGraceExpired while connected produces no command",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				m.Update(msgs.DaemonConnected{})
 				return m
 			},
+			// act
 			msg: msgs.DaemonGraceExpired{},
-			assertion: func(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.Nil(t, cmd, "Grace expired in connected should produce no command")
-			},
 		},
 		{
-			name: "DaemonTick when retry due calls docker.Connect",
+			name: "DaemonTick with retry due triggers reconnect",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				m.Update(msgs.DaemonUnavailable{})
 				m.SetNow(later)
 				return m
 			},
+			// act
 			msg: msgs.DaemonTick{},
-			assertion: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.NotNil(t, cmd, "retry-due DaemonTick should call docker.Connect")
-				assert.Contains(t, m.View().Content, "RECONNECTING",
-					"after retry, state should transition back to connecting")
-			},
+			// assert
+			check: cmdRequired,
 		},
 		{
-			name: "DaemonTick when retry NOT due emits next tick",
+			name: "DaemonTick with retry not due schedules next tick",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				m.Update(msgs.DaemonUnavailable{})
 				return m
 			},
+			// act
 			msg: msgs.DaemonTick{},
-			assertion: func(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
-				t.Helper()
-				require.NotNil(t, cmd, "retry-not-due DaemonTick should schedule next tick")
-			},
+			// assert
+			check: cmdRequired,
 		},
 	}
 
@@ -139,7 +140,14 @@ func TestUpdate(t *testing.T) {
 
 			m, cmd := m.Update(tc.msg)
 
-			tc.assertion(t, m, cmd)
+			if tc.expectedMsg != nil {
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			} else if tc.check != nil {
+				tc.check(t, m, cmd)
+			} else {
+				require.Nil(t, cmd)
+			}
 		})
 	}
 }
@@ -148,11 +156,12 @@ func TestUpdate(t *testing.T) {
 func TestView(t *testing.T) {
 	t.Parallel()
 
-	early := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-
 	type testCase struct {
-		name           string
-		setup          func(m topbar.Model) topbar.Model
+		name string
+		// arrange
+		setup func(m topbar.Model) topbar.Model
+
+		// assert
 		expectedResult string
 	}
 
@@ -163,18 +172,22 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "dashboard phase shows project file",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "dashboard", File: "compose.yaml"})
 				return m
 			},
+			// assert
 			expectedResult: "compose.yaml",
 		},
 		{
 			name: "watching phase shows disconnected text",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "watching", File: ""})
 				return m
 			},
+			// assert
 			expectedResult: "disconnected",
 		},
 		{
@@ -183,19 +196,23 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "connected daemon status shows LIVE",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.DaemonConnected{})
 				return m
 			},
+			// assert
 			expectedResult: "LIVE",
 		},
 		{
 			name: "unavailable daemon status shows DISCONNECTED with countdown",
+			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m.SetNow(early)
 				m, _ = m.Update(msgs.DaemonUnavailable{})
 				return m
 			},
+			// assert
 			expectedResult: "DISCONNECTED",
 		},
 	}

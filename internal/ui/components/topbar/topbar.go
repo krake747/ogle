@@ -25,7 +25,6 @@ const (
 // Phase identifies the active UI phase for context text rendering.
 type Phase int
 
-// Phase values.
 const (
 	PhaseStartup Phase = iota
 	PhaseDashboard

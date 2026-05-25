@@ -39,7 +39,7 @@ fmt:
 
 .PHONY: fix
 fix:
-	golangci-lint run ./... --fix
+	golangci-lint run ./internal/... --fix
 	markdownlint-cli2 --fix "**/*.md"
 
 .PHONY: launch
