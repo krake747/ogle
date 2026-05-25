@@ -56,6 +56,7 @@ internal/
     │       ├── startup.go            # Model: receives FileSelected, emits ProjectLoaded
     │       └── keymap.go             # startup-specific key bindings
     ├── hoverlist/                    # reusable hover-highlight list infrastructure
+    ├── layout/                       # layout constants (FrameHeight)
     └── theme/                        # Theme type, built-in themes, user theme loading
         ├── theme.go                  # Theme struct, Load(), override logic
         ├── builtin.go                # Default theme (dark)
@@ -76,6 +77,7 @@ app → ui/flows/startup, ui/flows/dashboard, ui/components/about, msgs, service
 ui/flows/startup → services/parser, services/scanner, ui/components/fileselect, msgs, ui/theme
 ui/flows/dashboard → services/parser, services/docker/logs, ui/components/{accordion,carousel,servicepanel,settings}, msgs, ui/theme, config
 ui/components/* → msgs, ui/theme, ui/colorutil
+ui/components/about → version
 ui/components/topbar → bubblezone
 services/docker → domain, msgs
 services/docker/logs → msgs, domain
