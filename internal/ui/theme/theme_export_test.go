@@ -1,3 +1,5 @@
 package theme
 
-var ApplyOverrides = applyOverrides
+func ApplyOverrides(theme *Theme, overrides userThemeFile) *Theme {
+	return applyOverrides(theme, overrides)
+}

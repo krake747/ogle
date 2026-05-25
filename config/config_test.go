@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,33 +68,31 @@ func TestLoad(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name string
-		// arrange
+		name       string
 		configYAML string
-		writeFile  bool // false → no file written (missing config)
+		writeFile  bool
 
-		// assert
 		expectedConfig config.Config
-		expectedError  error
+		wantReadErr    bool
 	}
 
 	defaultCfg := config.Defaults()
 
 	for _, tc := range []testCase{
 		{
-			name:       "missing config file returns defaults",
-			writeFile:  false,
+			name:           "missing config file returns defaults",
+			writeFile:      false,
 			expectedConfig: defaultCfg,
 		},
 		{
-			name:       "empty config returns defaults",
+			name:           "empty config returns defaults",
+			writeFile:      true,
+			configYAML:     "",
+			expectedConfig: defaultCfg,
+		},
+		{
+			name:       "partial config reflects set fields with defaults for rest",
 			writeFile:  true,
-			configYAML: "",
-			expectedConfig: defaultCfg,
-		},
-		{
-			name:      "partial config reflects set fields with defaults for rest",
-			writeFile: true,
 			configYAML: "theme: catppuccino_mocha\n",
 			expectedConfig: config.Config{
 				Theme:        "catppuccino_mocha",
@@ -103,14 +100,14 @@ func TestLoad(t *testing.T) {
 			},
 		},
 		{
-			name:      "malformed YAML fails read",
-			writeFile: true,
-			configYAML: "invalid: yaml: [\nbroken",
-			expectedError: fmt.Errorf("read"), // any read error
+			name:        "malformed YAML fails read",
+			writeFile:   true,
+			configYAML:  "invalid: yaml: [\nbroken",
+			wantReadErr: true,
 		},
 		{
-			name:      "valid config with all fields",
-			writeFile: true,
+			name:       "valid config with all fields",
+			writeFile:  true,
 			configYAML: "theme: solarized_light\nlogBufferCap: 2000\nlog:\n  level: debug\n",
 			expectedConfig: config.Config{
 				Theme:        "solarized_light",
@@ -121,7 +118,6 @@ func TestLoad(t *testing.T) {
 			},
 		},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -134,11 +130,13 @@ func TestLoad(t *testing.T) {
 				require.NoError(t, os.WriteFile(path, []byte(tc.configYAML), 0o600))
 				v.SetConfigFile(path)
 
-				if tc.expectedError != nil {
+				if tc.wantReadErr {
 					err := v.ReadInConfig()
 					require.Error(t, err)
+
 					return
 				}
+
 				require.NoError(t, v.ReadInConfig())
 			}
 

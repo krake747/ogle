@@ -1,10 +1,16 @@
-package theme
+package theme //nolint:testpackage // internal function tests require access to unexported helpers
 
 import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
+)
+
+const (
+	testColorRed   = "#ff0000"
+	testColorGreen = "#00ff00"
+	testColorBlue  = "#0000ff"
 )
 
 func TestApplyOverrides(t *testing.T) {
@@ -14,16 +20,16 @@ func TestApplyOverrides(t *testing.T) {
 	base := Default()
 
 	overrides := userThemeFile{
-		TextColor:            "#ff0000",
-		StateRunningColor:    "#00ff00",
-		HelpBackgroundColor:  "#0000ff",
+		TextColor:           testColorRed,
+		StateRunningColor:   testColorGreen,
+		HelpBackgroundColor: testColorBlue,
 	}
 
 	result := applyOverrides(base, overrides)
 
-	assert.Equal(t, lipgloss.Color("#ff0000"), result.Text)
-	assert.Equal(t, lipgloss.Color("#00ff00"), result.StateRunning)
-	assert.Equal(t, lipgloss.Color("#0000ff"), result.HelpBackground)
+	assert.Equal(t, lipgloss.Color(testColorRed), result.Text)
+	assert.Equal(t, lipgloss.Color(testColorGreen), result.StateRunning)
+	assert.Equal(t, lipgloss.Color(testColorBlue), result.HelpBackground)
 
 	assert.Equal(t, original.StateExited, result.StateExited)
 	assert.Equal(t, original.StatePaused, result.StatePaused)
@@ -36,12 +42,12 @@ func TestApplyOverridesEmptyFieldsDoNotOverride(t *testing.T) {
 	base := Default()
 
 	overrides := userThemeFile{
-		TextColor: "#ff0000",
+		TextColor: testColorRed,
 	}
 
 	result := applyOverrides(base, overrides)
 
-	assert.Equal(t, lipgloss.Color("#ff0000"), result.Text)
+	assert.Equal(t, lipgloss.Color(testColorRed), result.Text)
 	assert.Equal(t, base.StateRunning, result.StateRunning)
 }
 
@@ -51,9 +57,9 @@ func TestApplyColorOverrides(t *testing.T) {
 	base := Default()
 
 	overrides := userThemeFile{
-		TextColor:           "#ff0000",
-		SubtextColor:        "#00ff00",
-		StateRunningColor:   "#0000ff",
+		TextColor:           testColorRed,
+		SubtextColor:        testColorGreen,
+		StateRunningColor:   testColorBlue,
 		StateExitedColor:    "#ffff00",
 		StatePausedColor:    "#ff00ff",
 		StateTransientColor: "#00ffff",
@@ -63,9 +69,9 @@ func TestApplyColorOverrides(t *testing.T) {
 	result := *base
 	applyColorOverrides(&result, overrides)
 
-	assert.Equal(t, lipgloss.Color("#ff0000"), result.Text)
-	assert.Equal(t, lipgloss.Color("#00ff00"), result.Subtext)
-	assert.Equal(t, lipgloss.Color("#0000ff"), result.StateRunning)
+	assert.Equal(t, lipgloss.Color(testColorRed), result.Text)
+	assert.Equal(t, lipgloss.Color(testColorGreen), result.Subtext)
+	assert.Equal(t, lipgloss.Color(testColorBlue), result.StateRunning)
 	assert.Equal(t, lipgloss.Color("#ffff00"), result.StateExited)
 	assert.Equal(t, lipgloss.Color("#ff00ff"), result.StatePaused)
 	assert.Equal(t, lipgloss.Color("#00ffff"), result.StateTransient)
@@ -78,9 +84,9 @@ func TestApplyStyleOverrides(t *testing.T) {
 	base := Default()
 
 	overrides := userThemeFile{
-		BorderFocusedColor:    "#ff0000",
-		BorderBlurredColor:    "#00ff00",
-		ServiceListTitleColor: "#0000ff",
+		BorderFocusedColor:    testColorRed,
+		BorderBlurredColor:    testColorGreen,
+		ServiceListTitleColor: testColorBlue,
 		HelpKeyColor:          "#ffff00",
 		HelpDescColor:         "#ff00ff",
 		HelpSepColor:          "#00ffff",
@@ -89,9 +95,9 @@ func TestApplyStyleOverrides(t *testing.T) {
 	result := *base
 	applyStyleOverrides(&result, overrides)
 
-	assert.Equal(t, lipgloss.Color("#ff0000"), result.BorderFocused.GetBorderTopForeground())
-	assert.Equal(t, lipgloss.Color("#00ff00"), result.BorderBlurred.GetBorderTopForeground())
-	assert.Equal(t, lipgloss.Color("#0000ff"), result.ServiceListTitle.GetForeground())
+	assert.Equal(t, lipgloss.Color(testColorRed), result.BorderFocused.GetBorderTopForeground())
+	assert.Equal(t, lipgloss.Color(testColorGreen), result.BorderBlurred.GetBorderTopForeground())
+	assert.Equal(t, lipgloss.Color(testColorBlue), result.ServiceListTitle.GetForeground())
 	assert.Equal(t, lipgloss.Color("#ffff00"), result.HelpKey.GetForeground())
 	assert.Equal(t, lipgloss.Color("#ff00ff"), result.HelpDesc.GetForeground())
 	assert.Equal(t, lipgloss.Color("#00ffff"), result.HelpSep.GetForeground())

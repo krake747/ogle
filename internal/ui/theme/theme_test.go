@@ -11,6 +11,15 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+func builtinThemeNames() []string {
+	return []string{
+		"default", "default_light",
+		"catppuccino_frappe", "catppuccino_latte",
+		"catppuccino_macchiato", "catppuccino_mocha",
+		"solarized_dark", "solarized_light",
+	}
+}
+
 func TestColourForState(t *testing.T) {
 	t.Parallel()
 
@@ -31,7 +40,6 @@ func TestColourForState(t *testing.T) {
 		{name: "not created", state: domain.ServiceStateNotCreated, expectedColor: th.StateMuted},
 		{name: "unknown", state: domain.ServiceStateUnknown, expectedColor: th.StateMuted},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -59,7 +67,6 @@ func TestBuiltinConstructors(t *testing.T) {
 		{name: "SolarizedDark", construct: theme.SolarizedDark},
 		{name: "SolarizedLight", construct: theme.SolarizedLight},
 	} {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -74,39 +81,26 @@ func TestBuiltinNames(t *testing.T) {
 
 	names := theme.BuiltinNames()
 	require.Len(t, names, 8)
-	expected := []string{
-		"default", "default_light",
-		"catppuccino_frappe", "catppuccino_latte",
-		"catppuccino_macchiato", "catppuccino_mocha",
-		"solarized_dark", "solarized_light",
-	}
-	assert.ElementsMatch(t, expected, names)
+
+	assert.ElementsMatch(t, builtinThemeNames(), names)
 }
 
 func TestLoadBuiltin(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		name      string
-		themeName string
-	}
+	t.Run("empty string returns default", func(t *testing.T) {
+		t.Parallel()
 
-	for _, tc := range []testCase{
-		{name: "empty string returns default", themeName: ""},
-		{name: "default", themeName: "default"},
-		{name: "default_light", themeName: "default_light"},
-		{name: "catppuccino_frappe", themeName: "catppuccino_frappe"},
-		{name: "catppuccino_latte", themeName: "catppuccino_latte"},
-		{name: "catppuccino_macchiato", themeName: "catppuccino_macchiato"},
-		{name: "catppuccino_mocha", themeName: "catppuccino_mocha"},
-		{name: "solarized_dark", themeName: "solarized_dark"},
-		{name: "solarized_light", themeName: "solarized_light"},
-	} {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
+		th, err := theme.Load("", t.TempDir())
+		require.NoError(t, err)
+		require.NotNil(t, th)
+	})
+
+	for _, name := range builtinThemeNames() {
+		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			th, err := theme.Load(tc.themeName, t.TempDir())
+			th, err := theme.Load(name, t.TempDir())
 			require.NoError(t, err)
 			require.NotNil(t, th)
 		})

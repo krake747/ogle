@@ -25,6 +25,7 @@ packages:
   github.com/ma-tf/ogle/internal/services/docker:
     interfaces:
       Docker:
+      Commander:
   github.com/ma-tf/ogle/internal/services/docker/logs:
     interfaces:
       Streamer:
