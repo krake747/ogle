@@ -38,13 +38,47 @@ type Watcher interface {
 	Close() error
 }
 
+// FileWatcher abstracts a filesystem watcher so the event loop is testable
+// without a real filesystem. The production implementation wraps
+// *fsnotify.Watcher.
+type FileWatcher interface {
+	Events() chan fsnotify.Event
+	Errors() chan error
+	Add(name string) error
+	Close() error
+}
+
+// realFileWatcher wraps *fsnotify.Watcher to implement FileWatcher.
+type realFileWatcher struct {
+	w *fsnotify.Watcher
+}
+
+func (r *realFileWatcher) Events() chan fsnotify.Event { return r.w.Events }
+func (r *realFileWatcher) Errors() chan error          { return r.w.Errors }
+
+func (r *realFileWatcher) Add(name string) error {
+	if err := r.w.Add(name); err != nil {
+		return fmt.Errorf("real file watcher add: %w", err)
+	}
+
+	return nil
+}
+
+func (r *realFileWatcher) Close() error {
+	if err := r.w.Close(); err != nil {
+		return fmt.Errorf("real file watcher close: %w", err)
+	}
+
+	return nil
+}
+
 // Service monitors a directory for filesystem events on known compose
 // filenames and delivers msgs.FileAvailabilityChanged snapshots to the
 // Bubble Tea runtime. extraFile is an additional basename to track beyond
 // the scanner's known filenames (e.g. a manually specified project file).
 // When empty, only the scanner's known filenames are tracked.
 type Service struct {
-	fw        *fsnotify.Watcher
+	fw        FileWatcher
 	dir       string
 	scanner   scanner.Scanner
 	logger    *slog.Logger
@@ -64,6 +98,19 @@ func New(dir string, logger *slog.Logger, extraFile string, sc scanner.Scanner) 
 		return nil, fmt.Errorf("%w: fsnotify: %w", ErrCreateWatcher, err)
 	}
 
+	return NewWithFileWatcher(dir, logger, extraFile, sc, &realFileWatcher{w: fw})
+}
+
+// NewWithFileWatcher creates a Watcher with the given FileWatcher
+// implementation. Intended for testing with a fake FileWatcher; production
+// code should use New instead.
+func NewWithFileWatcher(
+	dir string,
+	logger *slog.Logger,
+	extraFile string,
+	sc scanner.Scanner,
+	fw FileWatcher,
+) (Watcher, error) {
 	if addErr := fw.Add(dir); addErr != nil {
 		closeErr := fw.Close()
 
@@ -161,39 +208,61 @@ func (w *Service) run() {
 		case <-w.done:
 			return
 
-		case event, ok := <-w.fw.Events:
+		case event, ok := <-w.fw.Events():
 			if !ok {
 				return
 			}
 
-			known := slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name))
-			if !known && filepath.Base(event.Name) != w.extraFile {
+			snapshot := w.handleEvent(event)
+			if snapshot == nil {
 				continue
 			}
 
-			snapshot := msgs.FileAvailabilityChanged{
-				Files: w.scan(),
-			}
-
-			// Drain any stale snapshot before sending the current one so
-			// the consumer always sees the most recent state.
-			select {
-			case <-w.events:
-			default:
-			}
-
-			select {
-			case w.events <- snapshot:
-			case <-w.done:
+			if !w.sendSnapshot(*snapshot) {
 				return
 			}
 
-		case err, ok := <-w.fw.Errors:
+		case err, ok := <-w.fw.Errors():
 			if !ok {
 				return
 			}
 
 			w.logger.Error("watcher: fsnotify error", "dir", w.dir, "err", err)
 		}
+	}
+}
+
+// handleEvent returns a snapshot for the event, or nil if the event should be
+// ignored (e.g. Chmod which does not affect file availability).
+func (w *Service) handleEvent(event fsnotify.Event) *msgs.FileAvailabilityChanged {
+	if event.Op == fsnotify.Chmod {
+		return nil
+	}
+
+	known := slices.Contains(w.scanner.KnownFilenames(), filepath.Base(event.Name))
+	if !known && filepath.Base(event.Name) != w.extraFile {
+		return nil
+	}
+
+	snapshot := msgs.FileAvailabilityChanged{
+		Files: w.scan(),
+	}
+
+	return &snapshot
+}
+
+// sendSnapshot drains any stale snapshot and sends the current one. Returns
+// false if the watcher has been closed during the send.
+func (w *Service) sendSnapshot(snapshot msgs.FileAvailabilityChanged) bool {
+	select {
+	case <-w.events:
+	default:
+	}
+
+	select {
+	case w.events <- snapshot:
+		return true
+	case <-w.done:
+		return false
 	}
 }
