@@ -10,6 +10,7 @@ import (
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
+	"github.com/ma-tf/ogle/internal/services/docker/logs"
 	"github.com/ma-tf/ogle/internal/ui/components/servicehost"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
@@ -25,7 +26,7 @@ type Model struct {
 func New(project *domain.Project, th *theme.Theme, w, h, logBufferCap int) Model {
 	hosts := make([]servicehost.Model, len(project.Services))
 	for i, svc := range project.Services {
-		hosts[i] = servicehost.New(th, svc, project.Name, w, h, logBufferCap)
+		hosts[i] = servicehost.New(th, svc, project.Name, w, h, logBufferCap, logs.New(svc.Name))
 	}
 
 	return Model{

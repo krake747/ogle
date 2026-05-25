@@ -65,9 +65,9 @@ type Model struct {
 	topbar    topbar.Model
 	helpbar   helpbar.Model
 	statusbar statusbar.Model
-	startup   tea.Model
-	dashboard tea.Model
-	watching  tea.Model
+	startup   startup.Model
+	dashboard dashboard.Model
+	watching  watching.Model
 	phase     phase
 	width     int
 	height    int
@@ -104,7 +104,7 @@ func New(
 
 	var (
 		project *domain.Project
-		dash    tea.Model
+		dash    dashboard.Model
 	)
 
 	currentPhase := phaseStartup
@@ -153,7 +153,7 @@ func New(
 		statusbar:   statusbar.New(th),
 		startup:     startup.New(width, height, zm, th, parseSvc),
 		dashboard:   dash,
-		watching:    nil,
+		watching:    watching.Model{},
 		phase:       currentPhase,
 		width:       width,
 		height:      height,

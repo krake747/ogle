@@ -64,7 +64,7 @@ func New(
 	w, h int,
 	docker svcdocker.Docker,
 	p parser.Parser,
-) tea.Model {
+) Model {
 	selectedName := ""
 	if len(project.Services) > 0 {
 		selectedName = project.Services[0].Name
@@ -104,7 +104,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update handles dashboard-level messages.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var carouselCmd, panCmd, settingsCmd, accCmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -229,7 +229,7 @@ func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) handleServiceAction(msg tea.Msg) (Model, tea.Cmd) {
 	var carouselCmd, svcCmd, statusCmd tea.Cmd
 
 	switch msg := msg.(type) {
@@ -276,7 +276,7 @@ func (m Model) handleServiceAction(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(carouselCmd, statusCmd, svcCmd)
 }
 
-func (m Model) handleFileAvailabilityChanged(files []string) (tea.Model, tea.Cmd) {
+func (m Model) handleFileAvailabilityChanged(files []string) (Model, tea.Cmd) {
 	if !slices.Contains(files, m.project.File) {
 		return m, func() tea.Msg {
 			return msgs.FileRemoved{File: m.project.File}

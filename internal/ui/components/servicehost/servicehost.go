@@ -24,13 +24,11 @@ type Model struct {
 }
 
 // New constructs a host for the given service.
-func New(th *theme.Theme, def domain.ServiceDef, project string, w, h, logBufferCap int) Model {
-	s := logs.New(def.Name)
-
+func New(th *theme.Theme, def domain.ServiceDef, project string, w, h, logBufferCap int, streamer logs.Streamer) Model {
 	return Model{
 		def:             def,
-		logPane:         logpane.New(th, w, h, logBufferCap, s.Lines()),
-		streamer:        s,
+		logPane:         logpane.New(th, w, h, logBufferCap, streamer.Lines()),
+		streamer:        streamer,
 		streamerStarted: false,
 		theme:           th,
 		project:         project,

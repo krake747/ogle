@@ -13,7 +13,7 @@ import (
 // Model is the startup flow orchestrator.
 type Model struct {
 	parser     parser.Parser
-	fileSelect tea.Model
+	fileSelect fileselect.Model
 	zm         *zone.Manager
 	th         *theme.Theme
 	w, h       int
@@ -44,7 +44,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // Update implements tea.Model.
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case msgs.FileSelected:
 		p, err := m.parser.Parse(msg.Path)
