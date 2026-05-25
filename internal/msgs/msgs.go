@@ -116,6 +116,11 @@ type (
 	LogStreamContainerNotFound struct {
 		ServiceName string
 	}
+
+	// LogStreamRetryTick is emitted after a brief delay when the log stream
+	// fails to start (404 or read error). The servicehost handles it by
+	// re-calling Start and re-subscribing Next.
+	LogStreamRetryTick struct{}
 )
 
 // StatePollTick is emitted by servicepanel's poll loop to trigger a compose ps poll.

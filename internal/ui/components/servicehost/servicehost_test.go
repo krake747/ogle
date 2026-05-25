@@ -6,6 +6,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ma-tf/ogle/internal/domain"
@@ -45,6 +46,7 @@ func TestUpdate(t *testing.T) {
 
 		// assert
 		expectedMsg tea.Msg
+		expectCmd   bool
 		check       func(*testing.T, servicehost.Model)
 	}
 
@@ -130,18 +132,71 @@ func TestUpdate(t *testing.T) {
 		},
 
 		{
-			name: "LogStreamError emits streamer.Next",
+			name: "LogStreamError closes streamer and schedules retry",
 			setup: func(t *testing.T) servicehost.Model {
 				t.Helper()
 				m, s := newModel(t)
+				s.EXPECT().Close().Return()
+
+				return m
+			},
+			msg:       msgs.LogStreamError{Err: nil, ServiceName: svcName},
+			expectCmd: true,
+		},
+
+		{
+			name: "LogStreamContainerNotFound closes streamer and schedules retry",
+			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
+				m, s := newModel(t)
+				s.EXPECT().Close().Return()
+
+				return m
+			},
+			msg:       msgs.LogStreamContainerNotFound{ServiceName: svcName},
+			expectCmd: true,
+		},
+
+		{
+			name: "LogStreamRetryTick restarts streamer when streamerStarted is false",
+			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
+				m, s := newModel(t)
+
+				// Simulate a previous error that reset the flag
+				s.EXPECT().Close().Return()
+
+				m, _ = m.Update(msgs.LogStreamContainerNotFound{ServiceName: svcName})
+
+				// Expect Start + Next on retry tick
+
+				s.EXPECT().Start(mock.Anything, testProject+"-"+svcName+"-1").Return()
 				s.EXPECT().Next().Return(func() tea.Msg {
-					return msgs.LogStreamError{Err: nil, ServiceName: svcName}
+					return msgs.LogLinesAvailable{}
 				})
 
 				return m
 			},
-			msg:         msgs.LogStreamError{Err: nil, ServiceName: svcName},
-			expectedMsg: msgs.LogStreamError{Err: nil, ServiceName: svcName},
+			msg:         msgs.LogStreamRetryTick{},
+			expectedMsg: msgs.LogLinesAvailable{},
+		},
+
+		{
+			name: "LogStreamRetryTick is no-op when streamer is already started",
+			setup: func(t *testing.T) servicehost.Model {
+				t.Helper()
+				m, s := newModel(t)
+
+				// Start the streamer normally
+				s.EXPECT().Start(mock.Anything, testProject+"-"+svcName+"-1").Return()
+				s.EXPECT().Next().Return(func() tea.Msg { return nil })
+
+				m, _ = m.Update(msgs.DaemonConnected{})
+
+				return m
+			},
+			msg:       msgs.LogStreamRetryTick{},
+			expectCmd: false,
 		},
 
 		{
@@ -176,10 +231,13 @@ func TestUpdate(t *testing.T) {
 			m := tc.setup(t)
 			m, cmd := m.Update(tc.msg)
 
-			if tc.expectedMsg != nil {
+			switch {
+			case tc.expectedMsg != nil:
 				require.NotNil(t, cmd)
 				require.Equal(t, tc.expectedMsg, cmd())
-			} else {
+			case tc.expectCmd:
+				require.NotNil(t, cmd)
+			default:
 				require.Nil(t, cmd)
 			}
 
@@ -188,6 +246,52 @@ func TestUpdate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdate_LogStreamErrorRecoveryCycle(t *testing.T) {
+	t.Parallel()
+
+	t.Run("error to retry to restart cycle via mock", func(t *testing.T) {
+		t.Parallel()
+
+		m, s := newModel(t)
+
+		// Step 1: DaemonConnected starts the streamer
+		s.EXPECT().Start(mock.Anything, testProject+"-"+svcName+"-1").Return().Once()
+		s.EXPECT().Next().Return(func() tea.Msg {
+			return msgs.LogLinesAvailable{}
+		}).Once()
+
+		m, cmd := m.Update(msgs.DaemonConnected{})
+		require.NotNil(t, cmd)
+		require.Equal(t, msgs.LogLinesAvailable{}, cmd())
+
+		// Step 2: LogStreamContainerNotFound → Close + retry tick
+		s.EXPECT().Close().Return().Once()
+
+		m, cmd = m.Update(msgs.LogStreamContainerNotFound{ServiceName: svcName})
+		require.NotNil(t, cmd) // tea.Tick cmd — non-deterministic, skip calling it
+
+		// Step 3: LogStreamRetryTick → Start + Next
+		s.EXPECT().Start(mock.Anything, testProject+"-"+svcName+"-1").Return().Once()
+		s.EXPECT().Next().Return(func() tea.Msg {
+			return msgs.LogLinesAvailable{}
+		}).Once()
+
+		m, cmd = m.Update(msgs.LogStreamRetryTick{})
+		require.NotNil(t, cmd)
+		result := cmd()
+		require.Equal(t, msgs.LogLinesAvailable{}, result)
+
+		// Streamer started again — verify LogLinesAvailable re-subscribes
+		s.EXPECT().Next().Return(func() tea.Msg {
+			return msgs.LogLinesAvailable{}
+		}).Once()
+
+		_, cmd = m.Update(msgs.LogLinesAvailable{})
+		require.NotNil(t, cmd)
+		require.Equal(t, msgs.LogLinesAvailable{}, cmd())
+	})
 }
 
 func TestView(t *testing.T) {

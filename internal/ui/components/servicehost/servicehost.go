@@ -2,6 +2,7 @@ package servicehost
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -11,6 +12,8 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/components/logpane"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+const logStreamRetryDelay = 2 * time.Second
 
 // Model wraps a per-service log pane and streamer into a compositor-hostable unit.
 type Model struct {
@@ -64,14 +67,30 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
-			m.streamerStarted = true
-			containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
-			m.streamer.Start(context.Background(), containerName)
-			cmds = append(cmds, m.streamer.Next())
+			var cmd tea.Cmd
+
+			m, cmd = m.startStreamer()
+			cmds = append(cmds, cmd)
 		}
 
-	case msgs.LogLinesAvailable, msgs.LogStreamError, msgs.LogStreamContainerNotFound:
+	case msgs.LogLinesAvailable:
 		cmds = append(cmds, m.streamer.Next())
+
+	case msgs.LogStreamError, msgs.LogStreamContainerNotFound:
+		m.streamer.Close()
+		m.streamerStarted = false
+
+		cmds = append(cmds, tea.Tick(logStreamRetryDelay, func(_ time.Time) tea.Msg {
+			return msgs.LogStreamRetryTick{}
+		}))
+
+	case msgs.LogStreamRetryTick:
+		if !m.streamerStarted {
+			var cmd tea.Cmd
+
+			m, cmd = m.startStreamer()
+			cmds = append(cmds, cmd)
+		}
 
 	case theme.Changed:
 		m.theme = msg.Theme
@@ -85,6 +104,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// startStreamer begins log streaming for the service and returns a Next cmd.
+func (m Model) startStreamer() (Model, tea.Cmd) {
+	m.streamerStarted = true
+	containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
+	m.streamer.Start(context.Background(), containerName)
+
+	return m, m.streamer.Next()
 }
 
 // View returns the log pane for the selected service, or an empty view.

@@ -66,7 +66,8 @@ func New(serviceName string) *LogStreamer {
 }
 
 // Start begins streaming logs for the named container. Close must be called
-// before calling Start again on a reused LogStreamer. It returns immediately;
+// before calling Start again on a reused LogStreamer. Start may be called
+// after Close — the same channels are reused. It returns immediately;
 // the HTTP connection and all I/O run in a single background goroutine. On
 // 404 or non-200 the goroutine writes a single error message to ch and exits.
 // On 200 it writes log line strings to lineCh until the stream ends or Close
@@ -183,7 +184,8 @@ func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client
 		case s.lineCh <- strings.TrimRight(string(payload), "\n"):
 			select {
 			case s.ch <- msgs.LogLinesAvailable{}:
-			default:
+			case <-ctx.Done():
+				return
 			}
 		case <-ctx.Done():
 			return
@@ -216,15 +218,15 @@ func (s *LogStreamer) Next() tea.Cmd {
 
 // Close cancels the streaming context, waits for the reader goroutine to exit,
 // rotates the done channel to unblock any in-flight Next cmd, then drains any
-// buffered error messages. Close is a no-op when no stream is active.
+// buffered error messages. Unlike Start, Close does not close the line channel
+// — the LogStreamer may be restarted with a subsequent Start call. Close is a
+// no-op when no stream is active.
 func (s *LogStreamer) Close() {
 	if s.cancel != nil {
 		s.cancel()
 		s.cancel = nil
 
 		s.wg.Wait()
-
-		close(s.lineCh)
 
 		old := s.done
 		s.done = make(chan struct{})
