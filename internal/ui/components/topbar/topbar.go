@@ -43,6 +43,7 @@ type Model struct {
 	th          *theme.Theme
 	width       int
 	ctx         context.Context
+	now         func() time.Time
 }
 
 // New returns a Model in PhaseStartup with no project file.
@@ -56,6 +57,7 @@ func New(ctx context.Context, conn *connection.Machine, th *theme.Theme, d docke
 		spn:         spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 		th:          th,
 		width:       0,
+		now:         func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -100,18 +102,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmds = append(cmds, pollDaemonCmd())
 
 	case msgs.DaemonUnavailable:
-		m.conn.HandleUnavailable(time.Now().UTC())
+		m.conn.HandleUnavailable(m.now())
 
 		cmds = append(cmds, daemonTickCmd())
 
 	case msgs.DaemonGraceExpired:
-		if m.conn.HandleGracePeriodExpired(time.Now().UTC()) {
+		if m.conn.HandleGracePeriodExpired(m.now()) {
 			cmds = append(cmds, daemonTickCmd())
 		}
 
 	case msgs.DaemonTick:
 		if m.conn.ConnectState() == connection.ConnectStateUnavailable {
-			if m.conn.IsRetryDue(time.Now().UTC()) {
+			if m.conn.IsRetryDue(m.now()) {
 				cmds = append(cmds, m.docker.Connect(m.ctx))
 			} else {
 				cmds = append(cmds, daemonTickCmd())
@@ -131,7 +133,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 
-	if m.conn.IsRetryDue(time.Now().UTC()) {
+	if m.conn.IsRetryDue(m.now()) {
 		cmds = append(cmds, m.docker.Connect(m.ctx))
 	}
 
