@@ -13,8 +13,6 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-// logStreamRetryDelay is the delay before retrying the log stream after an
-// error (container not found or read error).
 const logStreamRetryDelay = 2 * time.Second
 
 // Model wraps a per-service log pane and streamer into a compositor-hostable unit.
@@ -69,10 +67,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.DaemonConnected:
 		if !m.streamerStarted {
-			m.streamerStarted = true
-			containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
-			m.streamer.Start(context.Background(), containerName)
-			cmds = append(cmds, m.streamer.Next())
+			var cmd tea.Cmd
+
+			m, cmd = m.startStreamer()
+			cmds = append(cmds, cmd)
 		}
 
 	case msgs.LogLinesAvailable:
@@ -88,10 +86,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case msgs.LogStreamRetryTick:
 		if !m.streamerStarted {
-			m.streamerStarted = true
-			containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
-			m.streamer.Start(context.Background(), containerName)
-			cmds = append(cmds, m.streamer.Next())
+			var cmd tea.Cmd
+
+			m, cmd = m.startStreamer()
+			cmds = append(cmds, cmd)
 		}
 
 	case theme.Changed:
@@ -106,6 +104,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	return m, tea.Batch(cmds...)
+}
+
+// startStreamer begins log streaming for the service and returns a Next cmd.
+func (m Model) startStreamer() (Model, tea.Cmd) {
+	m.streamerStarted = true
+	containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
+	m.streamer.Start(context.Background(), containerName)
+
+	return m, m.streamer.Next()
 }
 
 // View returns the log pane for the selected service, or an empty view.
