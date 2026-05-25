@@ -1,5 +1,5 @@
 .PHONY: all
-all: tidy generate build fix test docs man notice
+all: tidy generate build lint test docs man notice
 
 PKGS := $(shell go list ./internal/...)
 
@@ -26,8 +26,8 @@ generate:
 
 .PHONY: lint
 lint:
-	go vet ./internal/...
-	command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./internal/... || echo "golangci-lint not installed, skipping"
+	go vet ./...
+	golangci-lint run ./...
 
 .PHONY: lint-md
 lint-md:
@@ -39,7 +39,7 @@ fmt:
 
 .PHONY: fix
 fix:
-	golangci-lint run ./internal/... --fix
+	golangci-lint run ./... --fix
 	markdownlint-cli2 --fix "**/*.md"
 
 .PHONY: launch
@@ -79,3 +79,4 @@ tools:
 	go install github.com/evilmartians/lefthook@latest
 	go install github.com/conventionalcommit/commitlint@latest
 	go install github.com/vektra/mockery/v3@latest
+	go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
