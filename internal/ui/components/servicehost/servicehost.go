@@ -2,6 +2,7 @@ package servicehost
 
 import (
 	"context"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -11,6 +12,10 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/components/logpane"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
+
+// logStreamRetryDelay is the delay before retrying the log stream after an
+// error (container not found or read error).
+const logStreamRetryDelay = 2 * time.Second
 
 // Model wraps a per-service log pane and streamer into a compositor-hostable unit.
 type Model struct {
@@ -70,8 +75,24 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			cmds = append(cmds, m.streamer.Next())
 		}
 
-	case msgs.LogLinesAvailable, msgs.LogStreamError, msgs.LogStreamContainerNotFound:
+	case msgs.LogLinesAvailable:
 		cmds = append(cmds, m.streamer.Next())
+
+	case msgs.LogStreamError, msgs.LogStreamContainerNotFound:
+		m.streamer.Close()
+		m.streamerStarted = false
+
+		cmds = append(cmds, tea.Tick(logStreamRetryDelay, func(_ time.Time) tea.Msg {
+			return msgs.LogStreamRetryTick{}
+		}))
+
+	case msgs.LogStreamRetryTick:
+		if !m.streamerStarted {
+			m.streamerStarted = true
+			containerName := logs.ContainerName(m.project, m.def.Name, m.def.ContainerName)
+			m.streamer.Start(context.Background(), containerName)
+			cmds = append(cmds, m.streamer.Next())
+		}
 
 	case theme.Changed:
 		m.theme = msg.Theme
