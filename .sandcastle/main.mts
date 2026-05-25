@@ -72,7 +72,7 @@ type Model =
 const PLANNER_MODEL: Model = "opencode-go/deepseek-v4-pro";
 const IMPLEMENTER_MODEL: Model = "opencode-go/deepseek-v4-flash";
 const REVIEWER_MODEL: Model = "opencode-go/mimo-v2.5-pro";
-const MERGER_MODEL: Model = "opencode/big-pickle";
+const MERGER_MODEL: Model = "opencode-go/deepseek-v4-flash";
 
 // ---------------------------------------------------------------------------
 // Main loop
@@ -97,7 +97,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     // One iteration is enough: the planner just needs to read and reason,
     // not write code.
     maxIterations: 1,
-    idleTimeoutSeconds: 900,
+    idleTimeoutSeconds: 600,
     // Opus for planning: dependency analysis benefits from deeper reasoning.
     agent: sandcastle.opencode(PLANNER_MODEL),
     promptFile: "./.sandcastle/plan-prompt.md",
@@ -153,7 +153,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         const implement = await sandbox.run({
           name: "implementer",
           maxIterations: 100,
-          idleTimeoutSeconds: 900,
+          idleTimeoutSeconds: 600,
           agent: sandcastle.opencode(IMPLEMENTER_MODEL),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
@@ -167,8 +167,8 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         if (implement.commits.length > 0) {
           const review = await sandbox.run({
             name: "reviewer",
-            maxIterations: 2,
-            idleTimeoutSeconds: 900,
+            maxIterations: 1,
+            idleTimeoutSeconds: 600,
             agent: sandcastle.opencode(REVIEWER_MODEL),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
