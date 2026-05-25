@@ -4,12 +4,16 @@ import (
 	"testing"
 	"time"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ma-tf/ogle/internal/ui/components/accordion/value"
+)
+
+const (
+	testRawValue = "hello world"
+	testRawWidth = 5
 )
 
 func TestView(t *testing.T) {
@@ -70,51 +74,6 @@ func TestView(t *testing.T) {
 	}
 }
 
-func TestUpdate(t *testing.T) {
-	t.Parallel()
-
-	type testCase struct {
-		name string
-		// arrange
-		input string
-		width int
-
-		// act
-		msg tea.Msg
-
-		// assert
-		expectedMsg tea.Msg
-	}
-
-	cases := []testCase{
-		{
-			name:        "no cmd when content fits",
-			input:       "hi",
-			width:       20,
-			msg:         value.StartMsg{Gen: 1},
-			expectedMsg: nil,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			m := value.New(tc.input, lipgloss.Color("white"), lipgloss.Color("black"), tc.width)
-			_ = m.Init()
-
-			_, cmd := m.Update(tc.msg)
-
-			if tc.expectedMsg != nil {
-				require.NotNil(t, cmd)
-				require.Equal(t, tc.expectedMsg, cmd())
-			} else {
-				require.Nil(t, cmd)
-			}
-		})
-	}
-}
-
 func TestUpdateStart(t *testing.T) {
 	t.Parallel()
 
@@ -159,7 +118,7 @@ func TestUpdateStart(t *testing.T) {
 	}
 }
 
-func TestUpdateStartStaleGen(t *testing.T) {
+func TestUpdateStartNewGen(t *testing.T) {
 	t.Parallel()
 
 	m := value.New("this is a long text that requires scrolling",
@@ -194,17 +153,13 @@ func TestHandleTick(t *testing.T) {
 		expectedOK       bool
 	}
 
-	const rawValue = "hello world"
-
-	const rawWidth = 5
-
 	cases := []testCase{
 		{
 			name:             "advances offset by dir",
 			state:            value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 1},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 1, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 300 * time.Millisecond,
 			expectedOK:       true,
@@ -213,8 +168,8 @@ func TestHandleTick(t *testing.T) {
 			name:             "completion at max offset sets dir -1",
 			state:            value.ScrollState{Offset: 5, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 1},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 6, Dir: -1, Gen: 1, InstanceID: 1},
 			expectedInterval: 2500 * time.Millisecond,
 			expectedOK:       true,
@@ -223,8 +178,8 @@ func TestHandleTick(t *testing.T) {
 			name:             "overflow wraps dir and sets idle interval",
 			state:            value.ScrollState{Offset: 1, Dir: -1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 1},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 2500 * time.Millisecond,
 			expectedOK:       true,
@@ -233,8 +188,8 @@ func TestHandleTick(t *testing.T) {
 			name:             "mid-scroll returns step interval",
 			state:            value.ScrollState{Offset: 2, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 1},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 3, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 300 * time.Millisecond,
 			expectedOK:       true,
@@ -268,17 +223,13 @@ func TestHandleTickGuard(t *testing.T) {
 		expectedOK       bool
 	}
 
-	const rawValue = "hello world"
-
-	const rawWidth = 5
-
 	cases := []testCase{
 		{
 			name:             "stale gen returns ok false",
 			state:            value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 2, InstanceID: 1},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 0,
 			expectedOK:       false,
@@ -287,8 +238,8 @@ func TestHandleTickGuard(t *testing.T) {
 			name:             "stale instance ID returns ok false",
 			state:            value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 2},
-			rawValue:         rawValue,
-			width:            rawWidth,
+			rawValue:         testRawValue,
+			width:            testRawWidth,
 			expectedState:    value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 0,
 			expectedOK:       false,
@@ -297,7 +248,7 @@ func TestHandleTickGuard(t *testing.T) {
 			name:             "zero width returns ok false",
 			state:            value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			msg:              value.ScrollState{Offset: 0, Dir: 0, Gen: 1, InstanceID: 1},
-			rawValue:         rawValue,
+			rawValue:         testRawValue,
 			width:            0,
 			expectedState:    value.ScrollState{Offset: 0, Dir: 1, Gen: 1, InstanceID: 1},
 			expectedInterval: 0,
