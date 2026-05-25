@@ -145,9 +145,14 @@ func TestUpdateMouseClick(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name   string
-		files  []string
-		msg    tea.Msg
+		name string
+		// arrange
+		files []string
+
+		// act
+		msg tea.Msg
+
+		// assert
 		assert func(*testing.T, tea.Cmd)
 	}
 
@@ -219,10 +224,15 @@ func TestUpdateMouseMotion(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name   string
-		files  []string
-		setup  func(zm *zone.Manager, m fileselect.Model) (fileselect.Model, tea.Cmd)
-		msg    tea.Msg
+		name string
+		// arrange
+		files []string
+		setup func(zm *zone.Manager, m fileselect.Model) (fileselect.Model, tea.Cmd)
+
+		// act
+		msg tea.Msg
+
+		// assert
 		assert func(t *testing.T, before string, m fileselect.Model, cmd tea.Cmd)
 	}
 
