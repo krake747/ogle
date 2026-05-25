@@ -6,31 +6,23 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/ui/components/accordion"
-	"github.com/ma-tf/ogle/internal/ui/components/accordion/mocks"
 	"github.com/ma-tf/ogle/internal/ui/components/accordion/value"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const (
-	dash            = "—"
-	nginxImage      = "nginx:latest"
-	testContainerID = "abc123def4567890"
-	up2Hours        = "Up 2 hours"
-	svcWeb          = "web"
-)
+const dash = "—"
 
 //nolint:gochecknoglobals // shared test fixtures
 var testProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
 	Services: []domain.ServiceDef{
-		{Name: svcWeb, Image: nginxImage, Ports: []string{"80:80", "443:443"}},
+		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80", "443:443"}},
 	},
 }
 
@@ -39,236 +31,148 @@ var multiServiceProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
 	Services: []domain.ServiceDef{
-		{Name: svcWeb, Image: nginxImage, Ports: []string{"80:80"}},
+		{Name: "web", Image: "nginx:latest", Ports: []string{"80:80"}},
 		{Name: "api", Image: "api:latest", Ports: []string{"8080:8080"}},
 	},
 }
 
-//nolint:funlen
 func TestView(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
 		name           string
-		setup          func(*mocks.MockZoneManager) accordion.Model
+		setup          func() accordion.Model
 		expectedResult string
 	}
 
 	cases := []testCase{
 		{
 			name: "empty when no services",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(&domain.Project{}, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(&domain.Project{}, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "",
 		},
 		{
 			name: "empty when width is zero",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 0, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 0, 24, theme.Default(), nil)
 			},
 			expectedResult: "",
 		},
 		{
 			name: "expanded header indicator",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "▼",
 		},
 		{
 			name: "image label rendered",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Image:",
 		},
 		{
 			name: "container id label rendered",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Container ID:",
 		},
 		{
 			name: "created label rendered",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Created:",
 		},
 		{
 			name: "state label rendered",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "State:",
 		},
 		{
 			name: "ports label rendered",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "Ports:",
 		},
 		{
 			name: "image value from service def",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
-			expectedResult: nginxImage,
+			expectedResult: "nginx:latest",
 		},
 		{
 			name: "ports value from service def",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: "80:80, 443:443",
 		},
 		{
 			name: "placeholders when runtime is nil",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				return accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				return accordion.New(testProject, 100, 24, theme.Default(), nil)
 			},
 			expectedResult: dash,
 		},
 		{
 			name: "container id truncated from runtime",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				m := accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						svcWeb: {
-							ContainerID: testContainerID,
+						"web": {
+							ContainerID: "abc123def4567890",
 							State:       domain.ServiceStateRunning,
-							Status:      up2Hours,
+							Status:      "Up 2 hours",
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
-
 				return m
 			},
 			expectedResult: "abc123def456",
 		},
 		{
 			name: "state string from runtime",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				m := accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						svcWeb: {
-							ContainerID: testContainerID,
+						"web": {
+							ContainerID: "abc123def4567890",
 							State:       domain.ServiceStateRunning,
-							Status:      up2Hours,
+							Status:      "Up 2 hours",
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
-
 				return m
 			},
-			expectedResult: up2Hours,
+			expectedResult: "Up 2 hours",
 		},
 		{
 			name: "created age from runtime",
-			setup: func(zm *mocks.MockZoneManager) accordion.Model {
-				zm.EXPECT().
-					Mark(mock.Anything, mock.Anything).
-					RunAndReturn(func(_, v string) string { return v }).
-					Maybe()
-				zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-				m := accordion.New(testProject, 100, 24, theme.Default(), zm)
+			setup: func() accordion.Model {
+				m := accordion.New(testProject, 100, 24, theme.Default(), nil)
 				m, _ = m.Update(msgs.ServicesPolled{
 					Runtimes: map[string]*domain.ServiceRuntimeData{
-						svcWeb: {
-							ContainerID: testContainerID,
+						"web": {
+							ContainerID: "abc123def4567890",
 							State:       domain.ServiceStateRunning,
-							Status:      up2Hours,
+							Status:      "Up 2 hours",
 							CreatedAt:   time.Now().Add(-2 * time.Hour),
 						},
 					},
 				})
-
 				return m
 			},
 			expectedResult: "h ago",
@@ -279,9 +183,7 @@ func TestView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			zm := mocks.NewMockZoneManager(t)
-
-			m := tc.setup(zm)
+			m := tc.setup()
 			_ = m.Init()
 
 			if tc.expectedResult == "" {
@@ -312,20 +214,18 @@ func TestUpdate(t *testing.T) {
 			name: "ServicesPolled stores runtime and triggers sync",
 			msg: msgs.ServicesPolled{
 				Runtimes: map[string]*domain.ServiceRuntimeData{
-					svcWeb: {
+					"web": {
 						ContainerID: "abc123def456",
 						State:       domain.ServiceStateRunning,
-						Status:      up2Hours,
+						Status:      "Up 2 hours",
 					},
 				},
 			},
 			expectedMsg: value.StartMsg{Gen: 2},
 		},
 		{
-			name: "ServicesPolled error does not update runtime",
-			msg: msgs.ServicesPolled{
-				Err: assert.AnError,
-			},
+			name:        "ServicesPolled error does not update runtime",
+			msg:         msgs.ServicesPolled{Err: assert.AnError},
 			expectedMsg: nil,
 		},
 		{
@@ -339,12 +239,12 @@ func TestUpdate(t *testing.T) {
 			expectedMsg: value.StartMsg{Gen: 2},
 		},
 		{
-			name:        "MouseClickMsg no-op",
+			name:        "MouseClickMsg no-op with nil zone manager",
 			msg:         tea.MouseClickMsg{},
 			expectedMsg: nil,
 		},
 		{
-			name:        "MouseMotionMsg no-op",
+			name:        "MouseMotionMsg no-op with nil zone manager",
 			msg:         tea.MouseMotionMsg{},
 			expectedMsg: nil,
 		},
@@ -354,14 +254,7 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			zm := mocks.NewMockZoneManager(t)
-			zm.EXPECT().
-				Mark(mock.Anything, mock.Anything).
-				RunAndReturn(func(_, v string) string { return v }).
-				Maybe()
-			zm.EXPECT().Get(mock.Anything).Return(nil).Maybe()
-
-			m := accordion.New(multiServiceProject, 100, 24, theme.Default(), zm)
+			m := accordion.New(multiServiceProject, 100, 24, theme.Default(), nil)
 			_ = m.Init()
 
 			_, cmd := m.Update(tc.msg)
