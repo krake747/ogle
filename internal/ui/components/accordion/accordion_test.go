@@ -17,6 +17,7 @@ import (
 
 const dash = "—"
 
+//nolint:gochecknoglobals // shared test fixtures
 var testProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
@@ -25,6 +26,7 @@ var testProject = &domain.Project{
 	},
 }
 
+//nolint:gochecknoglobals // shared test fixtures
 var multiServiceProject = &domain.Project{
 	Name: "testproj",
 	File: "/path/to/compose.yaml",
