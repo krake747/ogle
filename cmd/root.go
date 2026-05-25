@@ -28,16 +28,13 @@ const (
 )
 
 var (
-	cfgFile      string
-	pprofAddr    string
-	projectFile  string
-	cfg          config.Config
-	logger       *slog.Logger
-	logLevel     = new(slog.LevelVar)
-	buildVersion string
-	buildCommit  string
-	buildDate    string
-	rootCmd      = &cobra.Command{
+	cfgFile     string
+	pprofAddr   string
+	projectFile string
+	cfg         config.Config
+	logger      *slog.Logger
+	logLevel    = new(slog.LevelVar)
+	rootCmd     = &cobra.Command{
 		Use:   "ogle",
 		Short: "A TUI for monitoring Docker Compose projects.",
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
@@ -154,11 +151,7 @@ var (
 
 // Execute runs the root command and handles any errors.
 // This is called by main.main() and should only be called once.
-func Execute(version, commit, date string) {
-	buildVersion = version
-	buildCommit = commit
-	buildDate = date
-
+func Execute() {
 	err := rootCmd.Execute()
 	if err != nil {
 		os.Exit(1)

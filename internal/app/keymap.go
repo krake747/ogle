@@ -12,4 +12,10 @@ func (k watchingKeymap) ShortHelp() []key.Binding {
 	}
 }
 
-func (k watchingKeymap) FullHelp() [][]key.Binding { return nil }
+func (k watchingKeymap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
+		},
+	}
+}

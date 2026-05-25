@@ -6,6 +6,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,7 @@ func newModel(t *testing.T) topbar.Model {
 			return func() tea.Msg { return msgs.DaemonConnected{} }
 		}).Maybe()
 
-	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD)
+	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD, zone.New())
 }
 
 func TestUpdate(t *testing.T) {
@@ -166,6 +167,10 @@ func TestView(t *testing.T) {
 	}
 
 	cases := []testCase{
+		{
+			name:           "startup phase shows ogle brand and scanning text",
+			expectedResult: "ogle",
+		},
 		{
 			name:           "startup phase shows scanning text",
 			expectedResult: "scanning for compose files",

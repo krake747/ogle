@@ -74,6 +74,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
+// Toggle flips between compact and full help view.
+func (m Model) Toggle() Model {
+	m.help.ShowAll = !m.help.ShowAll
+
+	return m
+}
+
 // View renders the help bar with the current keymap.
 func (m Model) View() tea.View {
 	if m.keymap == nil {
