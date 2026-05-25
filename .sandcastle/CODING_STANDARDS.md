@@ -53,4 +53,4 @@
 - Format: `<type>(<scope>): <description>`
 - Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 - Header: 10–72 characters. Body wrap at 100 characters.
-- Prefix with `RALPH:` when produced by Sandcastle automation (e.g. `RALPH: feat(core): add service filter`).
+- Append ` [RALPH]` to the subject when produced by Sandcastle automation (e.g. `feat(core): add service filter [RALPH]`).

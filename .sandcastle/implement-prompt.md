@@ -50,7 +50,7 @@ Before committing, run `make tools` to install linting tools, then run `make lin
 
 Make a git commit. The commit message must:
 
-1. Start with `RALPH:` prefix
+1. End the subject line with ` [RALPH]` (e.g. `feat(core): add service filter [RALPH]`)
 2. Include task completed + PRD reference
 3. Key decisions made
 4. Files changed
