@@ -26,14 +26,27 @@ func (k testKeymap) FullHelp() [][]key.Binding { return nil }
 
 var _ help.KeyMap = testKeymap{}
 
+func TestInit(t *testing.T) {
+	t.Parallel()
+
+	m := helpbar.New(theme.Default())
+	cmd := m.Init()
+
+	require.Nil(t, cmd)
+}
+
 func TestView(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name           string
-		setup          func(m helpbar.Model) helpbar.Model
+	type testCase struct {
+		name string
+		// arrange
+		setup func(m helpbar.Model) helpbar.Model
+		// assert
 		expectedResult string
-	}{
+	}
+
+	cases := []testCase{
 		{
 			name:           "initial state returns empty view",
 			expectedResult: "",
@@ -69,21 +82,21 @@ func TestView(t *testing.T) {
 		},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
 			m := helpbar.New(theme.Default())
 			_ = m.Init()
 
-			if tt.setup != nil {
-				m = tt.setup(m)
+			if tc.setup != nil {
+				m = tc.setup(m)
 			}
 
-			if tt.expectedResult == "" {
+			if tc.expectedResult == "" {
 				assert.Empty(t, m.View().Content)
 			} else {
-				assert.Contains(t, m.View().Content, tt.expectedResult)
+				assert.Contains(t, m.View().Content, tc.expectedResult)
 			}
 		})
 	}
@@ -94,9 +107,9 @@ func TestUpdate(t *testing.T) {
 
 	type testCase struct {
 		name string
-
+		// act
 		msg tea.Msg
-
+		// assert
 		expectedMsg tea.Msg
 	}
 
