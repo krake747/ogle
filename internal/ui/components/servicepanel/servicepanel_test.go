@@ -89,14 +89,14 @@ func TestView(t *testing.T) {
 		project *domain.Project
 		setup   func(m servicepanel.Model) servicepanel.Model
 		// assert
-		expectedEmpty bool
+		expectedResult string
 	}
 
 	cases := []testCase{
 		{
-			name:          "empty project renders empty view",
-			project:       &domain.Project{Name: "test"},
-			expectedEmpty: true,
+			name:           "empty project renders empty view",
+			project:        &domain.Project{Name: "test"},
+			expectedResult: "",
 		},
 		{
 			name: "project with services renders compositor layers",
@@ -111,7 +111,7 @@ func TestView(t *testing.T) {
 
 				return m
 			},
-			expectedEmpty: false,
+			expectedResult: "╭",
 		},
 	}
 
@@ -126,10 +126,10 @@ func TestView(t *testing.T) {
 				m = tc.setup(m)
 			}
 
-			if tc.expectedEmpty {
+			if tc.expectedResult == "" {
 				assert.Empty(t, m.View().Content)
 			} else {
-				assert.NotEmpty(t, m.View().Content)
+				assert.Contains(t, m.View().Content, tc.expectedResult)
 			}
 		})
 	}
