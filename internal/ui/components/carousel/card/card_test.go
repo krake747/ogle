@@ -26,45 +26,18 @@ func newCard(name string) card.Model {
 	return card.New(domain.ServiceDef{Name: name}, testW, testH, theme.Default())
 }
 
-// ---------------------------------------------------------------------------
 // TestInit
-// ---------------------------------------------------------------------------
 
 func TestInit(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		name string
-		// assert
-		expectCmd bool
-	}
+	m := newCard(testShortName)
+	cmd := m.Init()
 
-	cases := []testCase{
-		{
-			name:      "returns nil cmd",
-			expectCmd: false,
-		},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			m := newCard(testShortName)
-			cmd := m.Init()
-
-			if tc.expectCmd {
-				require.NotNil(t, cmd)
-			} else {
-				require.Nil(t, cmd)
-			}
-		})
-	}
+	require.Nil(t, cmd)
 }
 
-// ---------------------------------------------------------------------------
 // TestUpdate
-// ---------------------------------------------------------------------------
 
 func TestUpdate(t *testing.T) {
 	t.Parallel()
@@ -132,6 +105,7 @@ func TestUpdate(t *testing.T) {
 			msg: card.BlurMsg{ServiceName: otherService},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
 				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 
@@ -192,6 +166,7 @@ func TestUpdate(t *testing.T) {
 			msg: msgs.ServicesPolled{Err: assert.AnError},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
 				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
@@ -311,8 +286,9 @@ func TestUpdate(t *testing.T) {
 				ServiceName: otherService,
 				Action:      domain.ServiceActionStart,
 			},
-			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
 				require.Nil(t, cmd)
+				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 
@@ -322,6 +298,7 @@ func TestUpdate(t *testing.T) {
 			msg:  tea.WindowSizeMsg{Width: 300, Height: 60},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
 				require.Nil(t, cmd, "short name should not schedule scroll")
+				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
@@ -340,10 +317,7 @@ func TestUpdate(t *testing.T) {
 		// theme.Changed
 		{
 			name: "theme.Changed updates theme",
-			setup: func(m card.Model) card.Model {
-				return newCard(testShortName)
-			},
-			msg: theme.Changed{Theme: theme.Default()},
+			msg:  theme.Changed{Theme: theme.Default()},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
@@ -368,9 +342,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
 // TestUpdate — ScrollTick (timing-sensitive, separate from main table)
-// ---------------------------------------------------------------------------
 //
 // These tests involve real time delays (scrollIdleInterval = 2500ms) because
 // nextScrollTime is set in the past via the FocusMsg path, and ScrollTick's
@@ -412,9 +384,7 @@ func TestUpdate_ScrollTick_StaleGen_NoOp(t *testing.T) {
 	require.Nil(t, cmd3, "stale generation should produce no command")
 }
 
-// ---------------------------------------------------------------------------
 // TestView
-// ---------------------------------------------------------------------------
 
 func TestView(t *testing.T) {
 	t.Parallel()
