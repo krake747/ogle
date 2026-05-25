@@ -25,20 +25,24 @@ import (
 	"github.com/ma-tf/ogle/internal/services/parser"
 	"github.com/ma-tf/ogle/internal/services/scanner"
 	"github.com/ma-tf/ogle/internal/services/watcher"
+	"github.com/ma-tf/ogle/internal/ui/components/about"
 	"github.com/ma-tf/ogle/internal/ui/components/helpbar"
 	"github.com/ma-tf/ogle/internal/ui/components/statusbar"
 	"github.com/ma-tf/ogle/internal/ui/components/topbar"
 	"github.com/ma-tf/ogle/internal/ui/components/watching"
 	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/flows/startup"
-	"github.com/ma-tf/ogle/internal/ui/layout"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
 //nolint:gochecknoglobals // package-level key bindings
 var (
-	keyQuit    = key.NewBinding(key.WithKeys("ctrl+c"))
-	keyProfile = key.NewBinding(key.WithKeys("ctrl+p"))
+	keyQuit       = key.NewBinding(key.WithKeys("ctrl+c"))
+	keyProfile    = key.NewBinding(key.WithKeys("ctrl+p"))
+	keyAbout      = key.NewBinding(key.WithKeys("f1"))
+	keyHelpToggle = key.NewBinding(key.WithKeys("?"))
+	keyEsc        = key.NewBinding(key.WithKeys("esc"))
+	keyQ          = key.NewBinding(key.WithKeys("q"))
 )
 
 type phase int
@@ -62,15 +66,17 @@ type Model struct {
 	parser      parser.Parser
 	watcher     watcher.Watcher
 
-	topbar    topbar.Model
-	helpbar   helpbar.Model
-	statusbar statusbar.Model
-	startup   startup.Model
-	dashboard dashboard.Model
-	watching  watching.Model
-	phase     phase
-	width     int
-	height    int
+	topbar       topbar.Model
+	helpbar      helpbar.Model
+	statusbar    statusbar.Model
+	startup      startup.Model
+	dashboard    dashboard.Model
+	watching     watching.Model
+	about        about.Model
+	showingAbout bool
+	phase        phase
+	width        int
+	height       int
 }
 
 // New constructs the app Model. Watcher creation is synchronous; if it
@@ -138,25 +144,27 @@ func New(
 	}
 
 	return Model{
-		ctx:         ctx,
-		cfg:         cfg,
-		configPath:  configPath,
-		projectFile: pf,
-		log:         log,
-		theme:       th,
-		zm:          zm,
-		docker:      dockerSvc,
-		parser:      parseSvc,
-		watcher:     wtr,
-		topbar:      topbar.New(ctx, connection.New(), th, dockerSvc),
-		helpbar:     helpbar.New(th),
-		statusbar:   statusbar.New(th),
-		startup:     startup.New(width, height, zm, th, parseSvc),
-		dashboard:   dash,
-		watching:    watching.New(projectFile, width, height, th, parseSvc),
-		phase:       currentPhase,
-		width:       width,
-		height:      height,
+		ctx:          ctx,
+		cfg:          cfg,
+		configPath:   configPath,
+		projectFile:  pf,
+		log:          log,
+		theme:        th,
+		zm:           zm,
+		docker:       dockerSvc,
+		parser:       parseSvc,
+		watcher:      wtr,
+		topbar:       topbar.New(ctx, connection.New(), th, dockerSvc, zm),
+		helpbar:      helpbar.New(th),
+		statusbar:    statusbar.New(th),
+		startup:      startup.New(width, height, zm, th, parseSvc),
+		dashboard:    dash,
+		watching:     watching.New(projectFile, width, height, th, parseSvc),
+		about:        about.New(th),
+		showingAbout: false,
+		phase:        currentPhase,
+		width:        width,
+		height:       height,
 	}, wtr.Close, nil
 }
 
@@ -181,7 +189,7 @@ func (m Model) Init() tea.Cmd {
 // Update drives the root state machine. Messages are either handled by app
 // directly or dispatched to the active phase model.
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var topbarCmd, helpbarCmd, statusbarCmd tea.Cmd
+	var topbarCmd, helpbarCmd, statusbarCmd, aboutCmd tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -189,35 +197,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 	case tea.KeyPressMsg:
-		switch {
-		case key.Matches(msg, keyQuit):
-			return m, tea.Quit
-		case key.Matches(msg, keyProfile):
-			return m, profiling.DumpCmd()
+		kpModel, kpCmd := m.handleKeyPress(msg)
+		if kpCmd != nil {
+			return kpModel, kpCmd
+		}
+
+		m = kpModel
+
+	case tea.MouseClickMsg:
+		if mcModel, mcCmd := m.handleMouseClick(msg); mcCmd != nil {
+			return mcModel, mcCmd
 		}
 
 	case msgs.ProjectLoaded:
-		m.dashboard = dashboard.New(
-			m.ctx,
-			msg.Project,
-			m.log,
-			m.theme,
-			m.cfg,
-			m.zm,
-			filepath.Dir(m.configPath),
-			m.width,
-			m.height,
-			m.docker,
-			m.parser,
-		)
-		m.phase = phaseDashboard
-
-		return m, tea.Batch(
-			m.dashboard.Init(),
-			func() tea.Msg {
-				return msgs.TopbarContext{Phase: "dashboard", File: filepath.Base(msg.Project.File)}
-			},
-		)
+		return m.handleProjectLoaded(msg)
 
 	case msgs.SettingsApplied:
 		return m.handleSettingsApplied(msg)
@@ -259,11 +252,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusbar, statusbarCmd = m.statusbar.Update(msg)
 
 		return m, statusbarCmd
+
+	case msgs.AboutVisibilityChanged:
+		m.showingAbout = msg.Visible
+
+		return m, nil
 	}
 
 	m.topbar, topbarCmd = m.topbar.Update(msg)
 	m.helpbar, helpbarCmd = m.helpbar.Update(msg)
 	m.statusbar, statusbarCmd = m.statusbar.Update(msg)
+
+	if m.showingAbout {
+		m.about, aboutCmd = m.about.Update(msg)
+	}
 
 	var cmd tea.Cmd
 
@@ -276,7 +278,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.watching, cmd = m.watching.Update(msg)
 	}
 
-	return m, tea.Batch(cmd, topbarCmd, helpbarCmd, statusbarCmd)
+	return m, tea.Batch(cmd, topbarCmd, helpbarCmd, statusbarCmd, aboutCmd)
 }
 
 func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.Cmd) {
@@ -303,6 +305,74 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 	}
 
 	return m, func() tea.Msg { return theme.Changed{Theme: m.theme} }
+}
+
+func (m Model) handleKeyPress(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.showingAbout {
+		switch {
+		case key.Matches(msg, keyAbout), key.Matches(msg, keyEsc), key.Matches(msg, keyQ):
+			m.showingAbout = false
+
+			return m, func() tea.Msg { return msgs.AboutVisibilityChanged{Visible: false} }
+		}
+
+		return m, nil
+	}
+
+	switch {
+	case key.Matches(msg, keyQuit):
+		return m, tea.Quit
+	case key.Matches(msg, keyProfile):
+		return m, profiling.DumpCmd()
+	case key.Matches(msg, keyHelpToggle):
+		m.helpbar = m.helpbar.Toggle()
+
+		return m, nil
+	case key.Matches(msg, keyAbout):
+		m.showingAbout = true
+
+		return m, func() tea.Msg { return msgs.AboutVisibilityChanged{Visible: true} }
+	}
+
+	return m, nil
+}
+
+func (m Model) handleProjectLoaded(msg msgs.ProjectLoaded) (Model, tea.Cmd) {
+	m.dashboard = dashboard.New(
+		m.ctx,
+		msg.Project,
+		m.log,
+		m.theme,
+		m.cfg,
+		m.zm,
+		filepath.Dir(m.configPath),
+		m.width,
+		m.height,
+		m.docker,
+		m.parser,
+	)
+	m.phase = phaseDashboard
+
+	return m, tea.Batch(
+		m.dashboard.Init(),
+		func() tea.Msg {
+			return msgs.TopbarContext{Phase: "dashboard", File: filepath.Base(msg.Project.File)}
+		},
+	)
+}
+
+func (m Model) handleMouseClick(msg tea.MouseClickMsg) (Model, tea.Cmd) {
+	if m.showingAbout {
+		return m, nil
+	}
+
+	if brand := m.zm.Get(topbar.BrandZone); brand != nil && brand.InBounds(msg) {
+		m.showingAbout = true
+
+		return m, func() tea.Msg { return msgs.AboutVisibilityChanged{Visible: true} }
+	}
+
+	return m, nil
 }
 
 func (m Model) handleFileAvailabilityChanged(
@@ -335,7 +405,17 @@ func (m Model) View() tea.View {
 		body = m.watching.View()
 	}
 
-	bodyH := max(0, m.height-layout.FrameHeight)
+	helpView := m.helpbar.View()
+	statusView := m.statusbar.View()
+
+	var barHeight int
+	if statusView.Content != "" {
+		barHeight = 1
+	} else {
+		barHeight = max(lipgloss.Height(helpView.Content), 1)
+	}
+
+	bodyH := max(0, m.height-1-barHeight)
 
 	parts := []string{
 		m.topbar.View().Content,
@@ -346,14 +426,26 @@ func (m Model) View() tea.View {
 			Render(body.Content),
 	}
 
-	statusView := m.statusbar.View()
 	if statusView.Content == "" {
-		parts = append(parts, m.helpbar.View().Content)
+		parts = append(parts, helpView.Content)
 	} else {
 		parts = append(parts, statusView.Content)
 	}
 
 	frame := lipgloss.JoinVertical(lipgloss.Top, parts...)
+
+	if m.showingAbout {
+		overContent := m.about.View().Content
+		overW := lipgloss.Width(overContent)
+		overH := lipgloss.Height(overContent)
+		overX := max((m.width-overW)/2, 0)  //nolint:mnd // halving to centre overlay
+		overY := max((m.height-overH)/2, 0) //nolint:mnd // halving to centre overlay
+
+		frame = lipgloss.NewCompositor(
+			lipgloss.NewLayer(frame).X(0).Y(0).Z(0),
+			lipgloss.NewLayer(overContent).X(overX).Y(overY).Z(1),
+		).Render()
+	}
 
 	v := tea.NewView(frame)
 	v.Content = m.zm.Scan(v.Content)

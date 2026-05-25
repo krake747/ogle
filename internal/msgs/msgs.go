@@ -146,6 +146,12 @@ type (
 	SettingsVisibilityChanged struct {
 		Visible bool
 	}
+
+	// AboutVisibilityChanged is emitted by the about overlay when the user opens
+	// or closes it. app.Model tracks the visibility flag.
+	AboutVisibilityChanged struct {
+		Visible bool
+	}
 )
 
 // ToggleLogWrap toggles soft wrapping of log lines in all log panes.

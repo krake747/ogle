@@ -5,6 +5,8 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/ma-tf/ogle/internal/version"
 )
 
 func newVersionCommand() *cobra.Command {
@@ -31,9 +33,9 @@ func newVersionCommand() *cobra.Command {
 
 ogle %s (commit: %s, built: %s)
 `,
-				buildVersion,
-				buildCommit,
-				buildDate,
+				version.Version,
+				version.Commit,
+				version.Date,
 			)
 		},
 	}

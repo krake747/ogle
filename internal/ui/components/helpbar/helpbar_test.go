@@ -26,6 +26,27 @@ func (k testKeymap) FullHelp() [][]key.Binding { return nil }
 
 var _ help.KeyMap = testKeymap{}
 
+type fullKeymap struct{}
+
+func (k fullKeymap) ShortHelp() []key.Binding {
+	return []key.Binding{key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))}
+}
+
+func (k fullKeymap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{
+			key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")),
+			key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help")),
+		},
+		{
+			key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
+			key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
+		},
+	}
+}
+
+var _ help.KeyMap = fullKeymap{}
+
 func TestInit(t *testing.T) {
 	t.Parallel()
 
@@ -100,6 +121,47 @@ func TestView(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestToggle(t *testing.T) {
+	t.Parallel()
+
+	m := helpbar.New(theme.Default())
+
+	m2 := m.Toggle()
+	assert.NotEqual(t, m, m2, "Toggle should return a different model")
+}
+
+func TestToggle_BackAndForth(t *testing.T) {
+	t.Parallel()
+
+	m := helpbar.New(theme.Default())
+	m, _ = m.Update(msgs.BindingsMsg{Keymap: fullKeymap{}})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 100})
+	first := m.View().Content
+
+	m = m.Toggle()
+	expanded := m.View().Content
+	assert.NotEqual(t, first, expanded, "expanded help should differ from compact")
+
+	m = m.Toggle()
+	collapsed := m.View().Content
+	assert.Equal(t, first, collapsed, "toggle twice should restore original")
+}
+
+func TestToggle_ViewShowsFullHelp(t *testing.T) {
+	t.Parallel()
+
+	m := helpbar.New(theme.Default())
+	m, _ = m.Update(msgs.BindingsMsg{Keymap: fullKeymap{}})
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 100})
+
+	m = m.Toggle()
+	content := m.View().Content
+	assert.Contains(t, content, "quit")
+	assert.Contains(t, content, "help")
+	assert.Contains(t, content, "up")
+	assert.Contains(t, content, "down")
 }
 
 func TestUpdate(t *testing.T) {

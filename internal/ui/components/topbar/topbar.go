@@ -10,6 +10,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/msgs"
 	"github.com/ma-tf/ogle/internal/services/docker"
@@ -18,6 +19,9 @@ import (
 )
 
 const (
+	// BrandZone is the zone identifier for the clickable "ogle" brand text.
+	BrandZone = "topbar-brand"
+
 	gracePeriodDuration = 10 * time.Second
 	healthCheckInterval = 2 * time.Second
 )
@@ -35,7 +39,7 @@ const (
 )
 
 // Model holds top bar state: the active phase, project file, daemon connection
-// machine, spinner, theme, and terminal width.
+// machine, spinner, theme, zone manager, and terminal width.
 type Model struct {
 	phase       Phase
 	projectFile string
@@ -43,13 +47,20 @@ type Model struct {
 	docker      docker.Docker
 	spn         spinner.Model
 	th          *theme.Theme
+	zm          *zone.Manager
 	width       int
 	ctx         context.Context
 	now         func() time.Time
 }
 
 // New returns a Model in PhaseStartup with no project file.
-func New(ctx context.Context, conn *connection.Machine, th *theme.Theme, d docker.Docker) Model {
+func New(
+	ctx context.Context,
+	conn *connection.Machine,
+	th *theme.Theme,
+	d docker.Docker,
+	zm *zone.Manager,
+) Model {
 	return Model{
 		phase:       PhaseStartup,
 		projectFile: "",
@@ -58,6 +69,7 @@ func New(ctx context.Context, conn *connection.Machine, th *theme.Theme, d docke
 		docker:      d,
 		spn:         spinner.New(spinner.WithSpinner(spinner.MiniDot)),
 		th:          th,
+		zm:          zm,
 		width:       0,
 		now:         func() time.Time { return time.Now().UTC() },
 	}
@@ -192,17 +204,20 @@ func (m Model) renderDaemonStatus() string {
 	}
 }
 
-// View renders the top bar: faint "ogle" prefix + phase context on the left,
+// View renders the top bar: clickable "ogle" brand + phase context on the left,
 // Docker daemon status on the right, right-aligned via padding.
 func (m Model) View() tea.View {
 	bg := m.th.TopbarBackground
 	brandStyle := lipgloss.NewStyle().
 		Foreground(m.th.TopbarBrandText).
 		Background(m.th.TopbarBrandBackground)
+
+	brand := m.zm.Mark(BrandZone, brandStyle.Render("ogle"))
+
 	contextStyle := lipgloss.NewStyle().Foreground(m.th.TopbarContextText).Background(bg)
 	spacerStyle := lipgloss.NewStyle().Background(bg)
 
-	left := brandStyle.Render("ogle") + contextStyle.Render("  "+m.contextText())
+	left := brand + contextStyle.Render("  "+m.contextText())
 	right := m.renderDaemonStatus()
 
 	leftW := lipgloss.Width(left)
