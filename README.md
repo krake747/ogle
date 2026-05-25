@@ -21,6 +21,8 @@
 
 *ogle* is a terminal UI for observing and operating Docker Compose projects — no setup required.
 
+![ogle Dashboard](docs/assets/ogle-dashboard.png)
+
 ## Requirements
 
 - Go 1.26+ (to build from source)
@@ -44,5 +46,3 @@ ogle
 # Specify a compose file explicitly
 ogle -f docker-compose.yml
 ```
-
-

@@ -2,7 +2,9 @@
 
 **Status:** Proposed
 
-> **Note (implemented):** `layout.FrameHeight` has been extracted as a shared constant at `internal/ui/layout/layout.go`, removing the duplicated `frameHeight` locals from `dashboard`, `startup`, and `watching`. This was the first adoption step. The remaining items (raw dimensions, internal derivation, no message reconstruction) are still Proposed.
+> **Note (implemented):** `layout.FrameHeight` has been extracted as a shared constant at `internal/ui/layout/layout.go`
+, removing the duplicated `frameHeight` locals from `dashboard`, `startup`, and `watching`. This was the first adoption
+ step. The remaining items (raw dimensions, internal derivation, no message reconstruction) are still Proposed.
 
 ## Context
 
