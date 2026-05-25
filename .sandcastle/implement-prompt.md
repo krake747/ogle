@@ -22,7 +22,7 @@ Here are the last 10 commits:
 
 Explore the repo and fill your context window with relevant information that will allow you to complete the task.
 
-Pay extra attention to test files that touch the relevant parts of the code.
+Pay extra attention to test files that touch the relevant parts of the code. Understand the project's testing conventions by reading `docs/TESTING.md`.
 
 # EXECUTION
 
@@ -33,9 +33,18 @@ If applicable, use RGR to complete the task.
 3. REPEAT until done
 4. REFACTOR the code
 
+Follow these Go test conventions (see docs/TESTING.md for full details):
+
+- `package foo_test` (black-box) for service-layer tests
+- Table-driven tests with a scoped `testCase` struct per function
+- `testify/require` for preconditions, `testify/assert` for independent multi-field checks
+- `expectedError error` + `require.ErrorIs` (never `wantErr bool`)
+- `t.Parallel()` on every test function and subtest
+- Use `go tool mockery` for mocks (generated, never edited manually)
+
 # FEEDBACK LOOPS
 
-Before committing, run `npm run typecheck` and `npm run test` to ensure the tests pass.
+Before committing, run `make lint` and `make test` to ensure the code passes linting and tests.
 
 # COMMIT
 
