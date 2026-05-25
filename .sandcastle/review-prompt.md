@@ -22,14 +22,16 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
    - Improve readability through clear variable and function names
    - Consolidate related logic
    - Remove unnecessary comments that describe obvious code
-   - Avoid nested ternary operators - prefer switch statements or if/else chains
    - Choose clarity over brevity - explicit code is often better than overly compact code
 
 3. **Check correctness**:
    - Does the implementation match the intent? Are edge cases handled?
    - Are new/changed behaviours covered by tests?
-   - Are there unsafe casts, `any` types, or unchecked assumptions?
+   - Are errors properly wrapped with context (`fmt.Errorf("…: %w", err)`)? Use `errors.Is`/`errors.As` for unwrapping.
+   - Are imports in the correct order: stdlib → third-party → `github.com/ma-tf/ogle`?
+   - Are there package-level globals that should be constructor parameters? (Only `cmd/root.go` is exempt.)
    - Does the change introduce injection vulnerabilities, credential leaks, or other security issues?
+   - Is `log/slog` used instead of the `log` package? No global loggers.
 
 4. **Maintain balance**: Avoid over-simplification that could:
    - Reduce code clarity or maintainability
@@ -38,7 +40,7 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
    - Remove helpful abstractions that improve code organization
    - Make the code harder to debug or extend
 
-5. **Apply project standards**: Follow the coding standards defined in @.sandcastle/CODING_STANDARDS.md
+5. **Apply project standards**: Follow the coding standards defined in @.sandcastle/CODING_STANDARDS.md and docs/CONVENTIONS.md. The linter configuration in `.golangci.yml` enforces formatting automatically.
 
 6. **Preserve functionality**: Never change what the code does - only how it does it. All original features, outputs, and behaviors must remain intact.
 
@@ -47,7 +49,7 @@ Review the code changes on branch `{{BRANCH}}` and improve code clarity, consist
 If you find improvements to make:
 
 1. Make the changes directly on this branch
-2. Run tests and type checking to ensure nothing is broken
+2. Run `make` to ensure nothing is broken
 3. Commit describing the refinements
 
 If the code is already clean and well-structured, do nothing.
