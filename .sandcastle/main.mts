@@ -4,11 +4,14 @@
 //   Phase 1 (Plan):             An opus agent analyzes open issues, builds a
 //                               dependency graph, and outputs a <plan> JSON
 //                               listing unblocked issues with branch names.
-//   Phase 2 (Execute + Review): For each issue, a sandbox is created via
+//   Phase 2 (Execute + Scrivener + Review):
+//                               For each issue, a sandbox is created via
 //                               createSandbox(). The implementer runs first
 //                               (100 iterations). If it produces commits, a
-//                               reviewer runs in the same sandbox on the same
-//                               branch (1 iteration). All issue pipelines run
+//                               scrivener agent audits documentation (1
+//                               iteration), then a reviewer refines the code
+//                               in the same sandbox on the same branch (1
+//                               iteration). All issue pipelines run
 //                               concurrently via Promise.allSettled().
 //   Phase 3 (Merge):            A single agent merges all completed branches
 //                               into the current branch.
@@ -165,6 +168,25 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 
         // Only review if the implementer produced commits
         if (implement.commits.length > 0) {
+          // Audit documentation via the scrivener skill. Non-fatal — if the
+          // scrivener fails (gh auth, timeout, etc.) the review still runs.
+          try {
+            await sandbox.run({
+              name: "scrivener",
+              maxIterations: 1,
+              idleTimeoutSeconds: 600,
+              agent: sandcastle.opencode(REVIEWER_MODEL),
+              promptFile: "./.sandcastle/scrivener-prompt.md",
+              promptArgs: {
+                BRANCH: issue.branch,
+              },
+            });
+          } catch (err) {
+            console.error(
+              `  Scrivener audit failed for ${issue.branch}: ${err}`,
+            );
+          }
+
           const review = await sandbox.run({
             name: "reviewer",
             maxIterations: 1,
