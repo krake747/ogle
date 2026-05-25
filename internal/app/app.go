@@ -305,7 +305,7 @@ func (m Model) handleSettingsApplied(msg msgs.SettingsApplied) (tea.Model, tea.C
 	return m, func() tea.Msg { return theme.Changed{Theme: m.theme} }
 }
 
-func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (Model, tea.Cmd) {
+func (m Model) handleFileAvailabilityChanged(msg msgs.FileAvailabilityChanged) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch m.phase {
