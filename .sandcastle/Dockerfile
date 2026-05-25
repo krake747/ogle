@@ -28,7 +28,8 @@ RUN groupmod -g $AGENT_GID node && usermod -u $AGENT_UID -g $AGENT_GID -d /home/
 # Install Go 1.26.3 (matches go.mod)
 RUN curl -fsSL https://go.dev/dl/go1.26.3.linux-amd64.tar.gz \
   | tar -C /usr/local -xz \
-  && mkdir -p /home/agent/go
+  && mkdir -p /home/agent/go \
+  && chown ${AGENT_UID}:${AGENT_GID} /home/agent/go
 
 # Install OpenCode CLI (run as root before USER agent)
 RUN npm install -g opencode-ai@latest

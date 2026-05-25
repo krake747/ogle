@@ -83,7 +83,7 @@ func (m Model) hitTest(mouseX, mouseY int) (int, bool) {
 
 func (m Model) handleMouseMotion(
 	msg tea.MouseMotionMsg,
-) (Model, tea.Cmd) { //nolint:unparam // interface consistency
+) (Model, tea.Cmd) {
 	idx, hit := m.hitTest(msg.X, msg.Y)
 	if hit {
 		m.delegate.SetHover(idx)

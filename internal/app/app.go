@@ -153,7 +153,7 @@ func New(
 		statusbar:   statusbar.New(th),
 		startup:     startup.New(width, height, zm, th, parseSvc),
 		dashboard:   dash,
-		watching:    watching.Model{},
+		watching:    watching.New(projectFile, width, height, th, parseSvc),
 		phase:       currentPhase,
 		width:       width,
 		height:      height,
