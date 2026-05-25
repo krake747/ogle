@@ -33,11 +33,6 @@ func newModel(t *testing.T) (topbar.Model, *mocks.MockDocker) {
 	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD), mockD
 }
 
-func cmdRequired(t *testing.T, _ topbar.Model, cmd tea.Cmd) {
-	t.Helper()
-	require.NotNil(t, cmd, "expected a command to be returned")
-}
-
 //nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
@@ -52,7 +47,7 @@ func TestUpdate(t *testing.T) {
 
 		// assert
 		expectedMsg tea.Msg
-		check       func(*testing.T, topbar.Model, tea.Cmd)
+		expectCmd   bool
 	}
 
 	cases := []testCase{
@@ -61,9 +56,9 @@ func TestUpdate(t *testing.T) {
 			msg:  msgs.TopbarContext{Phase: "dashboard", File: "docker-compose.yml"},
 		},
 		{
-			name:  "DaemonConnected schedules poll command",
-			msg:   msgs.DaemonConnected{},
-			check: cmdRequired,
+			name:      "DaemonConnected schedules poll command",
+			msg:       msgs.DaemonConnected{},
+			expectCmd: true,
 		},
 		{
 			name: "DaemonUnavailable schedules retry command",
@@ -75,7 +70,7 @@ func TestUpdate(t *testing.T) {
 			// act
 			msg: msgs.DaemonUnavailable{},
 			// assert
-			check: cmdRequired,
+			expectCmd: true,
 		},
 		{
 			name: "DaemonGraceExpired while connecting schedules retry command",
@@ -87,7 +82,7 @@ func TestUpdate(t *testing.T) {
 			// act
 			msg: msgs.DaemonGraceExpired{},
 			// assert
-			check: cmdRequired,
+			expectCmd: true,
 		},
 		{
 			name: "DaemonGraceExpired while connected produces no command",
@@ -112,7 +107,7 @@ func TestUpdate(t *testing.T) {
 			// act
 			msg: msgs.DaemonTick{},
 			// assert
-			check: cmdRequired,
+			expectCmd: true,
 		},
 		{
 			name: "DaemonTick with retry not due schedules next tick",
@@ -125,7 +120,7 @@ func TestUpdate(t *testing.T) {
 			// act
 			msg: msgs.DaemonTick{},
 			// assert
-			check: cmdRequired,
+			expectCmd: true,
 		},
 	}
 
@@ -138,13 +133,13 @@ func TestUpdate(t *testing.T) {
 				m = tc.setup(m)
 			}
 
-			m, cmd := m.Update(tc.msg)
+			_, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
 				require.NotNil(t, cmd)
 				require.Equal(t, tc.expectedMsg, cmd())
-			} else if tc.check != nil {
-				tc.check(t, m, cmd)
+			} else if tc.expectCmd {
+				require.NotNil(t, cmd)
 			} else {
 				require.Nil(t, cmd)
 			}
