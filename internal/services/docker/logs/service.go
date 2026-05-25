@@ -72,6 +72,8 @@ func New(serviceName string) *LogStreamer {
 // 404 or non-200 the goroutine writes a single error message to ch and exits.
 // On 200 it writes log line strings to lineCh until the stream ends or Close
 // is called.
+//
+//nolint:gocognit
 func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 	ctx, cancel := context.WithCancel(appCtx)
 	s.cancel = cancel
@@ -144,51 +146,65 @@ func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 			return
 		}
 
-		s.readFrames(ctx, resp.Body, client)
+		defer client.CloseIdleConnections()
+
+		err = ReadFrames(ctx, resp.Body, s.lineCh, s.ch)
+		if err != nil && ctx.Err() == nil {
+			select {
+			case s.ch <- msgs.LogStreamError{Err: err, ServiceName: s.serviceName}:
+			case <-ctx.Done():
+			}
+		}
 	})
 }
 
-// readFrames reads the Docker multiplexed log stream until the context is
-// cancelled or the connection closes. It owns body and client: both are closed
-// before it returns.
-func (s *LogStreamer) readFrames(ctx context.Context, body io.ReadCloser, client *http.Client) {
-	defer body.Close()
-	defer client.CloseIdleConnections()
+// ReadFrames reads the Docker multiplexed log stream from r until the context
+// is cancelled or the reader is exhausted. Each log line is trimmed of a
+// trailing newline and sent to lines; a LogLinesAvailable signal is sent to
+// signals after each line. Read errors are returned — the caller is responsible
+// for wrapping them into msgs.LogStreamError. The reader r is closed before
+// ReadFrames returns.
+func ReadFrames(
+	ctx context.Context,
+	r io.ReadCloser,
+	lines chan<- string,
+	signals chan<- tea.Msg,
+) error {
+	defer r.Close()
 
 	for {
 		var header [8]byte
 
-		if _, readErr := io.ReadFull(body, header[:]); readErr != nil {
+		if _, readErr := io.ReadFull(r, header[:]); readErr != nil {
 			select {
 			case <-ctx.Done():
-				// normal shutdown — do not emit an error
-			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: s.serviceName}:
+				return ctx.Err() //nolint:wrapcheck // sentinel errors, callers check via errors.Is
+			default:
+				return readErr //nolint:wrapcheck // std lib errors, callers check via errors.Is
 			}
-
-			return
 		}
 
 		size := binary.BigEndian.Uint32(header[4:])
 		payload := make([]byte, size)
 
-		if _, readErr := io.ReadFull(body, payload); readErr != nil {
+		if _, readErr := io.ReadFull(r, payload); readErr != nil {
 			select {
 			case <-ctx.Done():
-			case s.ch <- msgs.LogStreamError{Err: readErr, ServiceName: s.serviceName}:
+				return ctx.Err() //nolint:wrapcheck // sentinel errors, callers check via errors.Is
+			default:
+				return readErr //nolint:wrapcheck // std lib errors, callers check via errors.Is
 			}
-
-			return
 		}
 
 		select {
-		case s.lineCh <- strings.TrimRight(string(payload), "\n"):
+		case lines <- strings.TrimRight(string(payload), "\n"):
 			select {
-			case s.ch <- msgs.LogLinesAvailable{}:
+			case signals <- msgs.LogLinesAvailable{}:
 			case <-ctx.Done():
-				return
+				return ctx.Err() //nolint:wrapcheck // sentinel errors, callers check via errors.Is
 			}
 		case <-ctx.Done():
-			return
+			return ctx.Err() //nolint:wrapcheck // sentinel errors, callers check via errors.Is
 		}
 	}
 }
