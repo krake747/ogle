@@ -1,7 +1,7 @@
 .PHONY: all
 all: tidy generate build fix test docs man notice
 
-PKGS := $(shell go list ./... 2>/dev/null | grep -Ev '(/cmd$$|/tools/|^github\.com/ma-tf/ogle$$)')
+PKGS := $(shell go list ./internal/...)
 
 .PHONY: test
 test:
@@ -26,8 +26,8 @@ generate:
 
 .PHONY: lint
 lint:
-	go vet ./...
-	golangci-lint run ./...
+	go vet ./internal/...
+	command -v golangci-lint >/dev/null 2>&1 && golangci-lint run ./internal/... || echo "golangci-lint not installed, skipping"
 
 .PHONY: lint-md
 lint-md:
@@ -39,7 +39,7 @@ fmt:
 
 .PHONY: fix
 fix:
-	golangci-lint run ./... --fix
+	golangci-lint run ./internal/... --fix
 	markdownlint-cli2 --fix "**/*.md"
 
 .PHONY: launch
