@@ -26,6 +26,7 @@ internal/
 │   │   └── service.go                # Scanner interface, ScanAll(), KnownFilenames()
 │   └── watcher/                      # directory monitoring via fsnotify
 │       └── service.go                # Watcher interface + Service implementation
+├── version/                          # build metadata (version, commit, date via ldflags)
 ├── tools/
 │   └── docgen/                       # CLI documentation generation
 └── ui/
@@ -40,6 +41,7 @@ internal/
     │   ├── fileselect/               # Project Selector (file picker)
     │   ├── helpbar/                  # key binding help bar
     │   ├── logpane/                  # log stream display (scroll, wrap)
+    │   ├── about/                    # About overlay (version info, ASCII art, GitHub URL)
     │   ├── servicehost/              # log stream lifecycle manager
     │   ├── servicepanel/             # service detail panel wrapper
     │   ├── settings/                 # Settings overlay
@@ -71,10 +73,12 @@ internal/
 
 ```text
 cmd → app
-app → ui/flows/startup, ui/flows/dashboard, msgs, services/watcher, services/docker, config
+app → ui/flows/startup, ui/flows/dashboard, ui/components/about, msgs, services/watcher, services/docker, config
 ui/flows/startup → services/parser, services/scanner, ui/components/fileselect, msgs, ui/theme
 ui/flows/dashboard → services/parser, services/docker/logs, ui/components/{accordion,carousel,servicepanel,settings}, msgs, ui/theme, config
 ui/components/* → msgs, ui/theme, ui/colorutil
+ui/components/about → version
+ui/components/topbar → bubblezone
 services/docker → domain, msgs
 services/docker/logs → msgs, domain
 services/parser → domain
