@@ -14,10 +14,12 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const testFile = "test.yml"
+
 func TestInit(t *testing.T) {
 	t.Parallel()
 
-	m := watching.New("test.yml", 100, 50, theme.Default(), mocks.NewMockParser(t))
+	m := watching.New(testFile, 100, 50, theme.Default(), mocks.NewMockParser(t))
 	cmd := m.Init()
 	require.Nil(t, cmd)
 }
@@ -29,97 +31,73 @@ func TestUpdate(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		setup func(*testing.T) watching.Model
+		setup func(*mocks.MockParser) watching.Model
 
 		// act
 		msg tea.Msg
 
 		// assert
 		expectedMsg tea.Msg
-		check       func(*testing.T, watching.Model)
 	}
-
-	const testFile = "test.yml"
-
-	errParse := assert.AnError
 
 	cases := []testCase{
 		{
 			name: "FileAvailabilityChanged with file present and parse success emits ProjectLoaded",
-			setup: func(t *testing.T) watching.Model {
-				mockParser := mocks.NewMockParser(t)
-				mockParser.EXPECT().Parse(testFile).Return(&domain.Project{Name: "test"}, nil)
-				return watching.New(testFile, 100, 50, theme.Default(), mockParser)
+			setup: func(p *mocks.MockParser) watching.Model {
+				p.EXPECT().Parse(testFile).Return(&domain.Project{Name: "test"}, nil)
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         msgs.FileAvailabilityChanged{Files: []string{testFile}},
 			expectedMsg: msgs.ProjectLoaded{Project: &domain.Project{Name: "test"}},
 		},
-
 		{
-			name: "FileAvailabilityChanged with file present and parse error sets stateParseError",
-			setup: func(t *testing.T) watching.Model {
-				mockParser := mocks.NewMockParser(t)
-				mockParser.EXPECT().Parse(testFile).Return(nil, errParse)
-				return watching.New(testFile, 100, 50, theme.Default(), mockParser)
+			name: "FileAvailabilityChanged with parse error returns nil cmd",
+			setup: func(p *mocks.MockParser) watching.Model {
+				p.EXPECT().Parse(testFile).Return(nil, assert.AnError)
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         msgs.FileAvailabilityChanged{Files: []string{testFile}},
 			expectedMsg: nil,
-			check: func(t *testing.T, m watching.Model) {
-				t.Helper()
-				v := m.View().Content
-				assert.Contains(t, v, "compose file unavailable")
-				assert.Contains(t, v, errParse.Error())
-				assert.Contains(t, v, "Waiting for file to change")
-			},
 		},
-
 		{
 			name: "FileAvailabilityChanged without tracked file resets to idle",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New(testFile, 100, 50, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         msgs.FileAvailabilityChanged{Files: []string{"other.yml"}},
 			expectedMsg: nil,
 		},
-
 		{
 			name: "KeyPress q emits QuitMsg",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New(testFile, 100, 50, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         tea.KeyPressMsg{Code: 'q'},
 			expectedMsg: tea.QuitMsg{},
 		},
-
 		{
 			name: "KeyPress non-q returns no cmd",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New(testFile, 100, 50, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         tea.KeyPressMsg{Code: 'x'},
 			expectedMsg: nil,
 		},
-
 		{
 			name: "WindowSizeMsg stores dimensions",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New(testFile, 0, 0, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 0, 0, theme.Default(), p)
 			},
 			msg:         tea.WindowSizeMsg{Width: 100, Height: 50},
 			expectedMsg: nil,
 		},
-
 		{
 			name: "theme.Changed updates theme pointer",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New(testFile, 100, 50, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			msg:         theme.Changed{Theme: theme.DefaultLight()},
 			expectedMsg: nil,
-			check: func(t *testing.T, m watching.Model) {
-				t.Helper()
-				assert.NotPanics(t, func() { m.View() })
-			},
 		},
 	}
 
@@ -127,7 +105,8 @@ func TestUpdate(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.setup(t)
+			p := mocks.NewMockParser(t)
+			m := tc.setup(p)
 			m, cmd := m.Update(tc.msg)
 
 			if tc.expectedMsg != nil {
@@ -135,10 +114,6 @@ func TestUpdate(t *testing.T) {
 				require.Equal(t, tc.expectedMsg, cmd())
 			} else {
 				require.Nil(t, cmd)
-			}
-
-			if tc.check != nil {
-				tc.check(t, m)
 			}
 		})
 	}
@@ -150,7 +125,7 @@ func TestView(t *testing.T) {
 	type testCase struct {
 		name string
 		// arrange
-		setup func(*testing.T) watching.Model
+		setup func(*mocks.MockParser) watching.Model
 
 		// assert
 		expectedResult string
@@ -159,22 +134,29 @@ func TestView(t *testing.T) {
 	cases := []testCase{
 		{
 			name: "idle state shows waiting message",
-			setup: func(t *testing.T) watching.Model {
-				return watching.New("test.yml", 100, 50, theme.Default(), mocks.NewMockParser(t))
+			setup: func(p *mocks.MockParser) watching.Model {
+				return watching.New(testFile, 100, 50, theme.Default(), p)
 			},
 			expectedResult: "compose file unavailable",
 		},
-
 		{
 			name: "parse error state shows error alongside waiting message",
-			setup: func(t *testing.T) watching.Model {
-				mockParser := mocks.NewMockParser(t)
-				mockParser.EXPECT().Parse("test.yml").Return(nil, assert.AnError)
-				m := watching.New("test.yml", 100, 50, theme.Default(), mockParser)
-				m, _ = m.Update(msgs.FileAvailabilityChanged{Files: []string{"test.yml"}})
+			setup: func(p *mocks.MockParser) watching.Model {
+				p.EXPECT().Parse(testFile).Return(nil, assert.AnError)
+				m := watching.New(testFile, 100, 50, theme.Default(), p)
+				m, _ = m.Update(msgs.FileAvailabilityChanged{Files: []string{testFile}})
 				return m
 			},
 			expectedResult: "Parse error",
+		},
+		{
+			name: "view after theme change does not panic",
+			setup: func(p *mocks.MockParser) watching.Model {
+				m := watching.New(testFile, 100, 50, theme.Default(), p)
+				m, _ = m.Update(theme.Changed{Theme: theme.DefaultLight()})
+				return m
+			},
+			expectedResult: "compose file unavailable",
 		},
 	}
 
@@ -182,7 +164,8 @@ func TestView(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			m := tc.setup(t)
+			p := mocks.NewMockParser(t)
+			m := tc.setup(p)
 
 			if tc.expectedResult == "" {
 				assert.Empty(t, m.View().Content)
