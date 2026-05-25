@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
   git \
   curl \
   jq \
+  ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
 # Install GitHub CLI
@@ -24,10 +25,18 @@ ARG AGENT_GID=1000
 # Rename the base image's "node" user to "agent" and align UID/GID.
 RUN groupmod -g $AGENT_GID node && usermod -u $AGENT_UID -g $AGENT_GID -d /home/agent -m -l agent node
 
+# Install Go 1.26.3 (matches go.mod)
+RUN curl -fsSL https://go.dev/dl/go1.26.3.linux-amd64.tar.gz \
+  | tar -C /usr/local -xz \
+  && mkdir -p /home/agent/go
+
 # Install OpenCode CLI (run as root before USER agent)
 RUN npm install -g opencode-ai@latest
 
 USER ${AGENT_UID}:${AGENT_GID}
+
+ENV GOPATH="/home/agent/go" \
+    PATH="/usr/local/go/bin:/home/agent/go/bin:/home/agent/.local/bin:$PATH"
 
 WORKDIR /home/agent
 

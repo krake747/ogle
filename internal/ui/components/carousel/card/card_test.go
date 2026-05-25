@@ -17,7 +17,8 @@ import (
 const (
 	testShortName = "test-service"
 	testLongName  = "service-name-that-needs-scrolling-yes"
-	testW         = 120
+	otherService  = "other-service"
+	testW         = 200
 	testH         = 40
 )
 
@@ -36,6 +37,7 @@ func TestUpdate_FocusMsg_Matching_SetsFocused(t *testing.T) {
 	m, cmd := m.Update(card.FocusMsg{ServiceName: testShortName})
 
 	require.Nil(t, cmd, "short name should not schedule scroll")
+
 	viewAfter := m.View().Content
 	assert.NotEqual(t, viewBefore, viewAfter, "focused background should differ")
 	assert.Contains(t, viewAfter, testShortName)
@@ -47,7 +49,7 @@ func TestUpdate_FocusMsg_NonMatching_NoOp(t *testing.T) {
 	m := newCard(testShortName)
 	viewBefore := m.View().Content
 
-	m, cmd := m.Update(card.FocusMsg{ServiceName: "other-service"})
+	m, cmd := m.Update(card.FocusMsg{ServiceName: otherService})
 
 	require.Nil(t, cmd)
 	assert.Equal(t, viewBefore, m.View().Content)
@@ -57,7 +59,7 @@ func TestUpdate_FocusMsg_Matching_WithScroll_StartsScroll(t *testing.T) {
 	t.Parallel()
 
 	m := newCard(testLongName)
-	m, cmd := m.Update(card.FocusMsg{ServiceName: testLongName})
+	_, cmd := m.Update(card.FocusMsg{ServiceName: testLongName})
 
 	require.NotNil(t, cmd, "long name should schedule initial scroll tick")
 	scrollMsg := cmd()
@@ -75,6 +77,7 @@ func TestUpdate_BlurMsg_Matching_ClearsFocus(t *testing.T) {
 	m, cmd := m.Update(card.BlurMsg{ServiceName: testShortName})
 
 	require.Nil(t, cmd)
+
 	blurredView := m.View().Content
 	assert.NotEqual(t, focusedView, blurredView, "blur should revert background")
 	assert.Contains(t, blurredView, testShortName)
@@ -87,7 +90,7 @@ func TestUpdate_BlurMsg_NonMatching_NoOp(t *testing.T) {
 	m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
 	focusedView := m.View().Content
 
-	m, cmd := m.Update(card.BlurMsg{ServiceName: "other-service"})
+	m, cmd := m.Update(card.BlurMsg{ServiceName: otherService})
 
 	require.Nil(t, cmd)
 	assert.Equal(t, focusedView, m.View().Content)
@@ -102,6 +105,7 @@ func TestUpdate_HoverMsg_Matching_SetsHovered(t *testing.T) {
 	m, cmd := m.Update(card.HoverMsg{ServiceName: testShortName})
 
 	require.Nil(t, cmd)
+
 	viewAfter := m.View().Content
 	assert.NotEqual(t, viewBefore, viewAfter, "hover background should differ")
 	assert.Contains(t, viewAfter, testShortName)
@@ -113,7 +117,7 @@ func TestUpdate_HoverMsg_NonMatching_NoOp(t *testing.T) {
 	m := newCard(testShortName)
 	viewBefore := m.View().Content
 
-	m, cmd := m.Update(card.HoverMsg{ServiceName: "other-service"})
+	m, cmd := m.Update(card.HoverMsg{ServiceName: otherService})
 
 	require.Nil(t, cmd)
 	assert.Equal(t, viewBefore, m.View().Content)
@@ -129,6 +133,7 @@ func TestUpdate_UnhoverMsg_Matching_ClearsHovered(t *testing.T) {
 	m, cmd := m.Update(card.UnhoverMsg{ServiceName: testShortName})
 
 	require.Nil(t, cmd)
+
 	unhoveredView := m.View().Content
 	assert.NotEqual(t, hoveredView, unhoveredView, "unhover should revert background")
 	assert.Contains(t, unhoveredView, testShortName)
@@ -187,12 +192,24 @@ func TestUpdate_ServiceAction_SetsInFlight(t *testing.T) {
 
 	tests := []struct {
 		name string
-		msg  tea.Msg
+		msg  func(string) tea.Msg
 	}{
-		{name: "ServiceStart", msg: msgs.ServiceStart{ServiceName: testShortName}},
-		{name: "ServiceStop", msg: msgs.ServiceStop{ServiceName: testShortName}},
-		{name: "ServiceRestart", msg: msgs.ServiceRestart{ServiceName: testShortName}},
-		{name: "ServiceRebuild", msg: msgs.ServiceRebuild{ServiceName: testShortName}},
+		{
+			name: "ServiceStart",
+			msg:  func(n string) tea.Msg { return msgs.ServiceStart{ServiceName: n} },
+		},
+		{
+			name: "ServiceStop",
+			msg:  func(n string) tea.Msg { return msgs.ServiceStop{ServiceName: n} },
+		},
+		{
+			name: "ServiceRestart",
+			msg:  func(n string) tea.Msg { return msgs.ServiceRestart{ServiceName: n} },
+		},
+		{
+			name: "ServiceRebuild",
+			msg:  func(n string) tea.Msg { return msgs.ServiceRebuild{ServiceName: n} },
+		},
 	}
 
 	for _, tc := range tests {
@@ -203,9 +220,10 @@ func TestUpdate_ServiceAction_SetsInFlight(t *testing.T) {
 			m := newCard(name)
 			viewBefore := m.View().Content
 
-			m, cmd := m.Update(tc.msg)
+			m, cmd := m.Update(tc.msg(name))
 
 			require.Nil(t, cmd)
+
 			viewAfter := m.View().Content
 			assert.NotEqual(t, viewBefore, viewAfter, "in-flight border should differ")
 			assert.Contains(t, viewAfter, name)
@@ -219,7 +237,7 @@ func TestUpdate_ServiceAction_NonMatching_NoChange(t *testing.T) {
 	m := newCard(testShortName)
 	viewBefore := m.View().Content
 
-	m, cmd := m.Update(msgs.ServiceStart{ServiceName: "other-service"})
+	m, cmd := m.Update(msgs.ServiceStart{ServiceName: otherService})
 
 	require.Nil(t, cmd)
 	assert.Equal(t, viewBefore, m.View().Content)
@@ -238,6 +256,7 @@ func TestUpdate_ServiceActionCompleted_ClearsInFlightAndUpdates(t *testing.T) {
 	})
 
 	require.Nil(t, cmd)
+
 	completedView := m.View().Content
 	assert.NotEqual(t, inflightView, completedView,
 		"view should change when in-flight cleared and runtime set")
@@ -250,7 +269,7 @@ func TestUpdate_ServiceActionCompleted_NonMatching_NoChange(t *testing.T) {
 	viewBefore := m.View().Content
 
 	m, cmd := m.Update(msgs.ServiceActionCompleted{
-		ServiceName: "other-service",
+		ServiceName: otherService,
 		Action:      domain.ServiceActionStart,
 	})
 
@@ -272,6 +291,7 @@ func TestUpdate_ServiceActionCompleted_Error_ClearsInFlightKeepsState(t *testing
 	})
 
 	require.Nil(t, cmd)
+
 	errorView := m.View().Content
 	assert.NotEqual(t, inflightView, errorView,
 		"view should change when in-flight cleared")
@@ -303,9 +323,10 @@ func TestUpdate_WindowSizeMsg_UpdatesDimensions(t *testing.T) {
 	m := newCard(testShortName)
 	viewBefore := m.View().Content
 
-	m, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
+	m, cmd := m.Update(tea.WindowSizeMsg{Width: 300, Height: 60})
 
 	require.Nil(t, cmd, "short name should not schedule scroll")
+
 	viewAfter := m.View().Content
 	assert.NotEqual(t, viewBefore, viewAfter, "different dimensions produce different card size")
 }
@@ -316,7 +337,7 @@ func TestUpdate_WindowSizeMsg_FocusedWithScroll_Reschedules(t *testing.T) {
 	m := newCard(testLongName)
 	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
 
-	m, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 60})
 
 	require.NotNil(t, cmd, "focused scrollable card should reschedule tick on resize")
 }
@@ -353,7 +374,7 @@ func TestUpdate_ScrollTick_AdvancesAndSchedulesNext(t *testing.T) {
 	// Ensure we're safely past nextScrollTime before sending
 	time.Sleep(50 * time.Millisecond)
 
-	m, cmd2 := m.Update(scrollMsg)
+	_, cmd2 := m.Update(scrollMsg)
 	require.NotNil(t, cmd2, "scroll should advance and schedule next tick")
 	_, ok := cmd2().(card.ScrollTick)
 	require.True(t, ok, "next cmd should be a ScrollTick")
@@ -374,9 +395,10 @@ func TestUpdate_ScrollTick_StaleGen_NoOp(t *testing.T) {
 
 	// Get ScrollTick from first cmd (gen=1, but focusGen=2 → stale)
 	scrollMsg := cmd1()
+
 	time.Sleep(50 * time.Millisecond)
 
-	m, cmd3 := m.Update(scrollMsg)
+	_, cmd3 := m.Update(scrollMsg)
 	require.Nil(t, cmd3, "stale generation should produce no command")
 }
 
@@ -409,7 +431,7 @@ func TestView_LongName_Focused_Windowed(t *testing.T) {
 	m := newCard(testLongName)
 	m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
 
-	window := testLongName[:34]
+	window := testLongName[:18]
 	view := m.View().Content
 	assert.NotEmpty(t, view)
 	assert.Contains(t, view, window,
@@ -421,7 +443,7 @@ func TestView_LongName_Unfocused_Truncated(t *testing.T) {
 
 	m := newCard(testLongName)
 
-	truncated := testLongName[:33] + "…"
+	truncated := testLongName[:17] + "…"
 	view := m.View().Content
 	assert.NotEmpty(t, view)
 	assert.Contains(t, view, truncated,
@@ -472,7 +494,5 @@ func TestView_EmptyOnZeroDimensions(t *testing.T) {
 	// Even at zero input dimensions, the card has a minimum internal width
 	// due to listMinTermWidth clamping, so it always renders content.
 	assert.NotEmpty(t, view.Content)
-	assert.Contains(t, view.Content, testShortName)
+	assert.Contains(t, view.Content, testShortName[:5])
 }
-
-

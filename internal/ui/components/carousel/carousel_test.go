@@ -15,9 +15,12 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const serviceAlpha = "svc-alpha"
+
+//nolint:gochecknoglobals // shared test fixtures
 var (
 	services3 = []domain.ServiceDef{
-		{Name: "svc-alpha"},
+		{Name: serviceAlpha},
 		{Name: "svc-beta"},
 		{Name: "svc-gamma"},
 	}
@@ -59,13 +62,13 @@ func TestInit(t *testing.T) {
 		require.True(t, ok)
 		require.Len(t, batch, 2)
 
-		focusMsg, ok := batch[0].(card.FocusMsg)
+		focusMsg, ok := batch[0]().(card.FocusMsg)
 		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", focusMsg.ServiceName)
+		assert.Equal(t, serviceAlpha, focusMsg.ServiceName)
 
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
+		selMsg, ok := batch[1]().(msgs.ServiceSelected)
 		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", selMsg.ServiceName)
+		assert.Equal(t, serviceAlpha, selMsg.ServiceName)
 	})
 
 	t.Run("no cards returns nil cmd", func(t *testing.T) {
@@ -81,6 +84,7 @@ func TestInit(t *testing.T) {
 // TestUpdate
 // ---------------------------------------------------------------------------
 
+//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -91,7 +95,7 @@ func TestUpdate(t *testing.T) {
 		_ = m.Init()
 
 		// Tab from focus=0 (svc-alpha) to focus=1 (svc-beta).
-		m, cmd := m.Update(tea.KeyPressMsg{String: "tab"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		require.NotNil(t, cmd)
 
 		msg := cmd()
@@ -99,15 +103,15 @@ func TestUpdate(t *testing.T) {
 		require.True(t, ok)
 		require.Len(t, batch, 3)
 
-		blurMsg, ok := batch[0].(card.BlurMsg)
+		blurMsg, ok := batch[0]().(card.BlurMsg)
 		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", blurMsg.ServiceName)
+		assert.Equal(t, serviceAlpha, blurMsg.ServiceName)
 
-		focusMsg, ok := batch[1].(card.FocusMsg)
+		focusMsg, ok := batch[1]().(card.FocusMsg)
 		require.True(t, ok)
 		assert.Equal(t, "svc-beta", focusMsg.ServiceName)
 
-		selMsg, ok := batch[2].(msgs.ServiceSelected)
+		selMsg, ok := batch[2]().(msgs.ServiceSelected)
 		require.True(t, ok)
 		assert.Equal(t, "svc-beta", selMsg.ServiceName)
 	})
@@ -118,13 +122,13 @@ func TestUpdate(t *testing.T) {
 		m := newModel(t, services3)
 		_ = m.Init()
 
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		require.NotNil(t, cmd)
 
 		msg := cmd()
 		startMsg, ok := msg.(msgs.ServiceStart)
 		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", startMsg.ServiceName)
+		assert.Equal(t, serviceAlpha, startMsg.ServiceName)
 	})
 
 	t.Run("Enter on running card emits ServiceStop", func(t *testing.T) {
@@ -135,17 +139,17 @@ func TestUpdate(t *testing.T) {
 
 		m, _ = m.Update(msgs.ServicesPolled{
 			Runtimes: map[string]*domain.ServiceRuntimeData{
-				"svc-alpha": {State: domain.ServiceStateRunning},
+				serviceAlpha: {State: domain.ServiceStateRunning},
 			},
 		})
 
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		require.NotNil(t, cmd)
 
 		msg := cmd()
 		stopMsg, ok := msg.(msgs.ServiceStop)
 		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", stopMsg.ServiceName)
+		assert.Equal(t, serviceAlpha, stopMsg.ServiceName)
 	})
 
 	t.Run("PgDown changes page and focuses first card on new page", func(t *testing.T) {
@@ -154,7 +158,7 @@ func TestUpdate(t *testing.T) {
 		m := newModel(t, services8)
 		_ = m.Init()
 
-		m, cmd := m.Update(tea.KeyPressMsg{String: "pgdown"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
 		require.NotNil(t, cmd)
 
 		msg := cmd()
@@ -162,11 +166,11 @@ func TestUpdate(t *testing.T) {
 		require.True(t, ok)
 		require.Len(t, batch, 2)
 
-		focusMsg, ok := batch[0].(card.FocusMsg)
+		focusMsg, ok := batch[0]().(card.FocusMsg)
 		require.True(t, ok)
 		assert.Equal(t, "svc-g", focusMsg.ServiceName)
 
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
+		selMsg, ok := batch[1]().(msgs.ServiceSelected)
 		require.True(t, ok)
 		assert.Equal(t, "svc-g", selMsg.ServiceName)
 	})
@@ -177,7 +181,7 @@ func TestUpdate(t *testing.T) {
 		m := newModel(t, services8)
 		_ = m.Init()
 
-		_, cmd := m.Update(tea.KeyPressMsg{String: "pgup"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
 		require.Nil(t, cmd)
 	})
 
@@ -201,7 +205,7 @@ func TestUpdate(t *testing.T) {
 		t.Parallel()
 
 		m := newModel(t, nil)
-		_, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		require.Nil(t, cmd)
 	})
 
@@ -211,7 +215,7 @@ func TestUpdate(t *testing.T) {
 		m := newModel(t, services3)
 		m.Update(msgs.ServicesPolled{
 			Runtimes: map[string]*domain.ServiceRuntimeData{
-				"svc-alpha": {State: domain.ServiceStateRunning, ContainerID: "abc123"},
+				serviceAlpha: {State: domain.ServiceStateRunning, ContainerID: "abc123"},
 			},
 		})
 	})
@@ -225,10 +229,10 @@ func TestUpdate(t *testing.T) {
 		// Navigate from focus=2 to dot 1 (slot 1, inactive).
 		// With 2 pages dotCount=2, totalSlots=8. Tab from 2→3→4→5→6→7→0(skip)→1.
 		for range 6 {
-			m, _ = m.Update(tea.KeyPressMsg{String: "tab"})
+			m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
 		}
 
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
+		_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		require.NotNil(t, cmd)
 
 		msg := cmd()
@@ -236,11 +240,11 @@ func TestUpdate(t *testing.T) {
 		require.True(t, ok)
 		require.Len(t, batch, 2)
 
-		focusMsg, ok := batch[0].(card.FocusMsg)
+		focusMsg, ok := batch[0]().(card.FocusMsg)
 		require.True(t, ok)
 		assert.Equal(t, "svc-g", focusMsg.ServiceName)
 
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
+		selMsg, ok := batch[1]().(msgs.ServiceSelected)
 		require.True(t, ok)
 		assert.Equal(t, "svc-g", selMsg.ServiceName)
 	})
@@ -260,9 +264,9 @@ func TestView(t *testing.T) {
 		_ = m.Init()
 
 		content := m.View().Content
-		assert.Contains(t, content, "svc-alpha")
+		assert.Contains(t, content, serviceAlpha[:7])
 		assert.Contains(t, content, "svc-beta")
-		assert.Contains(t, content, "svc-gamma")
+		assert.Contains(t, content, "svc-gamma"[:7])
 	})
 
 	t.Run("nav bar hidden when single page", func(t *testing.T) {

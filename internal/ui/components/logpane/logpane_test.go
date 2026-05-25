@@ -12,6 +12,7 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -25,7 +26,7 @@ func TestUpdate(t *testing.T) {
 
 		// assert
 		expectedMsg tea.Msg
-		check func(*testing.T, logpane.Model)
+		check       func(*testing.T, logpane.Model)
 	}
 
 	cases := []testCase{
@@ -34,13 +35,18 @@ func TestUpdate(t *testing.T) {
 			setup: func() logpane.Model {
 				ch := make(chan string, 3)
 				ch <- "line a"
+
 				ch <- "line b"
+
 				ch <- "line c"
+
 				return logpane.New(theme.Default(), 120, 100, 100, ch)
 			},
 			msg:         msgs.LogLinesAvailable{},
 			expectedMsg: nil,
 			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
+
 				v := m.View().Content
 				assert.Contains(t, v, "line a")
 				assert.Contains(t, v, "line b")
@@ -53,11 +59,14 @@ func TestUpdate(t *testing.T) {
 			setup: func() logpane.Model {
 				ch := make(chan string)
 				close(ch)
+
 				return logpane.New(theme.Default(), 120, 100, 100, ch)
 			},
 			msg:         msgs.LogLinesAvailable{},
 			expectedMsg: nil,
 			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
+
 				_, cmd := m.Update(msgs.LogLinesAvailable{})
 				require.Nil(t, cmd)
 			},
@@ -67,19 +76,24 @@ func TestUpdate(t *testing.T) {
 			name: "LogLinesAvailable scrolls viewport to bottom if was at bottom",
 			setup: func() logpane.Model {
 				ch := make(chan string, 100)
-				for i := 0; i < 10; i++ {
+				for range 10 {
 					ch <- "line content"
 				}
+
 				m := logpane.New(theme.Default(), 120, 8, 100, ch)
 				m, _ = m.Update(msgs.LogLinesAvailable{})
-				for i := 0; i < 5; i++ {
+
+				for range 5 {
 					ch <- "new content"
 				}
+
 				return m
 			},
 			msg:         msgs.LogLinesAvailable{},
 			expectedMsg: nil,
 			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
+
 				v := m.View().Content
 				assert.Contains(t, v, "new content")
 				assert.NotContains(t, v, "line content")
@@ -90,15 +104,20 @@ func TestUpdate(t *testing.T) {
 			name: "ToggleLogWrap toggles wrap and restores scroll position",
 			setup: func() logpane.Model {
 				ch := make(chan string, 1)
+
 				longLine := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 				ch <- longLine
+
 				m := logpane.New(theme.Default(), 120, 100, 100, ch)
 				m, _ = m.Update(msgs.LogLinesAvailable{})
+
 				return m
 			},
 			msg:         msgs.ToggleLogWrap{},
 			expectedMsg: nil,
 			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
+
 				v1 := m.View().Content
 				m2, cmd := m.Update(msgs.ToggleLogWrap{})
 				require.Nil(t, cmd)
@@ -112,6 +131,7 @@ func TestUpdate(t *testing.T) {
 			setup: func() logpane.Model {
 				ch := make(chan string, 1)
 				ch <- "hello"
+
 				return logpane.New(theme.Default(), 100, 100, 100, ch)
 			},
 			msg:         tea.WindowSizeMsg{Width: 200, Height: 200},
@@ -123,11 +143,13 @@ func TestUpdate(t *testing.T) {
 			setup: func() logpane.Model {
 				ch := make(chan string, 1)
 				ch <- "hello"
+
 				return logpane.New(theme.Default(), 120, 100, 100, ch)
 			},
 			msg:         theme.Changed{Theme: theme.DefaultLight()},
 			expectedMsg: nil,
 			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
 				assert.NotPanics(t, func() { m.View() })
 			},
 		},
@@ -179,9 +201,12 @@ func TestView(t *testing.T) {
 			setup: func() logpane.Model {
 				ch := make(chan string, 2)
 				ch <- "visible line"
+
 				ch <- "another line"
+
 				m := logpane.New(theme.Default(), 120, 100, 100, ch)
 				m, _ = m.Update(msgs.LogLinesAvailable{})
+
 				return m
 			},
 			expectedResult: "visible line",
