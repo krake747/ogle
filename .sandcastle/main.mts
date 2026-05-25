@@ -43,6 +43,37 @@ const hooks = {
 // platform-specific binaries and any packages added since the last copy.
 const copyToWorktree: string[] = ["node_modules"];
 
+type Model =
+  | "opencode/big-pickle"
+  | "opencode/deepseek-v4-flash-free"
+  | "opencode/glm-5"
+  | "opencode/glm-5.1"
+  | "opencode/grok-build-0.1"
+  | "opencode/kimi-k2.5"
+  | "opencode/kimi-k2.6"
+  | "opencode/minimax-m2.5"
+  | "opencode/minimax-m2.7"
+  | "opencode/nemotron-3-super-free"
+  | "opencode/qwen3.5-plus"
+  | "opencode/qwen3.6-plus"
+  | "opencode-go/deepseek-v4-flash"
+  | "opencode-go/deepseek-v4-pro"
+  | "opencode-go/glm-5"
+  | "opencode-go/glm-5.1"
+  | "opencode-go/kimi-k2.5"
+  | "opencode-go/kimi-k2.6"
+  | "opencode-go/mimo-v2.5"
+  | "opencode-go/mimo-v2.5-pro"
+  | "opencode-go/minimax-m2.5"
+  | "opencode-go/minimax-m2.7"
+  | "opencode-go/qwen3.5-plus"
+  | "opencode-go/qwen3.6-plus";
+
+const PLANNER_MODEL: Model     = "opencode-go/deepseek-v4-pro";
+const IMPLEMENTER_MODEL: Model = "opencode-go/deepseek-v4-flash";
+const REVIEWER_MODEL: Model    = "opencode-go/mimo-v2.5-pro";
+const MERGER_MODEL: Model      = "opencode/big-pickle";
+
 // ---------------------------------------------------------------------------
 // Main loop
 // ---------------------------------------------------------------------------
@@ -67,7 +98,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     // not write code.
     maxIterations: 1,
     // Opus for planning: dependency analysis benefits from deeper reasoning.
-    agent: sandcastle.opencode("opencode/big-pickle"),
+    agent: sandcastle.opencode(PLANNER_MODEL),
     promptFile: "./.sandcastle/plan-prompt.md",
   });
 
@@ -121,7 +152,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
         const implement = await sandbox.run({
           name: "implementer",
           maxIterations: 100,
-          agent: sandcastle.opencode("opencode/big-pickle"),
+          agent: sandcastle.opencode(IMPLEMENTER_MODEL),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
             TASK_ID: issue.id,
@@ -135,7 +166,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
           const review = await sandbox.run({
             name: "reviewer",
             maxIterations: 1,
-            agent: sandcastle.opencode("opencode/big-pickle"),
+            agent: sandcastle.opencode(REVIEWER_MODEL),
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
               BRANCH: issue.branch,
@@ -206,7 +237,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
     sandbox: docker(),
     name: "merger",
     maxIterations: 1,
-    agent: sandcastle.opencode("opencode/big-pickle"),
+    agent: sandcastle.opencode(MERGER_MODEL),
     promptFile: "./.sandcastle/merge-prompt.md",
     promptArgs: {
       // A markdown list of branch names, one per line.
