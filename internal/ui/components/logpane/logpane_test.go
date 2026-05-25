@@ -1,6 +1,7 @@
 package logpane_test
 
 import (
+	"fmt"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -136,6 +137,30 @@ func TestUpdate(t *testing.T) {
 			},
 			msg:         tea.WindowSizeMsg{Width: 200, Height: 200},
 			expectedMsg: nil,
+		},
+
+		{
+			name: "WindowSizeMsg scrolls to bottom when at bottom",
+			setup: func() logpane.Model {
+				ch := make(chan string, 30)
+				for i := range 20 {
+					ch <- fmt.Sprintf("line %d", i)
+				}
+
+				m := logpane.New(theme.Default(), 120, 7, 100, ch)
+				m, _ = m.Update(msgs.LogLinesAvailable{})
+
+				return m
+			},
+			msg:         tea.WindowSizeMsg{Width: 200, Height: 12},
+			expectedMsg: nil,
+			check: func(t *testing.T, m logpane.Model) {
+				t.Helper()
+
+				v := m.View().Content
+				assert.Contains(t, v, "line 19")
+				assert.NotContains(t, v, "line 0")
+			},
 		},
 
 		{
