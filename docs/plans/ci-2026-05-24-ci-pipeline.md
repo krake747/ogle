@@ -20,7 +20,7 @@ Add a GitHub Actions CI pipeline consisting of four sequential stages: **build â
 | Caching | GOMODCACHE + GOCACHE via `actions/cache` | Keyed on hash of `go.sum` + `go.mod` with restore-key fallback |
 | Concurrency | cancel-in-progress for non-`main` | Saves CI minutes on outdated runs |
 | check-generated | PR only (`github.event_name == 'pull_request'`) | Generated-file assertions only meaningful relative to PR diff |
-| check-generated steps | `make generate`, `make docs`, `make notice`, then `git diff --exit-code` | Identical to `lefthook.yml` pre-push `verify-generated` |
+| check-generated steps | `make generate`, `make docs`, `make man`, `make notice`, then `git diff --exit-code` | Identical to `lefthook.yml` pre-push `verify-generated` |
 
 ## Implementation
 

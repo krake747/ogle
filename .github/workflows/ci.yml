@@ -106,10 +106,13 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Generate mocks
-        run: go tool mockery
+        run: make generate
 
       - name: Generate CLI docs
         run: make docs
+
+      - name: Generate man pages
+        run: make man
 
       - name: Generate NOTICE
         run: make notice
