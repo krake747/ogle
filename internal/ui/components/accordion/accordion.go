@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	zone "github.com/lrstanley/bubblezone/v2"
 
 	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
@@ -40,14 +41,14 @@ type Model struct {
 	lastRaws     [numFields]string
 	lastColours  [numFields]color.Color
 	lastWidth    int
-	zm           ZoneManager
+	zm           *zone.Manager
 	collapsed    bool
 	hovered      bool
 }
 
 // New returns a Model with the given project, dimensions, theme, and zone
 // manager.
-func New(project *domain.Project, w, h int, th *theme.Theme, zm ZoneManager) Model {
+func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) Model {
 	selectedName := ""
 	if len(project.Services) > 0 {
 		selectedName = project.Services[0].Name
@@ -60,7 +61,6 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm ZoneManager) Mod
 		w:            w,
 		h:            h,
 		th:           th,
-		values:       [numFields]value.Model{},
 		scrollGen:    0,
 		lastRaws:     [numFields]string{},
 		lastColours:  [numFields]color.Color{},
@@ -104,16 +104,14 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m.syncValues()
 
 	case tea.MouseClickMsg:
-		zi := m.zm.Get(zoneAccordionHeader)
-		if zi != nil && zi.InBounds(msg) {
+		if m.zm != nil && m.zm.Get(zoneAccordionHeader).InBounds(msg) {
 			m.collapsed = !m.collapsed
 		}
 
 		return m, nil
 
 	case tea.MouseMotionMsg:
-		zi := m.zm.Get(zoneAccordionHeader)
-		m.hovered = zi != nil && zi.InBounds(msg)
+		m.hovered = m.zm != nil && m.zm.Get(zoneAccordionHeader).InBounds(msg)
 
 		return m, nil
 	}
@@ -154,7 +152,9 @@ func (m Model) View() tea.View {
 		Foreground(m.th.AccordionLabel).
 		Background(headerBg).
 		Render(" " + indicator + " Service Details")
-	headerStr = m.zm.Mark(zoneAccordionHeader, headerStr)
+	if m.zm != nil {
+		headerStr = m.zm.Mark(zoneAccordionHeader, headerStr)
+	}
 
 	if m.collapsed {
 		return tea.NewView(headerStr)
