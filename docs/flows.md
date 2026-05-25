@@ -114,12 +114,8 @@ Rendered by the app's `appWatching` phase. Also used when the dashboard transiti
 disappeared at runtime).
 
 ```text
-watchingIdle    — monitoring CWD; no valid files present
-watchingNotice  — a file appeared but failed Validate (exists, invalid YAML)
-                  transient inline message: "compose.yaml found but could not be parsed"
-                  cleared automatically on the next FileAvailabilityChanged
-watchingError   — watcher failed to initialise (permissions, missing CWD, etc.)
-                  shows error message + retry keybinding; recoverable
+stateIdle        — compose file unavailable, waiting for it to reappear
+stateParseError  — file exists but failed to parse, showing error inline
 ```
 
 ### Cold start vs. Disconnected
@@ -172,20 +168,23 @@ msg that triggers `app` to transition to `appWatching`
 | Message                          | Emitted by                      | Consumed by                                 |
 |----------------------------------|---------------------------------|---------------------------------------------|
 | `FileAvailabilityChanged{Files}` | `watcher`                       | `app` (dispatches to startup/dashboard)     |
+| `FileRemoved{File}`              | `dashboard`                     | `app` (triggers phaseWatching)              |
 | `FileSelected{Path}`             | fileselect                      | startup                                     |
 | `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers appDashboard)               |
-| `WatcherError{Err}`              | `watcher`                       | `app` → watching view                       |
-| `RetryWatcher{}`                 | watching view                   | `app` (triggers watcher re-creation)        |
 | `DaemonConnected{}`              | `svcdocker.Connect`             | `topbar`, `servicepanel`, `servicehost`     |
 | `DaemonUnavailable{Err}`         | `svcdocker.Connect`             | `topbar` (starts retry countdown)           |
+| `DaemonTick{}`                   | daemon retry loop               | `topbar`, `servicepanel`                    |
+| `DaemonGraceExpired{}`           | daemon retry loop               | `topbar`, `servicepanel`                    |
+| `DaemonPoll{}`                   | daemon poll timer               | `svcdocker` (triggers connectivity check)   |
+| `TopbarContext{Phase,File}`      | `app` (phase transition)        | `topbar`                                    |
 | `StatePollTick`                  | `servicepanel` (timer)          | `dashboard` (triggers `docker.Ps`)          |
-| `ServicesPolled{Runtimes}`       | `docker.Ps`                     | `dashboard`, `carousel`, `accordion`        |
+| `ServicesPolled{Runtimes,Err}`   | `docker.Ps`                     | `dashboard`, `carousel`, `accordion`        |
 | `ServiceStop`                    | `carousel/card` (user action)   | `dashboard` → `handleServiceAction`         |
 | `ServiceStart`                   | `carousel/card` (user action)   | `dashboard` → `handleServiceAction`         |
 | `ServiceRestart`                 | `carousel/card` (user action)   | `dashboard` → `handleServiceAction`         |
 | `ServiceRebuild`                 | `carousel/card` (user action)   | `dashboard` → `handleServiceAction`         |
 | `ServiceActionCompleted`         | `svcdocker`                     | `dashboard`, `carousel/card`                |
-| `LogLinesAvailable{Lines}`       | `LogStreamer`                   | `logpane` (via `servicehost`)               |
+| `LogLinesAvailable{}`            | `LogStreamer`                   | `logpane` (via `servicehost`)               |
 | `LogStreamError{Err}`            | `LogStreamer`                   | `servicehost` (re-subscribes streamer)      |
 | `LogStreamContainerNotFound`     | `LogStreamer`                   | `servicehost` (re-subscribes streamer)      |
 | `ServiceSelected{ServiceName}`   | `carousel` (hover/focus)        | `dashboard`, `accordion`, `servicehost`     |
@@ -193,6 +192,9 @@ msg that triggers `app` to transition to `appWatching`
 | `SettingsVisibilityChanged`      | `settings`                      | `dashboard`                                 |
 | `ToggleLogWrap`                  | `dashboard` (keybinding)        | `logpane`                                   |
 | `BindingsMsg{Keymap}`            | various flows                   | `helpbar`                                   |
+| `DisplayError{Err}`              | any component                   | `statusbar` (auto-clear after 3s)           |
+| `DisplayStatus{Msg}`             | any component                   | `statusbar` (auto-clear after 3s)           |
+| `ClearStatusMsg{}`               | `statusbar` (timer)             | `statusbar`                                 |
 | `theme.Changed`                  | external (theme switcher)       | all components with theme pointer           |
 
 ---

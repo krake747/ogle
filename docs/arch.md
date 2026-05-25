@@ -19,15 +19,13 @@ internal/
 │   │   ├── connection/               # connection state machine (Machine: Connecting/Connected/Unavailable)
 │   │   └── logs/                     # LogStreamer: Docker log streaming
 │   │       ├── streamer.go           # Streamer interface
-│   │       ├── service.go            # LogStreamer implementation
-│   │       └── null.go               # NullLogStreamer (no-op adapter for unselected services)
+│   │       └── service.go            # LogStreamer implementation
 │   ├── parser/                       # Compose File parsing
-│   │   └── service.go                # Parser interface, Validate(), Parse()
+│   │   └── service.go                # Parser interface, Parse()
 │   ├── scanner/                      # Compose File discovery
 │   │   └── service.go                # Scanner interface, ScanAll(), KnownFilenames()
 │   └── watcher/                      # directory monitoring via fsnotify
-│       ├── service.go                # Watcher interface + Service implementation
-│       └── null.go                   # NullWatcher (never emits events)
+│       └── service.go                # Watcher interface + Service implementation
 ├── tools/
 │   └── docgen/                       # CLI documentation generation
 └── ui/

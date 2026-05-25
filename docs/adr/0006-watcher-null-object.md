@@ -16,15 +16,6 @@ a NullWatcher so the UI can render without crashing.
 A `NullWatcher` adapter satisfies the `Watcher` interface. It never delivers events. It is implemented as
 `internal/services/watcher/null.go`.
 
-```go
-type NullWatcher struct{}
-
-func (NullWatcher) Init() tea.Cmd               { return nil }
-func (NullWatcher) Next() tea.Cmd               { return nil }
-func (NullWatcher) CurrentFiles() []string       { return nil }
-func (NullWatcher) Close() error                 { return nil }
-```
-
 ## Consequences
 
 - Tests can instantiate a `NullWatcher` without filesystem setup.
