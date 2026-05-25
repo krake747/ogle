@@ -47,34 +47,57 @@ func newModel(t *testing.T, services []domain.ServiceDef) carousel.Model {
 func TestInit(t *testing.T) {
 	t.Parallel()
 
-	t.Run("first card focused and ServiceSelected emitted", func(t *testing.T) {
-		t.Parallel()
+	type testCase struct {
+		name     string
+		services []domain.ServiceDef
+		// assert
+		expectCmd    bool
+		expectedName string
+	}
 
-		m := newModel(t, services3)
-		cmd := m.Init()
-		require.NotNil(t, cmd)
+	cases := []testCase{
+		{
+			name:         "first card focused and ServiceSelected emitted",
+			services:     services3,
+			expectCmd:    true,
+			expectedName: "svc-alpha",
+		},
+		{
+			name:     "no cards returns nil cmd",
+			services: nil,
+			expectCmd: false,
+		},
+	}
 
-		msg := cmd()
-		batch, ok := msg.(tea.BatchMsg)
-		require.True(t, ok)
-		require.Len(t, batch, 2)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-		focusMsg, ok := batch[0].(card.FocusMsg)
-		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", focusMsg.ServiceName)
+			m := newModel(t, tc.services)
+			cmd := m.Init()
 
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
-		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", selMsg.ServiceName)
-	})
+			if !tc.expectCmd {
+				require.Nil(t, cmd)
 
-	t.Run("no cards returns nil cmd", func(t *testing.T) {
-		t.Parallel()
+				return
+			}
 
-		m := newModel(t, nil)
-		cmd := m.Init()
-		require.Nil(t, cmd)
-	})
+			require.NotNil(t, cmd)
+
+			msg := cmd()
+			batch, ok := msg.(tea.BatchMsg)
+			require.True(t, ok)
+			require.Len(t, batch, 2)
+
+			focusMsg, ok := batch[0]().(card.FocusMsg)
+			require.True(t, ok)
+			assert.Equal(t, tc.expectedName, focusMsg.ServiceName)
+
+			selMsg, ok := batch[1]().(msgs.ServiceSelected)
+			require.True(t, ok)
+			assert.Equal(t, tc.expectedName, selMsg.ServiceName)
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -84,166 +107,214 @@ func TestInit(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	t.Run("Tab cycles focus to next card slot", func(t *testing.T) {
-		t.Parallel()
+	type testCase struct {
+		name     string
+		services []domain.ServiceDef
+		setup    func(m carousel.Model) carousel.Model
+		msg      tea.Msg
+		// assert
+		assert func(t *testing.T, m carousel.Model, cmd tea.Cmd)
+	}
 
-		m := newModel(t, services3)
-		_ = m.Init()
+	cases := []testCase{
+		{
+			name:     "Tab cycles focus to next card slot",
+			services: services3,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
 
-		// Tab from focus=0 (svc-alpha) to focus=1 (svc-beta).
-		m, cmd := m.Update(tea.KeyPressMsg{String: "tab"})
-		require.NotNil(t, cmd)
-
-		msg := cmd()
-		batch, ok := msg.(tea.BatchMsg)
-		require.True(t, ok)
-		require.Len(t, batch, 3)
-
-		blurMsg, ok := batch[0].(card.BlurMsg)
-		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", blurMsg.ServiceName)
-
-		focusMsg, ok := batch[1].(card.FocusMsg)
-		require.True(t, ok)
-		assert.Equal(t, "svc-beta", focusMsg.ServiceName)
-
-		selMsg, ok := batch[2].(msgs.ServiceSelected)
-		require.True(t, ok)
-		assert.Equal(t, "svc-beta", selMsg.ServiceName)
-	})
-
-	t.Run("Enter on card without runtime emits ServiceStart", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services3)
-		_ = m.Init()
-
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
-		require.NotNil(t, cmd)
-
-		msg := cmd()
-		startMsg, ok := msg.(msgs.ServiceStart)
-		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", startMsg.ServiceName)
-	})
-
-	t.Run("Enter on running card emits ServiceStop", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services3)
-		_ = m.Init()
-
-		m, _ = m.Update(msgs.ServicesPolled{
-			Runtimes: map[string]*domain.ServiceRuntimeData{
-				"svc-alpha": {State: domain.ServiceStateRunning},
+				return m
 			},
-		})
+			msg: tea.KeyPressMsg{Code: tea.KeyTab},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd)
 
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
-		require.NotNil(t, cmd)
+				msg := cmd()
+				batch, ok := msg.(tea.BatchMsg)
+				require.True(t, ok)
+				require.Len(t, batch, 3)
 
-		msg := cmd()
-		stopMsg, ok := msg.(msgs.ServiceStop)
-		require.True(t, ok)
-		assert.Equal(t, "svc-alpha", stopMsg.ServiceName)
-	})
+				blurMsg, ok := batch[0]().(card.BlurMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-alpha", blurMsg.ServiceName)
 
-	t.Run("PgDown changes page and focuses first card on new page", func(t *testing.T) {
-		t.Parallel()
+				focusMsg, ok := batch[1]().(card.FocusMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-beta", focusMsg.ServiceName)
 
-		m := newModel(t, services8)
-		_ = m.Init()
-
-		m, cmd := m.Update(tea.KeyPressMsg{String: "pgdown"})
-		require.NotNil(t, cmd)
-
-		msg := cmd()
-		batch, ok := msg.(tea.BatchMsg)
-		require.True(t, ok)
-		require.Len(t, batch, 2)
-
-		focusMsg, ok := batch[0].(card.FocusMsg)
-		require.True(t, ok)
-		assert.Equal(t, "svc-g", focusMsg.ServiceName)
-
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
-		require.True(t, ok)
-		assert.Equal(t, "svc-g", selMsg.ServiceName)
-	})
-
-	t.Run("PgUp on first page returns no cmd", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services8)
-		_ = m.Init()
-
-		_, cmd := m.Update(tea.KeyPressMsg{String: "pgup"})
-		require.Nil(t, cmd)
-	})
-
-	t.Run("WindowSizeMsg returns no cmd", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services3)
-		_, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 100})
-		require.Nil(t, cmd)
-	})
-
-	t.Run("theme.Changed returns no cmd", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services3)
-		_, cmd := m.Update(theme.Changed{Theme: theme.DefaultLight()})
-		require.Nil(t, cmd)
-	})
-
-	t.Run("Enter on empty slot no-ops", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, nil)
-		_, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
-		require.Nil(t, cmd)
-	})
-
-	t.Run("ServicesPolled stores runtime data", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services3)
-		m.Update(msgs.ServicesPolled{
-			Runtimes: map[string]*domain.ServiceRuntimeData{
-				"svc-alpha": {State: domain.ServiceStateRunning, ContainerID: "abc123"},
+				selMsg, ok := batch[2]().(msgs.ServiceSelected)
+				require.True(t, ok)
+				assert.Equal(t, "svc-beta", selMsg.ServiceName)
 			},
+		},
+		{
+			name:     "Enter on card without runtime emits ServiceStart",
+			services: services3,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				return m
+			},
+			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				startMsg, ok := msg.(msgs.ServiceStart)
+				require.True(t, ok)
+				assert.Equal(t, "svc-alpha", startMsg.ServiceName)
+			},
+		},
+		{
+			name:     "Enter on running card emits ServiceStop",
+			services: services3,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				m, _ = m.Update(msgs.ServicesPolled{
+					Runtimes: map[string]*domain.ServiceRuntimeData{
+						"svc-alpha": {State: domain.ServiceStateRunning},
+					},
+				})
+
+				return m
+			},
+			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				stopMsg, ok := msg.(msgs.ServiceStop)
+				require.True(t, ok)
+				assert.Equal(t, "svc-alpha", stopMsg.ServiceName)
+			},
+		},
+		{
+			name:     "PgDown changes page and focuses first card on new page",
+			services: services8,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				return m
+			},
+			msg: tea.KeyPressMsg{Code: tea.KeyPgDown},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				batch, ok := msg.(tea.BatchMsg)
+				require.True(t, ok)
+				require.Len(t, batch, 2)
+
+				focusMsg, ok := batch[0]().(card.FocusMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", focusMsg.ServiceName)
+
+				selMsg, ok := batch[1]().(msgs.ServiceSelected)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", selMsg.ServiceName)
+			},
+		},
+		{
+			name:     "PgUp on first page returns no cmd",
+			services: services8,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				return m
+			},
+			msg:  tea.KeyPressMsg{Code: tea.KeyPgUp},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+		},
+		{
+			name:     "WindowSizeMsg returns no cmd",
+			services: services3,
+			setup:    nil,
+			msg:      tea.WindowSizeMsg{Width: 200, Height: 100},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+		},
+		{
+			name:     "theme.Changed returns no cmd",
+			services: services3,
+			setup:    nil,
+			msg:      theme.Changed{Theme: theme.DefaultLight()},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+		},
+		{
+			name:     "Enter on empty slot no-ops",
+			services: nil,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				return m
+			},
+			msg:  tea.KeyPressMsg{Code: tea.KeyEnter},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) { require.Nil(t, cmd) },
+		},
+		{
+			name:     "ServicesPolled stores runtime data",
+			services: services3,
+			setup:    nil,
+			msg: msgs.ServicesPolled{
+				Runtimes: map[string]*domain.ServiceRuntimeData{
+					"svc-alpha": {State: domain.ServiceStateRunning, ContainerID: "abc123"},
+				},
+			},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.Nil(t, cmd)
+			},
+		},
+		{
+			name:     "Enter on dot changes page",
+			services: services8,
+			setup: func(m carousel.Model) carousel.Model {
+				_ = m.Init()
+
+				// Navigate from focus=2 to dot 1 (slot 1, inactive).
+				// With 2 pages dotCount=2, totalSlots=8.
+				// Tab from 2->3->4->5->6->7->0(skip)->1.
+				for range 6 {
+					m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyTab})
+				}
+
+				return m
+			},
+			msg: tea.KeyPressMsg{Code: tea.KeyEnter},
+			assert: func(t *testing.T, m carousel.Model, cmd tea.Cmd) {
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				batch, ok := msg.(tea.BatchMsg)
+				require.True(t, ok)
+				require.Len(t, batch, 2)
+
+				focusMsg, ok := batch[0]().(card.FocusMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", focusMsg.ServiceName)
+
+				selMsg, ok := batch[1]().(msgs.ServiceSelected)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", selMsg.ServiceName)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m := newModel(t, tc.services)
+
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
+
+			m, cmd := m.Update(tc.msg)
+			_ = m
+
+			tc.assert(t, m, cmd)
 		})
-	})
-
-	t.Run("Enter on dot changes page", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services8)
-		_ = m.Init()
-
-		// Navigate from focus=2 to dot 1 (slot 1, inactive).
-		// With 2 pages dotCount=2, totalSlots=8. Tab from 2→3→4→5→6→7→0(skip)→1.
-		for range 6 {
-			m, _ = m.Update(tea.KeyPressMsg{String: "tab"})
-		}
-
-		m, cmd := m.Update(tea.KeyPressMsg{String: "enter"})
-		require.NotNil(t, cmd)
-
-		msg := cmd()
-		batch, ok := msg.(tea.BatchMsg)
-		require.True(t, ok)
-		require.Len(t, batch, 2)
-
-		focusMsg, ok := batch[0].(card.FocusMsg)
-		require.True(t, ok)
-		assert.Equal(t, "svc-g", focusMsg.ServiceName)
-
-		selMsg, ok := batch[1].(msgs.ServiceSelected)
-		require.True(t, ok)
-		assert.Equal(t, "svc-g", selMsg.ServiceName)
-	})
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -253,33 +324,50 @@ func TestUpdate(t *testing.T) {
 func TestView(t *testing.T) {
 	t.Parallel()
 
-	t.Run("card grid shows service names", func(t *testing.T) {
-		t.Parallel()
+	type testCase struct {
+		name           string
+		services       []domain.ServiceDef
+		setup          func(m carousel.Model) carousel.Model
+		expectedResult string
+	}
 
-		m := newModel(t, services3)
-		_ = m.Init()
+	cases := []testCase{
+		{
+			name:           "card grid shows service names",
+			services:       services3,
+			setup:          nil,
+			expectedResult: "svc-beta",
+		},
+		{
+			name:           "nav bar hidden when single page",
+			services:       services3,
+			setup:          nil,
+			expectedResult: "",
+		},
+		{
+			name:           "nav bar shown when multiple pages",
+			services:       services8,
+			setup:          nil,
+			expectedResult: "•",
+		},
+	}
 
-		content := m.View().Content
-		assert.Contains(t, content, "svc-alpha")
-		assert.Contains(t, content, "svc-beta")
-		assert.Contains(t, content, "svc-gamma")
-	})
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	t.Run("nav bar hidden when single page", func(t *testing.T) {
-		t.Parallel()
+			m := newModel(t, tc.services)
 
-		m := newModel(t, services3)
-		content := m.View().Content
-		assert.NotContains(t, content, "•")
-		assert.NotContains(t, content, "○")
-	})
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
 
-	t.Run("nav bar shown when multiple pages", func(t *testing.T) {
-		t.Parallel()
-
-		m := newModel(t, services8)
-		content := m.View().Content
-		assert.Contains(t, content, "•")
-		assert.Contains(t, content, "○")
-	})
+			if tc.expectedResult == "" {
+				assert.NotContains(t, m.View().Content, "•")
+				assert.NotContains(t, m.View().Content, "○")
+			} else {
+				assert.Contains(t, m.View().Content, tc.expectedResult)
+			}
+		})
+	}
 }
