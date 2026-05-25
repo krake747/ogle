@@ -73,7 +73,7 @@ func New(serviceName string) *LogStreamer {
 // On 200 it writes log line strings to lineCh until the stream ends or Close
 // is called.
 //
-//nolint:gocognit
+//nolint:gocognit // HTTP lifecycle + status dispatch + stream orchestration.
 func (s *LogStreamer) Start(appCtx context.Context, containerName string) {
 	ctx, cancel := context.WithCancel(appCtx)
 	s.cancel = cancel
