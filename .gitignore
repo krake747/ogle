@@ -2,3 +2,5 @@ node_modules/
 bin/
 docs/deprecated/
 testdata/
+coverage.html
+coverage.out
