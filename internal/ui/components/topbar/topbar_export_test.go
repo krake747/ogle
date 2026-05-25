@@ -2,6 +2,6 @@ package topbar
 
 import "time"
 
-func (m *Model) SetNow(t time.Time) {
+func SetNow(m *Model, t time.Time) {
 	m.now = func() time.Time { return t }
 }

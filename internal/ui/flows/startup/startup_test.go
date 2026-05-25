@@ -16,12 +16,16 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-//nolint:gochecknoglobals // shared test fixture
-var project = &domain.Project{Name: "myapp", File: "/path/to/compose.yml"}
+//nolint:gochecknoglobals // shared test fixtures
+var (
+	project  = &domain.Project{Name: "myapp", File: "/path/to/compose.yml"}
+	errParse = errors.New("parse error")
+)
 
 func newModel(t *testing.T) (startup.Model, *mocks.MockParser) {
 	t.Helper()
 	mockP := mocks.NewMockParser(t)
+
 	return startup.New(100, 50, zone.New(), theme.Default(), mockP), mockP
 }
 
@@ -34,7 +38,6 @@ func TestInit(t *testing.T) {
 	require.IsType(t, msgs.BindingsMsg{}, cmd())
 }
 
-//nolint:funlen
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -56,6 +59,7 @@ func TestUpdate(t *testing.T) {
 			// arrange
 			setup: func(m startup.Model, p *mocks.MockParser) startup.Model {
 				p.EXPECT().Parse("test/path/file.yml").Return(project, nil)
+
 				return m
 			},
 			// act
@@ -67,7 +71,8 @@ func TestUpdate(t *testing.T) {
 			name: "FileSelected with parse error returns no command",
 			// arrange
 			setup: func(m startup.Model, p *mocks.MockParser) startup.Model {
-				p.EXPECT().Parse("test/path/file.yml").Return(nil, errors.New("parse error"))
+				p.EXPECT().Parse("test/path/file.yml").Return(nil, errParse)
+
 				return m
 			},
 			// act
@@ -101,7 +106,6 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-//nolint:funlen
 func TestView(t *testing.T) {
 	t.Parallel()
 

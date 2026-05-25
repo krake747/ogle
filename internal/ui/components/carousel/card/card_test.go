@@ -39,6 +39,7 @@ func TestInit(t *testing.T) {
 
 // TestUpdate
 
+//nolint:funlen,maintidx // comprehensive table-driven test with many cases
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -58,17 +59,19 @@ func TestUpdate(t *testing.T) {
 			name: "FocusMsg matching sets focused",
 			msg:  card.FocusMsg{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd, "short name should not schedule scroll")
 				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
 			name: "FocusMsg matching with scroll starts scroll",
-			setup: func(m card.Model) card.Model {
+			setup: func(_ card.Model) card.Model {
 				return newCard(testLongName)
 			},
 			msg: card.FocusMsg{ServiceName: testLongName},
-			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd, "long name should schedule initial scroll tick")
 				scrollMsg := cmd()
 				_, ok := scrollMsg.(card.ScrollTick)
@@ -79,6 +82,7 @@ func TestUpdate(t *testing.T) {
 			name: "FocusMsg non-matching no-op",
 			msg:  card.FocusMsg{ServiceName: otherService},
 			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 			},
 		},
@@ -88,10 +92,12 @@ func TestUpdate(t *testing.T) {
 			name: "BlurMsg matching clears focus",
 			setup: func(m card.Model) card.Model {
 				m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+
 				return m
 			},
 			msg: card.BlurMsg{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -100,10 +106,12 @@ func TestUpdate(t *testing.T) {
 			name: "BlurMsg non-matching no-op",
 			setup: func(m card.Model) card.Model {
 				m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+
 				return m
 			},
 			msg: card.BlurMsg{ServiceName: otherService},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -114,6 +122,7 @@ func TestUpdate(t *testing.T) {
 			name: "HoverMsg matching sets hovered",
 			msg:  card.HoverMsg{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -122,6 +131,7 @@ func TestUpdate(t *testing.T) {
 			name: "HoverMsg non-matching no-op",
 			msg:  card.HoverMsg{ServiceName: otherService},
 			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 			},
 		},
@@ -131,10 +141,12 @@ func TestUpdate(t *testing.T) {
 			name: "UnhoverMsg matching clears hovered",
 			setup: func(m card.Model) card.Model {
 				m, _ = m.Update(card.HoverMsg{ServiceName: testShortName})
+
 				return m
 			},
 			msg: card.UnhoverMsg{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -149,6 +161,7 @@ func TestUpdate(t *testing.T) {
 				},
 			},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -161,17 +174,19 @@ func TestUpdate(t *testing.T) {
 						testShortName: {State: domain.ServiceStateRunning},
 					},
 				})
+
 				return m
 			},
 			msg: msgs.ServicesPolled{Err: assert.AnError},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
 			name: "ServicesPolled empty name no change",
-			setup: func(m card.Model) card.Model {
+			setup: func(_ card.Model) card.Model {
 				return card.New(domain.ServiceDef{}, testW, testH, theme.Default())
 			},
 			msg: msgs.ServicesPolled{
@@ -179,7 +194,8 @@ func TestUpdate(t *testing.T) {
 					"": {State: domain.ServiceStateRunning},
 				},
 			},
-			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 			},
 		},
@@ -189,6 +205,7 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceStart sets in-flight",
 			msg:  msgs.ServiceStart{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -197,6 +214,7 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceStop sets in-flight",
 			msg:  msgs.ServiceStop{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -205,6 +223,7 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceRestart sets in-flight",
 			msg:  msgs.ServiceRestart{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -213,17 +232,19 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceRebuild sets in-flight",
 			msg:  msgs.ServiceRebuild{ServiceName: testShortName},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
 			name: "ServiceAction non-matching no change",
-			setup: func(m card.Model) card.Model {
+			setup: func(_ card.Model) card.Model {
 				return newCard(otherService)
 			},
 			msg: msgs.ServiceStart{ServiceName: testShortName},
 			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 			},
 		},
@@ -233,6 +254,7 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceActionCompleted clears in-flight and updates",
 			setup: func(m card.Model) card.Model {
 				m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
+
 				return m
 			},
 			msg: msgs.ServiceActionCompleted{
@@ -240,6 +262,7 @@ func TestUpdate(t *testing.T) {
 				Action:      domain.ServiceActionStart,
 			},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -248,6 +271,7 @@ func TestUpdate(t *testing.T) {
 			name: "ServiceActionCompleted with error clears in-flight keeps state",
 			setup: func(m card.Model) card.Model {
 				m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
+
 				return m
 			},
 			msg: msgs.ServiceActionCompleted{
@@ -256,6 +280,7 @@ func TestUpdate(t *testing.T) {
 				Err:         assert.AnError,
 			},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -269,6 +294,7 @@ func TestUpdate(t *testing.T) {
 					},
 				})
 				m, _ = m.Update(msgs.ServiceStop{ServiceName: testShortName})
+
 				return m
 			},
 			msg: msgs.ServiceActionCompleted{
@@ -276,6 +302,7 @@ func TestUpdate(t *testing.T) {
 				Action:      domain.ServiceActionStop,
 			},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.NotEmpty(t, m.View().Content)
 			},
@@ -287,6 +314,7 @@ func TestUpdate(t *testing.T) {
 				Action:      domain.ServiceActionStart,
 			},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -297,19 +325,22 @@ func TestUpdate(t *testing.T) {
 			name: "WindowSizeMsg updates dimensions",
 			msg:  tea.WindowSizeMsg{Width: 300, Height: 60},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd, "short name should not schedule scroll")
 				assert.Contains(t, m.View().Content, testShortName)
 			},
 		},
 		{
 			name: "WindowSizeMsg focused with scroll reschedules",
-			setup: func(m card.Model) card.Model {
-				m = newCard(testLongName)
+			setup: func(_ card.Model) card.Model {
+				m := newCard(testLongName)
 				m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
+
 				return m
 			},
 			msg: tea.WindowSizeMsg{Width: 200, Height: 60},
 			assert: func(t *testing.T, _ card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd, "focused scrollable card should reschedule tick on resize")
 			},
 		},
@@ -319,6 +350,7 @@ func TestUpdate(t *testing.T) {
 			name: "theme.Changed updates theme",
 			msg:  theme.Changed{Theme: theme.Default()},
 			assert: func(t *testing.T, m card.Model, cmd tea.Cmd) {
+				t.Helper()
 				require.Nil(t, cmd)
 				assert.Contains(t, m.View().Content, testShortName)
 			},
@@ -399,8 +431,12 @@ func TestView(t *testing.T) {
 
 	cases := []testCase{
 		{
-			name:           "short name focused",
-			setup:          func(m card.Model) card.Model { m, _ = m.Update(card.FocusMsg{ServiceName: testShortName}); return m },
+			name: "short name focused",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(card.FocusMsg{ServiceName: testShortName})
+
+				return m
+			},
 			expectedResult: testShortName,
 		},
 		{
@@ -412,6 +448,7 @@ func TestView(t *testing.T) {
 			setup: func(_ card.Model) card.Model {
 				m := newCard(testLongName)
 				m, _ = m.Update(card.FocusMsg{ServiceName: testLongName})
+
 				return m
 			},
 			expectedResult: testLongName[:18],
@@ -424,8 +461,12 @@ func TestView(t *testing.T) {
 			expectedResult: testLongName[:17] + "…",
 		},
 		{
-			name:           "in-flight border colour",
-			setup:          func(m card.Model) card.Model { m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName}); return m },
+			name: "in-flight border colour",
+			setup: func(m card.Model) card.Model {
+				m, _ = m.Update(msgs.ServiceStart{ServiceName: testShortName})
+
+				return m
+			},
 			expectedResult: testShortName,
 		},
 		{
@@ -436,13 +477,14 @@ func TestView(t *testing.T) {
 						testShortName: {State: domain.ServiceStateRunning},
 					},
 				})
+
 				return m
 			},
 			expectedResult: testShortName,
 		},
 		{
 			name: "zero dimensions",
-			setup: func(m card.Model) card.Model {
+			setup: func(_ card.Model) card.Model {
 				return card.New(domain.ServiceDef{Name: testShortName}, 0, 1, theme.Default())
 			},
 			expectedResult: testShortName[:5],

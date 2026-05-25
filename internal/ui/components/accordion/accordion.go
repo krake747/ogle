@@ -61,6 +61,7 @@ func New(project *domain.Project, w, h int, th *theme.Theme, zm *zone.Manager) M
 		w:            w,
 		h:            h,
 		th:           th,
+		values:       [numFields]value.Model{},
 		scrollGen:    0,
 		lastRaws:     [numFields]string{},
 		lastColours:  [numFields]color.Color{},

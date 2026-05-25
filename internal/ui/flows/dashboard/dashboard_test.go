@@ -32,13 +32,11 @@ var testProject = &domain.Project{
 	},
 }
 
-//nolint:gochecknoglobals // shared test fixtures
-var projectNoServices = &domain.Project{
-	Name: "empty",
-	File: "/path/to/compose.yaml",
-}
-
-func newModel(t *testing.T, mockD *dockermocks.MockDocker, mockP *parsermocks.MockParser) dashboard.Model {
+func newModel(
+	t *testing.T,
+	mockD *dockermocks.MockDocker,
+	mockP *parsermocks.MockParser,
+) dashboard.Model {
 	t.Helper()
 
 	return dashboard.New(
@@ -76,12 +74,15 @@ func TestInit(t *testing.T) {
 		require.True(t, ok)
 
 		found := false
+
 		for _, entry := range batch {
-			if _, ok := entry().(msgs.BindingsMsg); ok {
+			if _, isBindings := entry().(msgs.BindingsMsg); isBindings {
 				found = true
+
 				break
 			}
 		}
+
 		assert.True(t, found, "expected BindingsMsg in Init batch")
 	})
 }
@@ -90,7 +91,7 @@ func TestInit(t *testing.T) {
 // TestUpdate
 // ---------------------------------------------------------------------------
 
-//nolint:funlen
+//nolint:funlen,maintidx // long test with many table-driven cases
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -144,8 +145,11 @@ func TestUpdate(t *testing.T) {
 		// --- keyboard: restart without selected service ---
 		{
 			name: "key r with no selected service no-ops",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				m, _ = m.Update(msgs.ServiceSelected{ServiceName: ""})
+
 				return m
 			},
 			msg: key('r'),
@@ -153,8 +157,11 @@ func TestUpdate(t *testing.T) {
 		// --- keyboard: rebuild without selected service ---
 		{
 			name: "key b with no selected service no-ops",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				m, _ = m.Update(msgs.ServiceSelected{ServiceName: ""})
+
 				return m
 			},
 			msg: key('b'),
@@ -195,63 +202,106 @@ func TestUpdate(t *testing.T) {
 		// --- service action: Stop ---
 		{
 			name: "ServiceStop emits DisplayStatus and forwards to docker.Stop",
-			setup: func(m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				mockD.EXPECT().Stop(mock.Anything, mock.Anything, mock.Anything, svcWeb).
-					Return(func() tea.Msg { return msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionStop} })
+					Return(func() tea.Msg {
+						return msgs.ServiceActionCompleted{
+							ServiceName: svcWeb,
+							Action:      domain.ServiceActionStop,
+						}
+					})
+
 				return m
 			},
 			msg: msgs.ServiceStop{ServiceName: svcWeb},
 			check: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assertServiceActionBatch(t, cmd, "web stopping", domain.ServiceActionStop)
 			},
 		},
 		// --- service action: Start ---
 		{
 			name: "ServiceStart emits DisplayStatus and forwards to docker.Start",
-			setup: func(m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				mockD.EXPECT().Start(mock.Anything, mock.Anything, mock.Anything, svcWeb).
-					Return(func() tea.Msg { return msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionStart} })
+					Return(func() tea.Msg {
+						return msgs.ServiceActionCompleted{
+							ServiceName: svcWeb,
+							Action:      domain.ServiceActionStart,
+						}
+					})
+
 				return m
 			},
 			msg: msgs.ServiceStart{ServiceName: svcWeb},
 			check: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assertServiceActionBatch(t, cmd, "web starting", domain.ServiceActionStart)
 			},
 		},
 		// --- service action: Restart ---
 		{
 			name: "ServiceRestart emits DisplayStatus and forwards to docker.Restart",
-			setup: func(m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				mockD.EXPECT().Restart(mock.Anything, mock.Anything, mock.Anything, svcWeb).
-					Return(func() tea.Msg { return msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionRestart} })
+					Return(func() tea.Msg {
+						return msgs.ServiceActionCompleted{
+							ServiceName: svcWeb,
+							Action:      domain.ServiceActionRestart,
+						}
+					})
+
 				return m
 			},
 			msg: msgs.ServiceRestart{ServiceName: svcWeb},
 			check: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assertServiceActionBatch(t, cmd, "web restarting", domain.ServiceActionRestart)
 			},
 		},
 		// --- service action: Rebuild ---
 		{
 			name: "ServiceRebuild emits DisplayStatus and forwards to docker.Rebuild",
-			setup: func(m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				mockD.EXPECT().Rebuild(mock.Anything, mock.Anything, mock.Anything, svcWeb).
-					Return(func() tea.Msg { return msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionRebuild} })
+					Return(func() tea.Msg {
+						return msgs.ServiceActionCompleted{
+							ServiceName: svcWeb,
+							Action:      domain.ServiceActionRebuild,
+						}
+					})
+
 				return m
 			},
 			msg: msgs.ServiceRebuild{ServiceName: svcWeb},
 			check: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				assertServiceActionBatch(t, cmd, "web rebuilding", domain.ServiceActionRebuild)
 			},
 		},
 		// --- service action: completed with error ---
 		{
 			name: "ServiceActionCompleted with error emits DisplayError",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				return m
 			},
-			msg: msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionStop, Err: assert.AnError},
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: svcWeb,
+				Action:      domain.ServiceActionStop,
+				Err:         assert.AnError,
+			},
 			check: func(t *testing.T, cmd tea.Cmd) {
+				t.Helper()
 				require.NotNil(t, cmd)
 				msg := cmd()
 
@@ -268,12 +318,17 @@ func TestUpdate(t *testing.T) {
 		// --- service action: completed without error ---
 		{
 			name: "ServiceActionCompleted without error produces no status cmd",
-			msg:  msgs.ServiceActionCompleted{ServiceName: svcWeb, Action: domain.ServiceActionStop},
+			msg: msgs.ServiceActionCompleted{
+				ServiceName: svcWeb,
+				Action:      domain.ServiceActionStop,
+			},
 		},
 		// --- file availability: file changed ---
 		{
 			name: "FileAvailabilityChanged with project file re-parses and rebuilds dashboard",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, mockP *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, mockP *parsermocks.MockParser,
+			) dashboard.Model {
 				mockP.EXPECT().Parse(testProject.File).Return(&domain.Project{
 					Name: "newproj",
 					File: testProject.File,
@@ -281,6 +336,7 @@ func TestUpdate(t *testing.T) {
 						{Name: "new-service"},
 					},
 				}, nil)
+
 				return m
 			},
 			msg:       msgs.FileAvailabilityChanged{Files: []string{testProject.File}},
@@ -305,16 +361,22 @@ func TestUpdate(t *testing.T) {
 		// --- mouse/key blocked when settings visible ---
 		{
 			name: "mouse events blocked when settings overlay visible",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				m, _ = m.Update(msgs.SettingsVisibilityChanged{Visible: true})
+
 				return m
 			},
 			msg: tea.MouseClickMsg{},
 		},
 		{
 			name: "key events blocked when settings overlay visible",
-			setup: func(m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, _ *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				m, _ = m.Update(msgs.SettingsVisibilityChanged{Visible: true})
+
 				return m
 			},
 			msg:         key('q'),
@@ -322,22 +384,25 @@ func TestUpdate(t *testing.T) {
 		},
 		// --- window resize ---
 		{
-			name:        "WindowSizeMsg stores dimensions",
-			msg:         tea.WindowSizeMsg{Width: 200, Height: 100},
+			name:      "WindowSizeMsg stores dimensions",
+			msg:       tea.WindowSizeMsg{Width: 200, Height: 100},
 			expectCmd: true,
 		},
 		// --- theme changed ---
 		{
-			name:        "theme.Changed updates theme pointer",
-			msg:         theme.Changed{Theme: theme.DefaultLight()},
+			name:      "theme.Changed updates theme pointer",
+			msg:       theme.Changed{Theme: theme.DefaultLight()},
 			expectCmd: true,
 		},
 		// --- state poll tick ---
 		{
 			name: "StatePollTick triggers docker.Ps and forwards to panel",
-			setup: func(m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser) dashboard.Model {
+			setup: func(
+				m dashboard.Model, mockD *dockermocks.MockDocker, _ *parsermocks.MockParser,
+			) dashboard.Model {
 				mockD.EXPECT().Ps(mock.Anything, mock.Anything, mock.Anything).Maybe().
 					Return(tea.Cmd(func() tea.Msg { return msgs.ServicesPolled{} }))
+
 				return m
 			},
 			msg:       msgs.StatePollTick{},
@@ -345,7 +410,7 @@ func TestUpdate(t *testing.T) {
 		},
 		// --- services polled ---
 		{
-			name:        "ServicesPolled stores runtime data",
+			name: "ServicesPolled stores runtime data",
 			msg: msgs.ServicesPolled{
 				Runtimes: map[string]*domain.ServiceRuntimeData{
 					svcWeb: {State: domain.ServiceStateRunning},
@@ -361,8 +426,8 @@ func TestUpdate(t *testing.T) {
 		},
 		// --- ServiceSelected ---
 		{
-			name:        "ServiceSelected stores selected name",
-			msg:         msgs.ServiceSelected{ServiceName: "api"},
+			name:      "ServiceSelected stores selected name",
+			msg:       msgs.ServiceSelected{ServiceName: "api"},
 			expectCmd: true,
 		},
 	}
@@ -372,6 +437,7 @@ func TestUpdate(t *testing.T) {
 			t.Parallel()
 
 			mockD, mockP := dockermocks.NewMockDocker(t), parsermocks.NewMockParser(t)
+
 			m := newModel(t, mockD, mockP)
 			if tc.setup != nil {
 				m = tc.setup(m, mockD, mockP)
@@ -379,14 +445,15 @@ func TestUpdate(t *testing.T) {
 
 			_, cmd := m.Update(tc.msg)
 
-			if tc.check != nil {
+			switch {
+			case tc.check != nil:
 				tc.check(t, cmd)
-			} else if tc.expectedMsg != nil {
+			case tc.expectedMsg != nil:
 				require.NotNil(t, cmd)
 				require.Equal(t, tc.expectedMsg, cmd())
-			} else if tc.expectCmd {
+			case tc.expectCmd:
 				require.NotNil(t, cmd)
-			} else {
+			default:
 				require.Nil(t, cmd)
 			}
 		})
@@ -397,7 +464,6 @@ func TestUpdate(t *testing.T) {
 // TestView
 // ---------------------------------------------------------------------------
 
-//nolint:funlen
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -418,6 +484,7 @@ func TestView(t *testing.T) {
 			name: "settings overlay compositor visible when showingSettings",
 			setup: func(m dashboard.Model) dashboard.Model {
 				m, _ = m.Update(msgs.SettingsVisibilityChanged{Visible: true})
+
 				return m
 			},
 			expectedResult: "Settings",
@@ -452,7 +519,12 @@ func key(r rune) tea.KeyPressMsg {
 	return tea.KeyPressMsg{Code: r}
 }
 
-func assertServiceActionBatch(t *testing.T, cmd tea.Cmd, expectedStatus string, expectedAction domain.ServiceAction) {
+func assertServiceActionBatch(
+	t *testing.T,
+	cmd tea.Cmd,
+	expectedStatus string,
+	expectedAction domain.ServiceAction,
+) {
 	t.Helper()
 	require.NotNil(t, cmd)
 	msg := cmd()
