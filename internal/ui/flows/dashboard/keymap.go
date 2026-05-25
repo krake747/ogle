@@ -17,27 +17,44 @@ var (
 	keyScrollRight = key.NewBinding(key.WithKeys("right", "l"), key.WithHelp("→/l", "scroll right"))
 	keyRestart     = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "restart"))
 	keyRebuild     = key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "rebuild"))
+	keyHelp        = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help"))
 )
 
 type appKeymap struct{}
 
 func (k appKeymap) ShortHelp() []key.Binding {
-	out := append([]key.Binding{}, carousel.Keymap{}.ShortHelp()...)
-	out = append(out,
+	return []key.Binding{
+		carousel.KeyTab,
+		carousel.KeyEnter,
 		keyRestart,
 		keyRebuild,
-		keyScrollUp,
-		keyScrollDown,
-		keyScrollLeft,
-		keyScrollRight,
-		keyToggleWrap,
-		keySettings,
 		keyQuit,
-	)
-
-	return out
+	}
 }
 
 func (k appKeymap) FullHelp() [][]key.Binding {
-	return nil
+	return [][]key.Binding{
+		{
+			carousel.KeyTab,
+			carousel.KeyEnter,
+			keyRestart,
+			keyRebuild,
+		},
+		{
+			keyScrollUp,
+			keyScrollDown,
+			keyScrollLeft,
+			keyScrollRight,
+		},
+		{
+			carousel.KeyPgUp,
+			carousel.KeyPgDown,
+			keyToggleWrap,
+			keySettings,
+		},
+		{
+			keyHelp,
+			keyQuit,
+		},
+	}
 }
