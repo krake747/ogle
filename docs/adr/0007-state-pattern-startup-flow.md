@@ -41,7 +41,7 @@ updating.
 - States are value types; transitions return new state instances. This is safe with Bubble Tea's immutable model
 convention.
 - `startup.Model` shrinks to **two** fields (`dir string`, `current State`) — not three as originally stated. `cfg` is
-removed entirely; `dir` is retained for cross-cutting `msgs.WatcherError` transitions.
+removed entirely; `dir` is retained for cross-cutting message handling.
 - The `states/` sub-package introduces an additional import path but avoids a circular dependency: `startup` imports
 `states`; `states` imports `ui/views/*` directly. This import direction is intentional — state objects own transitions
 that instantiate view sub-models (`Watching`, `Selecting`). If view construction were delegated to the startup flow

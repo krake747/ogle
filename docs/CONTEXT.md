@@ -101,7 +101,7 @@ blocking the UI.
 _Avoid_: Command (overloaded in the Bubble Tea runtime context), operation
 
 **Settings**:
-An in-session overlay that lets the user adjust configuration values (e.g., poll interval, log buffer cap) without
+An in-session overlay that lets the user adjust configuration values (e.g., theme, log buffer cap) without
 leaving the TUI or editing the Config File. Rendered as a full-terminal compositor layer over the Dashboard, which
 remains live underneath. Changes take effect for the current session; persistence to the Config File is a separate
 action.

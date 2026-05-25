@@ -23,7 +23,7 @@
 
 ## Requirements
 
-- Go 1.22+ (to build from source)
+- Go 1.26+ (to build from source)
 - Docker daemon (for log streaming and service actions)
 - A Docker Compose file (auto-discovered or specified with `-f`)
 
@@ -45,24 +45,4 @@ ogle
 ogle -f docker-compose.yml
 ```
 
-## Keybindings
 
-| Key | Action |
-|---|---|
-| `q` / `ctrl+c` | Quit |
-| `?` | Toggle help |
-| `↑`/`↓` | Navigate service list |
-| `←`/`→` | Scroll log pane horizontally |
-| `enter` | Select/activate |
-| `/` | Filter services by name |
-| `r` | Reload compose file |
-| `s` | Open Settings overlay |
-| `w` | Toggle log line wrap |
-
-## Documentation
-
-- [Architecture](docs/arch.md)
-- [Flows](docs/flows.md)
-- [Domain glossary](docs/CONTEXT.md)
-- [Test coverage](docs/test-coverage.md)
-- [Architecture Decision Records](docs/adr/)
