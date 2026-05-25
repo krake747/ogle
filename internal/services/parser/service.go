@@ -26,7 +26,7 @@ const (
 	portPartsHostContainer = 2 // parts count for host:container format
 )
 
-var _ Parser = Service{} //nolint:exhaustruct // ReadFileFn defaults to zero value (nil check handled by New)
+var _ Parser = Service{} //nolint:exhaustruct // readFileFn set by New
 
 // Parser validates and parses Compose Files into Projects.
 //
@@ -48,16 +48,16 @@ type composeFile struct {
 }
 
 // Service exposes compose file validation and parsing.
+//
+//nolint:recvcheck // pointer receiver only on test helper in export_test.go
 type Service struct {
-	// ReadFileFn reads a file from disk. Defaults to os.ReadFile.
-	// Inject for testing with inline compose YAML.
-	ReadFileFn func(string) ([]byte, error)
+	readFileFn func(string) ([]byte, error)
 }
 
 // New constructs a Service.
 func New() Service {
 	return Service{
-		ReadFileFn: os.ReadFile,
+		readFileFn: os.ReadFile,
 	}
 }
 
@@ -103,7 +103,7 @@ func (s Service) Parse(path string) (*domain.Project, error) {
 }
 
 func (s Service) readAndUnmarshal(path string) (composeFile, error) {
-	data, err := s.ReadFileFn(path)
+	data, err := s.readFileFn(path)
 	if err != nil {
 		return composeFile{}, fmt.Errorf("%w: %w", ErrReadComposeFile, err)
 	}
