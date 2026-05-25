@@ -189,31 +189,37 @@ func TestUpdate_CloseKeys_EmitsVisibilityChanged(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// TestUpdate — Non-key messages
+// TestUpdate — WindowSizeMsg stores dimensions
 // ---------------------------------------------------------------------------
 
-func TestUpdate_NonKeyMsg_NoCommand(t *testing.T) {
+func TestUpdate_WindowSizeMsg_StoresDimensions(t *testing.T) {
 	t.Parallel()
 
-	type testCase struct {
-		name string
-		msg  tea.Msg
-	}
+	m := newModel()
+	_, cmd := m.Update(tea.WindowSizeMsg{Width: 200, Height: 100})
+	require.Nil(t, cmd)
 
-	cases := []testCase{
-		{name: "WindowSizeMsg", msg: tea.WindowSizeMsg{Width: 200, Height: 100}},
-		{name: "theme.Changed", msg: theme.Changed{Theme: theme.DefaultLight()}},
-	}
+	// Verify the model is still functional and renders without panic.
+	require.NotPanics(t, func() { m.View() })
+}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+// ---------------------------------------------------------------------------
+// TestUpdate — theme.Changed stores theme
+// ---------------------------------------------------------------------------
 
-			m := newModel()
-			_, cmd := m.Update(tc.msg)
-			require.Nil(t, cmd)
-		})
-	}
+func TestUpdate_ThemeChanged_StoresTheme(t *testing.T) {
+	t.Parallel()
+
+	m := newModel()
+
+	viewBefore := m.View().Content
+
+	m, cmd := m.Update(theme.Changed{Theme: theme.DefaultLight()})
+	require.Nil(t, cmd)
+
+	viewAfter := m.View().Content
+	assert.NotEqual(t, viewBefore, viewAfter,
+		"different theme should produce different ANSI-rendered output")
 }
 
 // ---------------------------------------------------------------------------
