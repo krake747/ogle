@@ -2,6 +2,7 @@ package app_test
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"testing"
 
@@ -99,4 +100,43 @@ func TestView(t *testing.T) {
 	v := m.View()
 	require.NotNil(t, v)
 	assert.NotEmpty(t, v.Content)
+}
+
+func TestUpdateDaemonConnected(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	result, cmd := m.Update(msgs.DaemonConnected{})
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+}
+
+func TestUpdateDaemonUnavailable(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	result, cmd := m.Update(msgs.DaemonUnavailable{Err: errors.New("timeout")})
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+}
+
+func TestUpdateDisplayError(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	result, cmd := m.Update(msgs.DisplayError{Err: "test error"})
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
 }
