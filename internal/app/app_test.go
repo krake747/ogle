@@ -17,6 +17,7 @@ import (
 	dockermocks "github.com/ma-tf/ogle/internal/services/docker/mocks"
 	parsermocks "github.com/ma-tf/ogle/internal/services/parser/mocks"
 	watchermocks "github.com/ma-tf/ogle/internal/services/watcher/mocks"
+	"github.com/ma-tf/ogle/internal/ui/flows/dashboard"
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
@@ -97,6 +98,8 @@ func TestUpdateProjectLoaded(t *testing.T) {
 		require.NoError(t, cleanup())
 	}()
 
+	assert.Equal(t, app.PhaseStartup, app.GetPhase(&m), "should start in startup phase")
+
 	project := &domain.Project{
 		Name: "myapp",
 		File: "/path/to/compose.yaml",
@@ -108,6 +111,15 @@ func TestUpdateProjectLoaded(t *testing.T) {
 	result, cmd := m.Update(msgs.ProjectLoaded{Project: project})
 	require.NotNil(t, result)
 	require.NotNil(t, cmd)
+
+	appModel, ok := result.(app.Model)
+	require.True(t, ok, "expected app.Model, got %T", result)
+
+	assert.Equal(t, app.PhaseDashboard, app.GetPhase(&appModel),
+		"should transition to dashboard phase")
+
+	dash := app.GetDashboard(&appModel)
+	assert.NotEqual(t, dashboard.Model{}, dash, "dashboard sub-model should be created")
 
 	msg := cmd()
 	batch, ok := msg.(tea.BatchMsg)
