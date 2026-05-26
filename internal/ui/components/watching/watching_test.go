@@ -161,6 +161,16 @@ func TestView(t *testing.T) {
 			},
 			expectedResult: "compose file unavailable",
 		},
+		{
+			name: "unknown state returns empty view",
+			setup: func(p *mocks.MockParser) watching.Model {
+				m := watching.New(testFile, 100, 50, theme.Default(), p)
+				watching.SetState(&m, 42)
+
+				return m
+			},
+			expectedResult: "",
+		},
 	}
 
 	for _, tc := range cases {

@@ -23,13 +23,14 @@ const (
 )
 
 // fakeFileWatcher implements watcher.FileWatcher with programmable channels
-// for deterministic testing of the event loop.
+// and error injection for deterministic testing of the event loop.
 type fakeFileWatcher struct {
 	eventsCh chan fsnotify.Event
 	errorsCh chan error
 
 	mu       sync.Mutex
 	addCalls []string
+	addErr   error
 	closeErr error
 	closed   bool
 }
@@ -50,7 +51,7 @@ func (f *fakeFileWatcher) Add(name string) error {
 
 	f.addCalls = append(f.addCalls, name)
 
-	return nil
+	return f.addErr
 }
 
 func (f *fakeFileWatcher) Close() error {
@@ -349,4 +350,120 @@ func TestClose_Idempotent(t *testing.T) {
 	fw.mu.Lock()
 	assert.True(t, fw.closed)
 	fw.mu.Unlock()
+}
+
+func TestNewWithFileWatcher_AddError(t *testing.T) {
+	t.Parallel()
+
+	fw := newFakeFileWatcher()
+	fw.addErr = assert.AnError
+	sc := mocks.NewMockScanner(t)
+
+	w, err := watcher.NewWithFileWatcher("/dir", slog.Default(), "", sc, fw)
+	require.ErrorIs(t, err, watcher.ErrCreateWatcher)
+	require.Nil(t, w)
+	require.True(t, fw.closed)
+}
+
+func TestClose_Error(t *testing.T) {
+	t.Parallel()
+
+	fw := newFakeFileWatcher()
+	fw.closeErr = assert.AnError
+	sc := mocks.NewMockScanner(t)
+	sc.EXPECT().KnownFilenames().Return([]string{knownFilename}).Maybe()
+
+	w, err := watcher.NewWithFileWatcher("/dir", slog.Default(), "", sc, fw)
+	require.NoError(t, err)
+
+	err = w.Close()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "close fsnotify watcher")
+}
+
+func TestRun_EventsChannelClosed(t *testing.T) {
+	t.Parallel()
+
+	fw := newFakeFileWatcher()
+	sc := mocks.NewMockScanner(t)
+	sc.EXPECT().KnownFilenames().Return([]string{knownFilename}).Maybe()
+
+	w, err := watcher.NewWithFileWatcher("/dir", slog.Default(), "", sc, fw)
+	require.NoError(t, err)
+
+	close(fw.eventsCh)
+
+	require.NoError(t, w.Close())
+	fw.mu.Lock()
+	assert.True(t, fw.closed)
+	fw.mu.Unlock()
+}
+
+func TestRun_ErrorsChannelClosed(t *testing.T) {
+	t.Parallel()
+
+	fw := newFakeFileWatcher()
+	sc := mocks.NewMockScanner(t)
+	sc.EXPECT().KnownFilenames().Return([]string{knownFilename}).Maybe()
+
+	w, err := watcher.NewWithFileWatcher("/dir", slog.Default(), "", sc, fw)
+	require.NoError(t, err)
+
+	close(fw.errorsCh)
+
+	require.NoError(t, w.Close())
+	fw.mu.Lock()
+	assert.True(t, fw.closed)
+	fw.mu.Unlock()
+}
+
+func TestRun_ExtraFileEvent(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	extraFile := filepath.Join(dir, "custom.yml")
+	require.NoError(t, os.WriteFile(extraFile, []byte("services:\n  test:\n"), 0o600))
+
+	fw := newFakeFileWatcher()
+	sc := mocks.NewMockScanner(t)
+	sc.EXPECT().KnownFilenames().Return([]string{knownFilename}).Maybe()
+	sc.EXPECT().ScanAll(dir).Return(nil).Once()
+
+	w, err := watcher.NewWithFileWatcher(dir, slog.Default(), extraFile, sc, fw)
+	require.NoError(t, err)
+
+	defer w.Close()
+
+	fw.eventsCh <- fsnotify.Event{Name: extraFile, Op: fsnotify.Create}
+
+	result := w.Next()()
+	require.NotNil(t, result)
+	msg, ok := result.(msgs.FileAvailabilityChanged)
+	require.True(t, ok)
+	require.Equal(t, []string{extraFile}, msg.Files)
+}
+
+func TestRun_ExtraFileEvent_AbsentFile(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	extraFile := filepath.Join(dir, "custom.yml")
+
+	fw := newFakeFileWatcher()
+	sc := mocks.NewMockScanner(t)
+	sc.EXPECT().KnownFilenames().Return([]string{knownFilename}).Maybe()
+	sc.EXPECT().ScanAll(dir).Return(nil).Once()
+
+	w, err := watcher.NewWithFileWatcher(dir, slog.Default(), extraFile, sc, fw)
+	require.NoError(t, err)
+
+	defer w.Close()
+
+	fw.eventsCh <- fsnotify.Event{Name: extraFile, Op: fsnotify.Create}
+
+	result := w.Next()()
+	require.NotNil(t, result)
+	msg, ok := result.(msgs.FileAvailabilityChanged)
+	require.True(t, ok)
+	require.Empty(t, msg.Files)
 }

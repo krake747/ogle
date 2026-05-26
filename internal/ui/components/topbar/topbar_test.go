@@ -35,6 +35,15 @@ func newModel(t *testing.T) topbar.Model {
 	return topbar.New(context.Background(), connection.New(), theme.Default(), mockD, zone.New())
 }
 
+func TestInit(t *testing.T) {
+	t.Parallel()
+
+	m := newModel(t)
+	cmd := m.Init()
+	require.NotNil(t, cmd)
+}
+
+//nolint:funlen // table-driven test with many cases
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -127,6 +136,39 @@ func TestUpdate(t *testing.T) {
 			msg: msgs.DaemonTick{},
 			// assert
 			expectCmd: true,
+		},
+		{
+			name: "DaemonPoll while Connected fires docker.Connect",
+			// arrange
+			setup: func(m topbar.Model) topbar.Model {
+				m, _ = m.Update(msgs.DaemonConnected{})
+
+				return m
+			},
+			// act
+			msg: msgs.DaemonPoll{},
+			// assert
+			expectedMsg: msgs.DaemonConnected{},
+		},
+		{
+			name: "DaemonPoll while not Connected produces no command",
+			// act
+			msg: msgs.DaemonPoll{},
+		},
+		{
+			name: "Post-switch IsRetryDue fires docker.Connect when retry is due",
+			// arrange
+			setup: func(m topbar.Model) topbar.Model {
+				topbar.SetNow(&m, early)
+				m, _ = m.Update(msgs.DaemonUnavailable{})
+				topbar.SetNow(&m, later)
+
+				return m
+			},
+			// act
+			msg: msgs.TopbarContext{Phase: "startup"},
+			// assert
+			expectedMsg: msgs.DaemonConnected{},
 		},
 	}
 

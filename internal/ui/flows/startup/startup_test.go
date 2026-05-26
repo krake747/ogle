@@ -29,6 +29,53 @@ func newModel(t *testing.T) (startup.Model, *mocks.MockParser) {
 	return startup.New(100, 50, zone.New(), theme.Default(), mockP), mockP
 }
 
+func TestShortHelp(t *testing.T) {
+	t.Parallel()
+
+	m, _ := newModel(t)
+	cmd := m.Init()
+	require.NotNil(t, cmd)
+
+	bindingsMsg, ok := cmd().(msgs.BindingsMsg)
+	require.True(t, ok)
+
+	bindings := bindingsMsg.Keymap.ShortHelp()
+	require.Len(t, bindings, 4)
+
+	assert.Equal(t, "↑/k", bindings[0].Help().Key)
+	assert.Equal(t, "up", bindings[0].Help().Desc)
+	assert.Equal(t, "↓/j", bindings[1].Help().Key)
+	assert.Equal(t, "down", bindings[1].Help().Desc)
+	assert.Equal(t, "enter", bindings[2].Help().Key)
+	assert.Equal(t, "select", bindings[2].Help().Desc)
+	assert.Equal(t, "q", bindings[3].Help().Key)
+	assert.Equal(t, "quit", bindings[3].Help().Desc)
+}
+
+func TestFullHelp(t *testing.T) {
+	t.Parallel()
+
+	m, _ := newModel(t)
+	cmd := m.Init()
+	require.NotNil(t, cmd)
+
+	bindingsMsg, ok := cmd().(msgs.BindingsMsg)
+	require.True(t, ok)
+
+	bindings := bindingsMsg.Keymap.FullHelp()
+	require.Len(t, bindings, 1)
+	require.Len(t, bindings[0], 4)
+
+	assert.Equal(t, "↑/k", bindings[0][0].Help().Key)
+	assert.Equal(t, "up", bindings[0][0].Help().Desc)
+	assert.Equal(t, "↓/j", bindings[0][1].Help().Key)
+	assert.Equal(t, "down", bindings[0][1].Help().Desc)
+	assert.Equal(t, "enter", bindings[0][2].Help().Key)
+	assert.Equal(t, "select", bindings[0][2].Help().Desc)
+	assert.Equal(t, "q", bindings[0][3].Help().Key)
+	assert.Equal(t, "quit", bindings[0][3].Help().Desc)
+}
+
 func TestInit(t *testing.T) {
 	t.Parallel()
 
@@ -82,6 +129,11 @@ func TestUpdate(t *testing.T) {
 			name: "WindowSizeMsg forwards to fileselect",
 			// act
 			msg: tea.WindowSizeMsg{Width: 120, Height: 80},
+		},
+		{
+			name: "Unknown message falls through to fileselect",
+			// act
+			msg: msgs.ToggleLogWrap{},
 		},
 	}
 
