@@ -268,3 +268,57 @@ func TestUpdateSettingsAppliedConfigSaveFailure(t *testing.T) {
 	_, err := os.Stat(configPath)
 	require.True(t, os.IsNotExist(err))
 }
+
+func TestUpdate(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name string
+		// act
+		msg tea.Msg
+		// assert
+		expectedMsg tea.Msg
+		expectCmd   bool
+	}
+
+	cases := []testCase{
+		{
+			name:      "DaemonConnected produces command",
+			msg:       msgs.DaemonConnected{},
+			expectCmd: true,
+		},
+		{
+			name:      "DaemonUnavailable produces command",
+			msg:       msgs.DaemonUnavailable{Err: assert.AnError},
+			expectCmd: true,
+		},
+		{
+			name:      "DisplayError produces command",
+			msg:       msgs.DisplayError{Err: "test error"},
+			expectCmd: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, cleanup, _, _ := newModel(t)
+			defer func() {
+				require.NoError(t, cleanup())
+			}()
+
+			_, cmd := m.Update(tc.msg)
+
+			switch {
+			case tc.expectedMsg != nil:
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			case tc.expectCmd:
+				require.NotNil(t, cmd)
+			default:
+				require.Nil(t, cmd)
+			}
+		})
+	}
+}
