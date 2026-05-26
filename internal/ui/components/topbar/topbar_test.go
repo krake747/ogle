@@ -196,6 +196,7 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+//nolint:funlen // table-driven test with many cases
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -206,6 +207,7 @@ func TestView(t *testing.T) {
 
 		// assert
 		expectedResult string
+		assert         func(t *testing.T, m topbar.Model)
 	}
 
 	cases := []testCase{
@@ -266,6 +268,64 @@ func TestView(t *testing.T) {
 			// assert
 			expectedResult: "DISCONNECTED",
 		},
+		{
+			name: "default (unknown) phase renders empty context",
+			// arrange
+			setup: func(m topbar.Model) topbar.Model {
+				topbar.SetPhase(&m, topbar.Phase(99))
+
+				return m
+			},
+			// assert
+			assert: func(t *testing.T, m topbar.Model) {
+				t.Helper()
+
+				view := m.View()
+
+				assert.NotContains(t, view.Content, "scanning for compose files")
+				assert.NotContains(t, view.Content, "disconnected")
+				assert.Contains(t, view.Content, "ogle")
+				assert.Contains(t, view.Content, "RECONNECTING")
+			},
+		},
+		{
+			name: "default (unknown) connection state renders empty status",
+			// arrange
+			setup: func(m topbar.Model) topbar.Model {
+				topbar.SetConnectState(&m, connection.ConnectState(99))
+
+				return m
+			},
+			// assert
+			assert: func(t *testing.T, m topbar.Model) {
+				t.Helper()
+
+				view := m.View()
+
+				assert.NotContains(t, view.Content, "RECONNECTING")
+				assert.NotContains(t, view.Content, "LIVE")
+				assert.NotContains(t, view.Content, "DISCONNECTED")
+				assert.Contains(t, view.Content, "ogle")
+				assert.Contains(t, view.Content, "scanning for compose files")
+			},
+		},
+		{
+			name: "brand zone marker present in View output",
+			// assert
+			assert: func(t *testing.T, m topbar.Model) {
+				t.Helper()
+
+				zm := topbar.GetZM(&m)
+				view := m.View()
+				zm.Scan(view.Content)
+
+				require.Eventually(t, func() bool {
+					zi := zm.Get(topbar.BrandZone)
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -280,9 +340,12 @@ func TestView(t *testing.T) {
 				m = tc.setup(m)
 			}
 
-			if tc.expectedResult == "" {
+			switch {
+			case tc.assert != nil:
+				tc.assert(t, m)
+			case tc.expectedResult == "":
 				assert.Empty(t, m.View().Content)
-			} else {
+			default:
 				assert.Contains(t, m.View().Content, tc.expectedResult)
 			}
 		})
