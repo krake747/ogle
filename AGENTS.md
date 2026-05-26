@@ -29,7 +29,6 @@ For deeper context the agent can pull on demand:
 | [docs/CONTEXT.md](./docs/CONTEXT.md) | Domain terminology — Service, Project, Dashboard, etc. |
 | [docs/arch.md](./docs/arch.md) | Package structure, dependency graph |
 | [docs/flows.md](./docs/flows.md) | State machines, screen transitions |
-| [docs/charm-ecosystem.md](./docs/charm-ecosystem.md) | Charm library compatibility notes |
 | [docs/TESTING.md](./docs/TESTING.md) | Unit test and UI model test conventions |
 | [docs/agents/issue-tracker.md](./docs/agents/issue-tracker.md) | GitHub issue tracker conventions |
 | [docs/agents/triage-labels.md](./docs/agents/triage-labels.md) | Triage role-to-label mapping |
