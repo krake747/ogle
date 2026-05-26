@@ -79,6 +79,42 @@ if tc.input != "" {
 - Generated via [mockery](https://vektra.github.io/mockery/). `MockFoo` in `mocks/` package.
 - Never edited manually. Kept even when unused — seam exists for future tests.
 
+### Hand-written fakes
+
+When mockery-generated mocks cannot produce the required behaviour (e.g. programmable channels, error injection for event loops), a hand-written fake is acceptable.
+
+- Define the fake as a package-level struct implementing the target interface.
+- Expose channels as public fields for direct injection in test cases.
+- Use `sync.Mutex` for thread-safe access to recorded call data.
+- Provide a constructor (`newFakeXxx`) that initialises channels.
+- The test file owns the fake — do not share across packages.
+
+```go
+type fakeFileWatcher struct {
+    eventsCh chan fsnotify.Event
+    errorsCh chan error
+    mu       sync.Mutex
+    addCalls []string
+    addErr   error
+    closeErr error
+    closed   bool
+}
+
+func newFakeFileWatcher() *fakeFileWatcher {
+    return &fakeFileWatcher{
+        eventsCh: make(chan fsnotify.Event),
+        errorsCh: make(chan error),
+    }
+}
+
+func (f *fakeFileWatcher) Close() error {
+    f.mu.Lock()
+    defer f.mu.Unlock()
+    f.closed = true
+    return f.closeErr
+}
+```
+
 ---
 
 ## UI model tests

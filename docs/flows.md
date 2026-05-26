@@ -60,6 +60,23 @@ message via `app.Update`'s dispatch logic.
 
 ---
 
+## Watcher Edge Case Behaviour
+
+The watcher (`internal/services/watcher`) handles several edge cases in its event loop:
+
+| Behaviour | Implementation |
+|---|---|
+| `Chmod` events filtered | `Chmod` events are ignored and do not trigger a scan |
+| Unknown filenames filtered | Events for files not in the known filename set are ignored |
+| Errors on errors channel | Logged at `slog.Warn` level; event processing continues unaffected |
+| `Close()` idempotency | Multiple `Close()` calls return `nil` after the first; `Next()` returns `nil` once closed |
+| Channel closure on events channel | The goroutine exits and the underlying fsnotify watcher is closed |
+| Extra file events with absent file | When an extra (non-known) file is monitored and the event fires but the file does not exist on disk, `Files` in the emitted message is empty |
+
+See `internal/services/watcher/service_test.go` for test coverage of each case.
+
+---
+
 ## Root Orchestrator (`internal/app/app.go`)
 
 The app manages three phases plus a cross-phase About overlay:
@@ -181,9 +198,9 @@ msg that triggers `app` to transition to `appWatching`
 | `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers appDashboard)               |
 | `DaemonConnected{}`              | `svcdocker.Connect`             | `topbar`, `servicepanel`, `servicehost`     |
 | `DaemonUnavailable{Err}`         | `svcdocker.Connect`             | `topbar` (starts retry countdown)           |
-| `DaemonTick{}`                   | daemon retry loop               | `topbar`, `servicepanel`                    |
-| `DaemonGraceExpired{}`           | daemon retry loop               | `topbar`, `servicepanel`                    |
-| `DaemonPoll{}`                   | daemon poll timer               | `svcdocker` (triggers connectivity check)   |
+| `DaemonTick{}`                   | `topbar.daemonTickCmd()` (1s `tea.Tick`)  | `topbar`                                    |
+| `DaemonGraceExpired{}`           | `topbar.Init()` (10s grace one-shot)     | `topbar`                                    |
+| `DaemonPoll{}`                   | `topbar.pollDaemonCmd()` (2s `tea.Tick`) | `topbar` (triggers `docker.Connect`)        |
 | `TopbarContext{Phase,File}`      | `app` (phase transition)        | `topbar`                                    |
 | `StatePollTick`                  | `servicepanel` (timer)          | `dashboard` (triggers `docker.Ps`)          |
 | `ServicesPolled{Runtimes,Err}`   | `docker.Ps`                     | `dashboard`, `carousel`, `accordion`        |
@@ -206,6 +223,39 @@ msg that triggers `app` to transition to `appWatching`
 | `DisplayStatus{Msg}`             | any component                   | `statusbar` (auto-clear after 3s)           |
 | `ClearStatusMsg{}`               | `statusbar` (timer)             | `statusbar`                                 |
 | `theme.Changed`                  | external (theme switcher)       | all components with theme pointer           |
+
+---
+
+## Topbar Daemon Lifecycle (`internal/ui/components/topbar`)
+
+The topbar manages a daemon connectivity state machine with three states and a grace period / retry loop:
+
+```text
+Connecting (initial)
+├── DaemonConnected         → Connected (clear retry, start health polling)
+└── DaemonGraceExpired      → Unavailable (set retry deadline = now + 10s, start 1s tick)
+    └── DaemonTick (each 1s)
+        ├── IsRetryDue      → Connecting (clear retry, fire docker.Connect)
+        └── not due         → daemonTickCmd (continue 1s tick)
+
+Connected
+├── DaemonUnavailable       → Unavailable (set retry deadline = now + 10s, start 1s tick)
+└── DaemonPoll (each 2s)    → docker.Connect (health check)
+
+Unavailable
+├── DaemonTick (each 1s)
+│   ├── IsRetryDue          → Connecting (fire docker.Connect)
+│   └── not due             → daemonTickCmd (continue 1s tick)
+├── DaemonConnected         → Connected (clear retry, start health polling)
+└── DaemonUnavailable       → update retry deadline (idempotent)
+```
+
+Key behaviours:
+- Grace period: 10 seconds from `Init()`; if no `DaemonConnected` arrives in that window, transitions to Unavailable
+- Retry: every 1 second after entering Unavailable; retry interval is 10 seconds (configurable via `connection.RetryInterval`)
+- Health polling: every 2 seconds when Connected; fires `DaemonPoll` which triggers `docker.Connect()` as a health check
+- The topbar renders the daemon status (Connecting/Connected/Unavailable) in the top-right of the application frame
+- The retry countdown is rendered by the topbar, not the Service Inspector
 
 ---
 
