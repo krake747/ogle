@@ -107,8 +107,7 @@ func TestParse(t *testing.T) { //nolint:funlen // table-driven test with multipl
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			s := parser.New()
-			s.SetReadFileFn(tc.readFileFn)
+			s := parser.New(parser.WithReadFile(tc.readFileFn))
 
 			project, err := s.Parse(tc.path)
 

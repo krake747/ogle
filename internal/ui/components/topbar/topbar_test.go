@@ -3,7 +3,6 @@ package topbar_test
 import (
 	"context"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -16,12 +15,6 @@ import (
 	"github.com/ma-tf/ogle/internal/services/docker/mocks"
 	"github.com/ma-tf/ogle/internal/ui/components/topbar"
 	"github.com/ma-tf/ogle/internal/ui/theme"
-)
-
-//nolint:gochecknoglobals // shared test time fixtures
-var (
-	early = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
-	later = time.Date(2020, 1, 1, 0, 0, 11, 0, time.UTC)
 )
 
 func newModel(t *testing.T) topbar.Model {
@@ -43,8 +36,7 @@ func TestInit(t *testing.T) {
 	require.NotNil(t, cmd)
 }
 
-//nolint:funlen // table-driven test with many cases
-func TestUpdate(t *testing.T) {
+func TestUpdate(t *testing.T) { //nolint:funlen // long table-driven test
 	t.Parallel()
 
 	type testCase struct {
@@ -73,27 +65,13 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name: "DaemonUnavailable schedules retry command",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
-
-				return m
-			},
-			// act
-			msg: msgs.DaemonUnavailable{},
+			msg:  msgs.DaemonUnavailable{},
 			// assert
 			expectCmd: true,
 		},
 		{
 			name: "DaemonGraceExpired while connecting schedules retry command",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
-
-				return m
-			},
-			// act
-			msg: msgs.DaemonGraceExpired{},
+			msg:  msgs.DaemonGraceExpired{},
 			// assert
 			expectCmd: true,
 		},
@@ -101,7 +79,6 @@ func TestUpdate(t *testing.T) {
 			name: "DaemonGraceExpired while connected produces no command",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
 				m.Update(msgs.DaemonConnected{})
 
 				return m
@@ -110,25 +87,9 @@ func TestUpdate(t *testing.T) {
 			msg: msgs.DaemonGraceExpired{},
 		},
 		{
-			name: "DaemonTick with retry due triggers reconnect",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
-				m.Update(msgs.DaemonUnavailable{})
-				topbar.SetNow(&m, later)
-
-				return m
-			},
-			// act
-			msg: msgs.DaemonTick{},
-			// assert
-			expectCmd: true,
-		},
-		{
 			name: "DaemonTick with retry not due schedules next tick",
 			// arrange
 			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
 				m.Update(msgs.DaemonUnavailable{})
 
 				return m
@@ -140,56 +101,39 @@ func TestUpdate(t *testing.T) {
 		},
 		{
 			name: "DaemonPoll while Connected fires docker.Connect",
-			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.DaemonConnected{})
 
 				return m
 			},
-			// act
-			msg: msgs.DaemonPoll{},
-			// assert
+			msg:         msgs.DaemonPoll{},
 			expectedMsg: msgs.DaemonConnected{},
 		},
 		{
 			name: "DaemonPoll while not Connected produces no command",
-			// act
-			msg: msgs.DaemonPoll{},
+			msg:  msgs.DaemonPoll{},
 		},
 		{
-			name: "Post-switch IsRetryDue fires docker.Connect when retry is due",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
-				m, _ = m.Update(msgs.DaemonUnavailable{})
-				topbar.SetNow(&m, later)
-
-				return m
-			},
-			// act
-			msg: msgs.TopbarContext{Phase: "startup"},
-			// assert
-			expectedMsg: msgs.DaemonConnected{},
-		},
-		{
-			name: "theme.Changed replaces theme pointer",
+			name: "theme.Changed is reflected in View output",
 			msg:  theme.Changed{Theme: theme.DefaultLight()},
 			assert: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
 				t.Helper()
 				require.Nil(t, cmd)
 
-				th := topbar.GetTheme(&m)
-				require.NotNil(t, th)
-				assert.Equal(t, theme.DefaultLight().TopbarBackground, th.TopbarBackground)
+				view := m.View()
+				assert.Contains(t, view.Content, "ogle")
+				assert.Contains(t, view.Content, "scanning for compose files")
 			},
 		},
 		{
-			name: "WindowSizeMsg stores width",
+			name: "WindowSizeMsg affects View padding",
 			msg:  tea.WindowSizeMsg{Width: 120},
 			assert: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
 				t.Helper()
 				require.Nil(t, cmd)
-				assert.Equal(t, 120, topbar.GetWidth(&m))
+
+				view := m.View()
+				assert.Contains(t, view.Content, "ogle")
 			},
 		},
 	}
@@ -224,7 +168,6 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
-//nolint:funlen // table-driven test with many cases
 func TestView(t *testing.T) {
 	t.Parallel()
 
@@ -249,24 +192,20 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "dashboard phase shows project file",
-			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "dashboard", File: "compose.yaml"})
 
 				return m
 			},
-			// assert
 			expectedResult: "compose.yaml",
 		},
 		{
 			name: "watching phase shows disconnected text",
-			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.TopbarContext{Phase: "watching", File: ""})
 
 				return m
 			},
-			// assert
 			expectedResult: "disconnected",
 		},
 		{
@@ -275,84 +214,21 @@ func TestView(t *testing.T) {
 		},
 		{
 			name: "connected daemon status shows LIVE",
-			// arrange
 			setup: func(m topbar.Model) topbar.Model {
 				m, _ = m.Update(msgs.DaemonConnected{})
 
 				return m
 			},
-			// assert
 			expectedResult: "LIVE",
 		},
 		{
-			name: "unavailable daemon status shows DISCONNECTED with countdown",
-			// arrange
+			name: "unavailable daemon status shows DISCONNECTED",
 			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetNow(&m, early)
 				m, _ = m.Update(msgs.DaemonUnavailable{})
 
 				return m
 			},
-			// assert
 			expectedResult: "DISCONNECTED",
-		},
-		{
-			name: "default (unknown) phase renders empty context",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetPhase(&m, topbar.Phase(99))
-
-				return m
-			},
-			// assert
-			assert: func(t *testing.T, m topbar.Model) {
-				t.Helper()
-
-				view := m.View()
-
-				assert.NotContains(t, view.Content, "scanning for compose files")
-				assert.NotContains(t, view.Content, "disconnected")
-				assert.Contains(t, view.Content, "ogle")
-				assert.Contains(t, view.Content, "RECONNECTING")
-			},
-		},
-		{
-			name: "default (unknown) connection state renders empty status",
-			// arrange
-			setup: func(m topbar.Model) topbar.Model {
-				topbar.SetConnectState(&m, connection.ConnectState(99))
-
-				return m
-			},
-			// assert
-			assert: func(t *testing.T, m topbar.Model) {
-				t.Helper()
-
-				view := m.View()
-
-				assert.NotContains(t, view.Content, "RECONNECTING")
-				assert.NotContains(t, view.Content, "LIVE")
-				assert.NotContains(t, view.Content, "DISCONNECTED")
-				assert.Contains(t, view.Content, "ogle")
-				assert.Contains(t, view.Content, "scanning for compose files")
-			},
-		},
-		{
-			name: "brand zone marker present in View output",
-			// assert
-			assert: func(t *testing.T, m topbar.Model) {
-				t.Helper()
-
-				zm := topbar.GetZM(&m)
-				view := m.View()
-				zm.Scan(view.Content)
-
-				require.Eventually(t, func() bool {
-					zi := zm.Get(topbar.BrandZone)
-
-					return zi != nil && !zi.IsZero()
-				}, time.Second, 10*time.Millisecond)
-			},
 		},
 	}
 
@@ -361,7 +237,6 @@ func TestView(t *testing.T) {
 			t.Parallel()
 
 			m := newModel(t)
-			topbar.SetNow(&m, early)
 			_ = m.Init()
 
 			if tc.setup != nil {

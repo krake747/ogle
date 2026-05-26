@@ -50,7 +50,6 @@ type Model struct {
 	zm          *zone.Manager
 	width       int
 	ctx         context.Context
-	now         func() time.Time
 }
 
 // New returns a Model in PhaseStartup with no project file.
@@ -71,7 +70,6 @@ func New(
 		th:          th,
 		zm:          zm,
 		width:       0,
-		now:         func() time.Time { return time.Now().UTC() },
 	}
 }
 
@@ -116,18 +114,18 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		cmds = append(cmds, pollDaemonCmd())
 
 	case msgs.DaemonUnavailable:
-		m.conn.HandleUnavailable(m.now())
+		m.conn.HandleUnavailable(time.Now().UTC())
 
 		cmds = append(cmds, daemonTickCmd())
 
 	case msgs.DaemonGraceExpired:
-		if m.conn.HandleGracePeriodExpired(m.now()) {
+		if m.conn.HandleGracePeriodExpired(time.Now().UTC()) {
 			cmds = append(cmds, daemonTickCmd())
 		}
 
 	case msgs.DaemonTick:
 		if m.conn.ConnectState() == connection.ConnectStateUnavailable {
-			if m.conn.IsRetryDue(m.now()) {
+			if m.conn.IsRetryDue(time.Now().UTC()) {
 				cmds = append(cmds, m.docker.Connect(m.ctx))
 			} else {
 				cmds = append(cmds, daemonTickCmd())
@@ -147,7 +145,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 	}
 
-	if m.conn.IsRetryDue(m.now()) {
+	if m.conn.IsRetryDue(time.Now().UTC()) {
 		cmds = append(cmds, m.docker.Connect(m.ctx))
 	}
 

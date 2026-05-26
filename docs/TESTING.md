@@ -209,3 +209,11 @@ if tt.expectedResult == "" {
 
 - All dependencies as constructor parameters.
 - No model constructs infrastructure internally. `app.go` exempted.
+
+### Export surface
+
+- Model structs expose only `New()`, `Init()`, `Update()`, `View()`. No other exported methods on the model struct.
+
+### Package boundary
+
+- Black-box only: Tests must use `package foo_test`. No white-box accessors, no exported for-testing functions on production types. Dependencies controllable via constructor injection only.

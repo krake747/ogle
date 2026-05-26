@@ -100,8 +100,3 @@ func (cm *Machine) Remaining() time.Duration {
 
 	return d
 }
-
-// SetConnectState sets the connection state directly. Intended for testing.
-func SetConnectState(cm *Machine, s ConnectState) {
-	cm.state = s
-}

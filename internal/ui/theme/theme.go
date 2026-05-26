@@ -85,8 +85,8 @@ type Theme struct {
 	BodyBackground                 color.Color // background fill behind body content
 }
 
-// userThemeFile is the YAML schema for a user-defined theme override file.
-type userThemeFile struct {
+// UserThemeFile is the YAML schema for a user-defined theme override file.
+type UserThemeFile struct {
 	Base                                string `yaml:"base"`
 	BorderFocusedColor                  string `yaml:"borderFocusedColor"`
 	BorderBlurredColor                  string `yaml:"borderBlurredColor"`
@@ -145,7 +145,7 @@ func Load(name, configDir string) (*Theme, error) {
 
 	data, err := os.ReadFile(path)
 	if err == nil {
-		var f userThemeFile
+		var f UserThemeFile
 		if yamlErr := yaml.Unmarshal(data, &f); yamlErr != nil {
 			return Default(), fmt.Errorf("parse theme file %q: %w", path, yamlErr)
 		}
@@ -155,7 +155,7 @@ func Load(name, configDir string) (*Theme, error) {
 			base = Default()
 		}
 
-		return applyOverrides(base, f), nil
+		return ApplyOverrides(base, f), nil
 	}
 
 	t := builtinByName(name)
@@ -189,7 +189,8 @@ func builtinByName(name string) *Theme {
 	}
 }
 
-func applyOverrides(t *Theme, f userThemeFile) *Theme {
+// ApplyOverrides applies user-defined override values from f to a copy of t.
+func ApplyOverrides(t *Theme, f UserThemeFile) *Theme {
 	result := *t
 
 	applyStyleOverrides(&result, f)
@@ -198,7 +199,7 @@ func applyOverrides(t *Theme, f userThemeFile) *Theme {
 	return &result
 }
 
-func applyStyleOverrides(result *Theme, f userThemeFile) {
+func applyStyleOverrides(result *Theme, f UserThemeFile) {
 	if f.BorderFocusedColor != "" {
 		result.BorderFocused = result.BorderFocused.BorderForeground(
 			lipgloss.Color(f.BorderFocusedColor),
@@ -235,7 +236,7 @@ type colorOverride struct {
 	dst   *color.Color
 }
 
-func applyColorOverrides(result *Theme, f userThemeFile) {
+func applyColorOverrides(result *Theme, f UserThemeFile) {
 	overrides := []colorOverride{
 		{field: f.HelpBackgroundColor, dst: &result.HelpBackground},
 		{field: f.ServiceListBackgroundColor, dst: &result.ServiceListBackground},

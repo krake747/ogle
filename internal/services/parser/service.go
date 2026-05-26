@@ -28,6 +28,16 @@ const (
 
 var _ Parser = Service{} //nolint:exhaustruct // readFileFn set by New
 
+// Option configures a Service.
+type Option func(*Service)
+
+// WithReadFile sets the readFileFn on a Service. Useful in tests.
+func WithReadFile(fn func(string) ([]byte, error)) Option {
+	return func(s *Service) {
+		s.readFileFn = fn
+	}
+}
+
 // Parser validates and parses Compose Files into Projects.
 //
 //mockery:generate: true
@@ -48,17 +58,20 @@ type composeFile struct {
 }
 
 // Service exposes compose file validation and parsing.
-//
-//nolint:recvcheck // pointer receiver only on test helper in export_test.go
 type Service struct {
 	readFileFn func(string) ([]byte, error)
 }
 
-// New constructs a Service.
-func New() Service {
-	return Service{
+// New constructs a Service with the given options.
+func New(opts ...Option) Service {
+	s := Service{
 		readFileFn: os.ReadFile,
 	}
+	for _, opt := range opts {
+		opt(&s)
+	}
+
+	return s
 }
 
 // Parse reads and parses the compose file at path into a Project. path must
@@ -87,7 +100,7 @@ func (s Service) Parse(path string) (*domain.Project, error) {
 			Image:         svc.Image,
 			ContainerName: svc.ContainerName,
 			Labels:        svc.Labels,
-			Ports:         normalizePorts(svc.Ports),
+			Ports:         NormalizePorts(svc.Ports),
 		})
 	}
 
@@ -116,10 +129,10 @@ func (s Service) readAndUnmarshal(path string) (composeFile, error) {
 	return cf, nil
 }
 
-// normalizePorts converts Docker Compose port declarations into normalised
+// NormalizePorts converts Docker Compose port declarations into normalised
 // display format "host→container/protocol". Returns an empty slice if ports
 // is nil or empty.
-func normalizePorts(ports []any) []string {
+func NormalizePorts(ports []any) []string {
 	if len(ports) == 0 {
 		return nil
 	}
@@ -129,27 +142,27 @@ func normalizePorts(ports []any) []string {
 		switch v := p.(type) {
 		case string:
 			// Short form: "8080:80", "8080:80/tcp", "127.0.0.1:8080:80/tcp", "80", etc.
-			result = append(result, normalizeShortPort(v))
+			result = append(result, NormalizeShortPort(v))
 		case map[string]any:
 			// Long form: {target: 80, published: 8080, protocol: tcp}
-			result = append(result, normalizeLongPort(v))
+			result = append(result, NormalizeLongPort(v))
 		}
 	}
 
 	return result
 }
 
-// normalizeShortPort converts a short-form port string to "host→container/proto" format.
+// NormalizeShortPort converts a short-form port string to "host→container/proto" format.
 // Handles: "8080:80", "8080:80/tcp", "127.0.0.1:8080:80/tcp", "80", etc.
-func normalizeShortPort(s string) string {
+func NormalizeShortPort(s string) string {
 	// Strip bind address (e.g., "127.0.0.1:8080:80/tcp" → "8080:80/tcp")
-	parts := splitByColon(s)
+	parts := SplitByColon(s)
 	protocol := "tcp" // default
 
 	// Check if the last part contains a protocol
 	if len(parts) > 0 {
 		lastPart := parts[len(parts)-1]
-		if idx := findSlash(lastPart); idx >= 0 {
+		if idx := FindSlash(lastPart); idx >= 0 {
 			protocol = lastPart[idx+1:]
 			parts[len(parts)-1] = lastPart[:idx]
 		}
@@ -174,8 +187,8 @@ func normalizeShortPort(s string) string {
 	return s
 }
 
-// normalizeLongPort converts a long-form port object to "host→container/proto" format.
-func normalizeLongPort(m map[string]any) string {
+// NormalizeLongPort converts a long-form port object to "host→container/proto" format.
+func NormalizeLongPort(m map[string]any) string {
 	protocol := "tcp"
 	if p, ok := m["protocol"].(string); ok && p != "" {
 		protocol = p
@@ -206,8 +219,8 @@ func normalizeLongPort(m map[string]any) string {
 	return "→" + container + "/" + protocol
 }
 
-// splitByColon splits a string by colons. Simple helper to avoid importing strings unnecessarily.
-func splitByColon(s string) []string {
+// SplitByColon splits a string by colons. Simple helper to avoid importing strings unnecessarily.
+func SplitByColon(s string) []string {
 	var (
 		result  []string
 		current string
@@ -227,8 +240,8 @@ func splitByColon(s string) []string {
 	return result
 }
 
-// findSlash returns the index of the first '/' in s, or -1 if not found.
-func findSlash(s string) int {
+// FindSlash returns the index of the first '/' in s, or -1 if not found.
+func FindSlash(s string) int {
 	for i, ch := range s {
 		if ch == '/' {
 			return i
