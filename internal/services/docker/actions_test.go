@@ -144,8 +144,7 @@ func TestActions(t *testing.T) { //nolint:funlen // table-driven with 4 actions
 			composeFile := filepath.Join(t.TempDir(), "compose.yaml")
 
 			fc := &fakeCommander{}
-			s := svcdocker.New()
-			s.SetCommander(fc)
+			s := svcdocker.New(svcdocker.WithCommander(fc))
 
 			ctx := context.Background()
 			teaCmd := tc.runAction(ctx, s, composeFile, tc.projectName, tc.serviceName)

@@ -31,16 +31,32 @@ type Docker interface {
 	Rebuild(ctx context.Context, composeFile, projectName, serviceName string) tea.Cmd
 }
 
+// Option configures a Service.
+type Option func(*Service)
+
+// WithCommander sets the commander on a Service for testing.
+func WithCommander(c Commander) Option {
+	return func(s *Service) {
+		s.commander = c
+	}
+}
+
 // Service implements Docker using the Docker Unix socket and docker compose CLI.
 type Service struct {
 	commander Commander
 }
 
 // New returns a Service ready for use.
-func New() *Service {
-	return &Service{
+func New(opts ...Option) *Service {
+	s := &Service{
 		commander: realCommander{},
 	}
+
+	for _, opt := range opts {
+		opt(s)
+	}
+
+	return s
 }
 
 var _ Docker = (*Service)(nil)

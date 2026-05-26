@@ -46,7 +46,7 @@ func (s *Service) Ps(ctx context.Context, composeFile, projectName string) tea.C
 			}
 		}
 
-		runtimes, err := parsePsOutput(out)
+		runtimes, err := ParsePsOutput(out)
 		if err != nil {
 			return msgs.ServicesPolled{
 				Runtimes: nil,
@@ -58,9 +58,9 @@ func (s *Service) Ps(ctx context.Context, composeFile, projectName string) tea.C
 	}
 }
 
-// parsePsOutput parses the JSON-lines output of "docker compose ps --format json"
+// ParsePsOutput parses the JSON-lines output of "docker compose ps --format json"
 // into a map keyed by service name.
-func parsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
+func ParsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
 	runtimes := make(map[string]*domain.ServiceRuntimeData)
 
 	lines := bytes.Split(bytes.TrimSpace(data), []byte("\n"))
@@ -83,7 +83,7 @@ func parsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
 
 		runtimes[name] = &domain.ServiceRuntimeData{
 			ContainerID: entry.ID,
-			State:       parseState(entry.State),
+			State:       ParseState(entry.State),
 			Status:      entry.Status,
 			CreatedAt:   createdAt,
 		}
@@ -92,7 +92,8 @@ func parsePsOutput(data []byte) (map[string]*domain.ServiceRuntimeData, error) {
 	return runtimes, nil
 }
 
-func parseState(s string) domain.ServiceState {
+// ParseState maps a Docker container state string to a domain.ServiceState.
+func ParseState(s string) domain.ServiceState {
 	switch s {
 	case "running":
 		return domain.ServiceStateRunning
