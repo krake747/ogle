@@ -103,8 +103,11 @@ _Avoid_: Command (overloaded in the Bubble Tea runtime context), operation
 **Settings**:
 An in-session overlay that lets the user adjust configuration values (e.g., theme, log buffer cap) without
 leaving the TUI or editing the Config File. Rendered as a full-terminal compositor layer over the Dashboard, which
-remains live underneath. Changes take effect for the current session; persistence to the Config File is a separate
-action.
+remains live underneath. Changes take effect immediately and are persisted to the Config File on every field
+adjustment via `config.Save`. Theme selection supports 8 built-in names: `default`, `default_light`,
+`catppuccino_frappe`, `catppuccino_latte`, `catppuccino_macchiato`, `catppuccino_mocha`, `solarized_dark`,
+`solarized_light`. Users can also drop custom theme files at `~/.ogle/themes/<name>.yaml` that override a built-in
+base theme. Navigate fields with ↑/↓, adjust values with ←/→.
 _Avoid_: Config, preferences — also distinct from instant keybinding toggles (e.g., Orphan Toggle) which take effect
 immediately with no overlay
 

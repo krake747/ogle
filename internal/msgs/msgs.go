@@ -134,8 +134,8 @@ type ServicesPolled struct {
 }
 
 type (
-	// SettingsApplied is emitted by states.Settings when the user confirms changes.
-	// app.Model handles it to persist config and emit ThemeChanged.
+	// SettingsApplied is emitted by the settings component on every field adjustment.
+	// app.Model handles it to load the theme, persist config, and emit ThemeChanged.
 	SettingsApplied struct {
 		Theme        string
 		LogBufferCap int

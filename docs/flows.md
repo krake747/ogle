@@ -82,9 +82,9 @@ See `internal/services/watcher/service_test.go` for test coverage of each case.
 The app manages three phases plus a cross-phase About overlay:
 
 ```text
-appStartup    — startup flow is the active sub-model
-appDashboard  — dashboard flow is active (post-ProjectLoaded)
-appWatching   — watching flow is active (disconnected, waiting for file to reappear)
+phaseStartup    — startup flow is the active sub-model
+phaseDashboard  — dashboard flow is active (post-ProjectLoaded)
+phaseWatching   — watching flow is active (disconnected, waiting for file to reappear)
 ```
 
 The About overlay is a cross-phase UI layer that can be opened from any phase via F1 or
@@ -109,9 +109,13 @@ path directly.
 app.Update(msg)
 ├── msgs.ProjectLoaded           → transition startup → dashboard
 ├── msgs.FileAvailabilityChanged → re-subscribe watcher, dispatch to startup or dashboard
+├── msgs.FileRemoved             → transition to phaseWatching, emit TopbarContext
+├── msgs.DisplayError            → forward to statusbar (auto-clear after 3s)
+├── msgs.DisplayStatus           → forward to statusbar (auto-clear after 3s)
+├── msgs.ClearStatusMsg          → forward to statusbar
 ├── tea.WindowSizeMsg            → forward to active sub-model
 ├── theme.Changed                → update pointer, forward to active sub-model
-├── msgs.SettingsApplied         → update config, forward to dashboard
+├── msgs.SettingsApplied         → load theme, update config, save config, emit theme.Changed (not forwarded)
 ├── tea.KeyPressMsg              → handleKeyPress (help toggle ?, about overlay F1/esc/q, quit, profile)
 ├── tea.MouseClickMsg            → handleMouseClick (brand zone → about overlay)
 ├── msgs.AboutVisibilityChanged  → track showingAbout flag
@@ -214,7 +218,7 @@ msg that triggers `app` to transition to `appWatching`
 | `LogStreamContainerNotFound`     | `LogStreamer`                   | `servicehost` (closes streamer, schedules retry via `tea.Tick(2s, LogStreamRetryTick{})`) |
 | `LogStreamRetryTick{}`           | `servicehost` (timer)           | `servicehost` (restarts streamer after error) |
 | `ServiceSelected{ServiceName}`   | `carousel` (hover/focus)        | `dashboard`, `accordion`, `servicehost`     |
-| `SettingsApplied{Theme,LBCap}`   | `settings`                      | `dashboard`                                 |
+| `SettingsApplied{Theme,LBCap}`   | `settings`                      | `app` (loads theme, saves config, emits `theme.Changed`)                |
 | `SettingsVisibilityChanged`      | `settings`                      | `dashboard`                                 |
 | `AboutVisibilityChanged{Visible}`| `app`                           | `app` (tracks showingAbout flag)            |
 | `ToggleLogWrap`                  | `dashboard` (keybinding)        | `logpane`                                   |
