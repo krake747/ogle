@@ -103,24 +103,43 @@ func TestRender(t *testing.T) {
 
 	th := theme.DefaultLight()
 
+	fixture := func(t *testing.T) (hoverlist.Delegate, list.Model, []list.Item, *zone.Manager) {
+		t.Helper()
+
+		base := list.NewDefaultDelegate()
+		base.ShowDescription = false
+		zm := zone.New()
+		items := []list.Item{
+			testItem{title: titleAlpha},
+			testItem{title: titleBeta},
+		}
+		d := hoverlist.NewDelegate(base, th, zm)
+		m := list.New(items, d, testWidth, testHeight)
+
+		return d, m, items, zm
+	}
+
 	type testCase struct {
-		name   string
-		setup  func(d hoverlist.Delegate)
-		index  int
-		assert func(t *testing.T, rendered string, zm *zone.Manager)
+		name string
+		// arrange
+		setup func(d hoverlist.Delegate)
+		index int
+
+		// assert
+		expectedAssert func(t *testing.T, rendered string, zm *zone.Manager)
 	}
 
 	cases := []testCase{
 		{
 			name:  "normal and selected items render differently",
 			index: 1,
-			assert: func(t *testing.T, rendered string, _ *zone.Manager) {
+			expectedAssert: func(t *testing.T, rendered string, _ *zone.Manager) {
 				t.Helper()
 
-				d, m, items, _ := newRenderFixture(t, th)
+				d2, m2, items2, _ := fixture(t)
 
 				var selectedBuf strings.Builder
-				d.Render(&selectedBuf, m, 0, items[0])
+				d2.Render(&selectedBuf, m2, 0, items2[0])
 
 				assert.NotEqual(t, selectedBuf.String(), rendered,
 					"selected and normal items should render differently")
@@ -132,13 +151,13 @@ func TestRender(t *testing.T) {
 				d.SetHover(0)
 			},
 			index: 0,
-			assert: func(t *testing.T, rendered string, _ *zone.Manager) {
+			expectedAssert: func(t *testing.T, rendered string, _ *zone.Manager) {
 				t.Helper()
 
-				d, m, items, _ := newRenderFixture(t, th)
+				d2, m2, items2, _ := fixture(t)
 
 				var normalBuf strings.Builder
-				d.Render(&normalBuf, m, 0, items[0])
+				d2.Render(&normalBuf, m2, 0, items2[0])
 
 				assert.NotEqual(t, normalBuf.String(), rendered,
 					"hovered item should differ from non-hovered item")
@@ -147,7 +166,7 @@ func TestRender(t *testing.T) {
 		{
 			name:  "produces bubblezone-marked output",
 			index: 0,
-			assert: func(t *testing.T, rendered string, zm *zone.Manager) {
+			expectedAssert: func(t *testing.T, rendered string, zm *zone.Manager) {
 				t.Helper()
 
 				zm.Scan(rendered)
@@ -165,7 +184,7 @@ func TestRender(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			d, m, items, zm := newRenderFixture(t, th)
+			d, m, items, zm := fixture(t)
 
 			if tc.setup != nil {
 				tc.setup(d)
@@ -174,25 +193,7 @@ func TestRender(t *testing.T) {
 			var buf strings.Builder
 			d.Render(&buf, m, tc.index, items[tc.index])
 
-			tc.assert(t, buf.String(), zm)
+			tc.expectedAssert(t, buf.String(), zm)
 		})
 	}
-}
-
-func newRenderFixture(t *testing.T, th *theme.Theme) (
-	hoverlist.Delegate, list.Model, []list.Item, *zone.Manager,
-) {
-	t.Helper()
-
-	base := list.NewDefaultDelegate()
-	base.ShowDescription = false
-	zm := zone.New()
-	items := []list.Item{
-		testItem{title: titleAlpha},
-		testItem{title: titleBeta},
-	}
-	d := hoverlist.NewDelegate(base, th, zm)
-	m := list.New(items, d, testWidth, testHeight)
-
-	return d, m, items, zm
 }

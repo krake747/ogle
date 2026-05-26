@@ -68,6 +68,15 @@ constructed via `NewMockFoo(t)` which registers assertion cleanup
 automatically. Live in a `mocks/` subdirectory per package (e.g.
 `internal/services/parser/mocks/`). Do not edit generated mock files manually.
 
+**Hand-written fakes:** when mockery-generated mocks cannot produce the
+required behaviour (e.g. programmable channels, error injection for event
+loops), a hand-written fake is acceptable. The fake implements the target
+interface with public channel fields for direct injection and a `sync.Mutex`
+for thread-safe call recording. A constructor (`newFakeXxx`) initialises
+channels. The fake is defined in the test file and is not shared across
+packages. See `fakeFileWatcher` in `internal/services/watcher/service_test.go`
+for a canonical example.
+
 ## Consequences
 
 - All test cases for a given function are visible in one place with no

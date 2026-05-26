@@ -166,7 +166,7 @@ _Avoid_: Offline, paused, suspended
 
 **Docker Unavailable**:
 The condition where the Docker daemon cannot be reached at runtime — distinct from **Disconnected**, which refers to the
-Compose File disappearing. When Docker Unavailable, the Service Inspector shows a placeholder with a live retry
+Compose File disappearing. When Docker Unavailable, the topbar shows a placeholder with a live retry
 countdown; Service States freeze at last-known values; Service Actions are disabled. ogle retries automatically.
 _Avoid_: Disconnected (reserved for the Compose File disappearing), daemon unreachable
 
@@ -187,7 +187,7 @@ UI. Service Actions are disabled when **Docker Unavailable**.
 - When the Compose File changes on disk, **Live Reload** updates the Project without leaving the Dashboard.
 - When the Compose File disappears at runtime, the Dashboard enters the **Disconnected** state and waits for that
 specific file to reappear.
-- When the Docker daemon becomes unreachable, the Dashboard enters **Docker Unavailable**: the **Service Inspector**
+- When the Docker daemon becomes unreachable, the Dashboard enters **Docker Unavailable**: the **topbar**
 shows a retry countdown and Service States freeze at last-known values. ogle retries automatically.
 - An **Orphan** appears alongside Services in the Dashboard but is not part of the Project. The **Orphan Toggle**
 controls whether Orphans are shown.

@@ -200,10 +200,13 @@ func TestRun_ErrorReceived(t *testing.T) {
 func TestRun_FilteredEvents(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name  string
+	type testCase struct {
+		name string
+		// arrange
 		event fsnotify.Event
-	}{
+	}
+
+	cases := []testCase{
 		{
 			name:  "Chmod",
 			event: fsnotify.Event{Name: knownFilePath, Op: fsnotify.Chmod},
@@ -214,7 +217,7 @@ func TestRun_FilteredEvents(t *testing.T) {
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
