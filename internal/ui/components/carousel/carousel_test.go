@@ -2,6 +2,7 @@ package carousel_test
 
 import (
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	zone "github.com/lrstanley/bubblezone/v2"
@@ -15,7 +16,10 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const svcAlpha = "svc-alpha"
+const (
+	svcAlpha = "svc-alpha"
+	zoneDot0 = "carousel-dot-0"
+)
 
 func testServices3() []domain.ServiceDef {
 	return []domain.ServiceDef{{Name: svcAlpha}, {Name: "svc-beta"}, {Name: "svc-gamma"}}
@@ -374,6 +378,281 @@ func TestView(t *testing.T) {
 			} else {
 				assert.Contains(t, m.View().Content, tc.expectedResult)
 			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestUpdateMouseClick
+// ---------------------------------------------------------------------------
+
+func TestUpdateMouseClick(t *testing.T) { //nolint:funlen // table-driven test
+	t.Parallel()
+
+	type testCase struct {
+		name     string
+		services []domain.ServiceDef
+		zoneName string // zone to click; when empty, use msg directly
+		setup    func(zm *zone.Manager, m carousel.Model) carousel.Model
+		msg      tea.Msg
+		assert   func(t *testing.T, m carousel.Model, cmd tea.Cmd)
+	}
+
+	cases := []testCase{
+		{
+			name:     "dot hit with different page changes page and focuses first card",
+			services: testServices8(),
+			zoneName: "carousel-dot-1",
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				batch, ok := msg.(tea.BatchMsg)
+				require.True(t, ok)
+				require.Len(t, batch, 2)
+
+				focusMsg, ok := batch[0]().(card.FocusMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", focusMsg.ServiceName)
+
+				selMsg, ok := batch[1]().(msgs.ServiceSelected)
+				require.True(t, ok)
+				assert.Equal(t, "svc-g", selMsg.ServiceName)
+			},
+		},
+		{
+			name:     "card hit emits focus change",
+			services: testServices3(),
+			zoneName: "carousel-card-1",
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				batch, ok := msg.(tea.BatchMsg)
+				require.True(t, ok)
+				require.Len(t, batch, 3)
+
+				blurMsg, ok := batch[0]().(card.BlurMsg)
+				require.True(t, ok)
+				assert.Equal(t, svcAlpha, blurMsg.ServiceName)
+
+				focusMsg, ok := batch[1]().(card.FocusMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-beta", focusMsg.ServiceName)
+
+				selMsg, ok := batch[2]().(msgs.ServiceSelected)
+				require.True(t, ok)
+				assert.Equal(t, "svc-beta", selMsg.ServiceName)
+			},
+		},
+		{
+			name:     "same dot no-ops",
+			services: testServices8(),
+			zoneName: zoneDot0,
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.Nil(t, cmd)
+			},
+		},
+		{
+			name:     "miss returns nil cmd",
+			services: testServices3(),
+			msg:      tea.MouseClickMsg{X: -1, Y: -1, Button: tea.MouseLeft},
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.Nil(t, cmd)
+			},
+		},
+		{
+			name:     "double click on card emits ServiceStart",
+			services: testServices3(),
+			zoneName: "carousel-card-0",
+			setup: func(zm *zone.Manager, m carousel.Model) carousel.Model {
+				require.Eventually(t, func() bool {
+					zi := zm.Get("carousel-card-0")
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+
+				zi := zm.Get("carousel-card-0")
+				m, _ = m.Update(tea.MouseClickMsg{
+					X: zi.StartX, Y: zi.StartY,
+					Button: tea.MouseLeft,
+				})
+
+				return m
+			},
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				startMsg, ok := msg.(msgs.ServiceStart)
+				require.True(t, ok)
+				assert.Equal(t, svcAlpha, startMsg.ServiceName)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			zm := zone.New()
+			m := carousel.New(&domain.Project{Services: tc.services}, 100, 50, theme.Default(), zm)
+
+			view := m.View()
+			zm.Scan(view.Content)
+
+			if tc.setup != nil {
+				m = tc.setup(zm, m)
+			}
+
+			msg := tc.msg
+			if msg == nil {
+				require.Eventually(t, func() bool {
+					zi := zm.Get(tc.zoneName)
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+
+				zi := zm.Get(tc.zoneName)
+				msg = tea.MouseClickMsg{
+					X: zi.StartX, Y: zi.StartY,
+					Button: tea.MouseLeft,
+				}
+			}
+
+			_, cmd := m.Update(msg)
+			tc.assert(t, m, cmd)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestUpdateMouseMotion
+// ---------------------------------------------------------------------------
+
+func TestUpdateMouseMotion(t *testing.T) { //nolint:funlen // table-driven test
+	t.Parallel()
+
+	type testCase struct {
+		name     string
+		services []domain.ServiceDef
+		zoneName string // zone to target; when empty, use msg directly
+		setup    func(zm *zone.Manager, m carousel.Model) carousel.Model
+		msg      tea.Msg
+		assert   func(t *testing.T, m carousel.Model, cmd tea.Cmd)
+	}
+
+	cases := []testCase{
+		{
+			name:     "dot hit sets hoveredDot",
+			services: testServices8(),
+			zoneName: zoneDot0,
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.Nil(t, cmd)
+			},
+		},
+		{
+			name:     "card hit emits HoverMsg",
+			services: testServices3(),
+			zoneName: "carousel-card-0",
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				hvMsg, ok := msg.(card.HoverMsg)
+				require.True(t, ok)
+				assert.Equal(t, svcAlpha, hvMsg.ServiceName)
+			},
+		},
+		{
+			name:     "miss after card hover emits UnhoverMsg",
+			services: testServices3(),
+			setup: func(zm *zone.Manager, m carousel.Model) carousel.Model {
+				require.Eventually(t, func() bool {
+					zi := zm.Get("carousel-card-0")
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+
+				zi := zm.Get("carousel-card-0")
+				m, _ = m.Update(tea.MouseMotionMsg{X: zi.StartX, Y: zi.StartY})
+
+				return m
+			},
+			msg: tea.MouseMotionMsg{X: -1, Y: -1},
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				uhMsg, ok := msg.(card.UnhoverMsg)
+				require.True(t, ok)
+				assert.Equal(t, svcAlpha, uhMsg.ServiceName)
+			},
+		},
+		{
+			name:     "dot hit after card hover emits UnhoverMsg",
+			services: testServices8(),
+			setup: func(zm *zone.Manager, m carousel.Model) carousel.Model {
+				require.Eventually(t, func() bool {
+					zi := zm.Get("carousel-card-0")
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+
+				zi := zm.Get("carousel-card-0")
+				m, _ = m.Update(tea.MouseMotionMsg{X: zi.StartX, Y: zi.StartY})
+
+				return m
+			},
+			zoneName: zoneDot0,
+			assert: func(t *testing.T, _ carousel.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.NotNil(t, cmd)
+
+				msg := cmd()
+				uhMsg, ok := msg.(card.UnhoverMsg)
+				require.True(t, ok)
+				assert.Equal(t, "svc-a", uhMsg.ServiceName)
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			zm := zone.New()
+			m := carousel.New(&domain.Project{Services: tc.services}, 100, 50, theme.Default(), zm)
+
+			view := m.View()
+			zm.Scan(view.Content)
+
+			if tc.setup != nil {
+				m = tc.setup(zm, m)
+			}
+
+			msg := tc.msg
+			if msg == nil {
+				require.Eventually(t, func() bool {
+					zi := zm.Get(tc.zoneName)
+
+					return zi != nil && !zi.IsZero()
+				}, time.Second, 10*time.Millisecond)
+
+				zi := zm.Get(tc.zoneName)
+				msg = tea.MouseMotionMsg{X: zi.StartX, Y: zi.StartY}
+			}
+
+			m, cmd := m.Update(msg)
+			tc.assert(t, m, cmd)
 		})
 	}
 }
