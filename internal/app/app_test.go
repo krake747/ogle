@@ -12,6 +12,7 @@ import (
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/app"
+	"github.com/ma-tf/ogle/internal/domain"
 	"github.com/ma-tf/ogle/internal/msgs"
 	dockermocks "github.com/ma-tf/ogle/internal/services/docker/mocks"
 	parsermocks "github.com/ma-tf/ogle/internal/services/parser/mocks"
@@ -86,6 +87,46 @@ func TestUpdateFileAvailabilityChanged(t *testing.T) {
 	result, cmd := m.Update(msg)
 	require.NotNil(t, result)
 	require.NotNil(t, cmd)
+}
+
+func TestUpdateProjectLoaded(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	project := &domain.Project{
+		Name: "myapp",
+		File: "/path/to/compose.yaml",
+		Services: []domain.ServiceDef{
+			{Name: "web", Image: "nginx:latest"},
+		},
+	}
+
+	result, cmd := m.Update(msgs.ProjectLoaded{Project: project})
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+
+	msg := cmd()
+	batch, ok := msg.(tea.BatchMsg)
+	require.True(t, ok, "expected BatchMsg, got %T", msg)
+
+	found := false
+
+	for _, entry := range batch {
+		if tc, tcOk := entry().(msgs.TopbarContext); tcOk {
+			assert.Equal(t, "dashboard", tc.Phase)
+			assert.Equal(t, "compose.yaml", tc.File)
+
+			found = true
+
+			break
+		}
+	}
+
+	require.True(t, found, "expected TopbarContext in BatchMsg")
 }
 
 func TestView(t *testing.T) {
