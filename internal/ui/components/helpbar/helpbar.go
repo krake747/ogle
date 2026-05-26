@@ -81,6 +81,11 @@ func (m Model) Toggle() Model {
 	return m
 }
 
+// ShowAll reports whether the help is in full (ShowAll=true) or compact mode.
+func (m Model) ShowAll() bool {
+	return m.help.ShowAll
+}
+
 // View renders the help bar with the current keymap.
 func (m Model) View() tea.View {
 	if m.keymap == nil {
