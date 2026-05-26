@@ -15,3 +15,7 @@ func GetPhase(m *Model) int {
 func GetDashboard(m *Model) dashboard.Model {
 	return m.dashboard
 }
+
+func GetWidth(m *Model) int { return m.width }
+
+func GetHeight(m *Model) int { return m.height }
