@@ -2,7 +2,6 @@ package app_test
 
 import (
 	"context"
-	"errors"
 	"log/slog"
 	"testing"
 
@@ -102,41 +101,56 @@ func TestView(t *testing.T) {
 	assert.NotEmpty(t, v.Content)
 }
 
-func TestUpdateDaemonConnected(t *testing.T) {
+func TestUpdate(t *testing.T) {
 	t.Parallel()
 
-	m, cleanup, _, _ := newModel(t)
-	defer func() {
-		require.NoError(t, cleanup())
-	}()
+	type testCase struct {
+		name string
+		// act
+		msg tea.Msg
+		// assert
+		expectedMsg tea.Msg
+		expectCmd   bool
+	}
 
-	result, cmd := m.Update(msgs.DaemonConnected{})
-	require.NotNil(t, result)
-	require.NotNil(t, cmd)
-}
+	cases := []testCase{
+		{
+			name:      "DaemonConnected produces command",
+			msg:       msgs.DaemonConnected{},
+			expectCmd: true,
+		},
+		{
+			name:      "DaemonUnavailable produces command",
+			msg:       msgs.DaemonUnavailable{Err: assert.AnError},
+			expectCmd: true,
+		},
+		{
+			name:      "DisplayError produces command",
+			msg:       msgs.DisplayError{Err: "test error"},
+			expectCmd: true,
+		},
+	}
 
-func TestUpdateDaemonUnavailable(t *testing.T) {
-	t.Parallel()
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	m, cleanup, _, _ := newModel(t)
-	defer func() {
-		require.NoError(t, cleanup())
-	}()
+			m, cleanup, _, _ := newModel(t)
+			defer func() {
+				require.NoError(t, cleanup())
+			}()
 
-	result, cmd := m.Update(msgs.DaemonUnavailable{Err: errors.New("timeout")})
-	require.NotNil(t, result)
-	require.NotNil(t, cmd)
-}
+			_, cmd := m.Update(tc.msg)
 
-func TestUpdateDisplayError(t *testing.T) {
-	t.Parallel()
-
-	m, cleanup, _, _ := newModel(t)
-	defer func() {
-		require.NoError(t, cleanup())
-	}()
-
-	result, cmd := m.Update(msgs.DisplayError{Err: "test error"})
-	require.NotNil(t, result)
-	require.NotNil(t, cmd)
+			switch {
+			case tc.expectedMsg != nil:
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			case tc.expectCmd:
+				require.NotNil(t, cmd)
+			default:
+				require.Nil(t, cmd)
+			}
+		})
+	}
 }
