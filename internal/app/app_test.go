@@ -29,7 +29,7 @@ func newModel(t *testing.T) (
 
 	ctx := context.Background()
 	cfg := config.Defaults()
-	log := slog.Default()
+	logger := slog.Default()
 	th := theme.Default()
 
 	mockDocker := dockermocks.NewMockDocker(t)
@@ -38,7 +38,7 @@ func newModel(t *testing.T) (
 
 	mockWatcher.EXPECT().Close().Return(nil)
 
-	m, cleanup, err := app.New(ctx, cfg, "", "", log, th, mockDocker, mockParser, mockWatcher)
+	m, cleanup, err := app.New(ctx, cfg, "", "", logger, th, mockDocker, mockParser, mockWatcher)
 	require.NoError(t, err)
 
 	return m, cleanup, mockDocker, mockWatcher
@@ -111,7 +111,7 @@ func newModelWithConfig(t *testing.T, configPath string) (
 
 	ctx := context.Background()
 	cfg := config.Defaults()
-	log := slog.Default()
+	logger := slog.Default()
 	th := theme.Default()
 
 	mockDocker := dockermocks.NewMockDocker(t)
@@ -120,7 +120,7 @@ func newModelWithConfig(t *testing.T, configPath string) (
 	mockWatcher.EXPECT().Close().Return(nil)
 
 	m, cleanup, err := app.New(
-		ctx, cfg, configPath, "", log, th, mockDocker, mockParser, mockWatcher,
+		ctx, cfg, configPath, "", logger, th, mockDocker, mockParser, mockWatcher,
 	)
 	require.NoError(t, err)
 
@@ -131,12 +131,9 @@ func TestUpdateSettingsApplied(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {
-		name string
-		// arrange
-		themeName    string
-		logBufferCap int
-
-		// assert
+		name              string
+		themeName         string
+		logBufferCap      int
 		expectThemeLoaded bool
 	}
 
