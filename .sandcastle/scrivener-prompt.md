@@ -53,7 +53,6 @@ If the report has findings:
 
 3. **If no open issue exists**: create a new issue with the report as the body:
 
-   `gh issue create --title "Documentation audit: discrepancies found" --label needs-triage,documentation,Sandcastle,
-   scrivener-discovered --body "$REPORT"`
+   `gh issue create --title "Documentation audit: discrepancies found" --label needs-triage,documentation,Sandcastle,scrivener-discovered --body "$REPORT"`
 
 Once complete, output `<promise>COMPLETE</promise>`.

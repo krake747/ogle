@@ -190,6 +190,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
                 promptFile: "./.sandcastle/scrivener-prompt.md",
                 promptArgs: {
                   BRANCH: issue.branch,
+                  SOURCE_BRANCH: "master",
                 },
               });
             } catch (err) {
@@ -207,6 +208,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
             promptFile: "./.sandcastle/review-prompt.md",
             promptArgs: {
               BRANCH: issue.branch,
+              SOURCE_BRANCH: "master",
             },
           });
 

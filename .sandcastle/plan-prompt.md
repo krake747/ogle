@@ -24,12 +24,14 @@ An issue is **unblocked** if it has zero blocking dependencies on other open iss
 
 For each unblocked issue, assign a branch name using the format `sandcastle/issue-{id}-{slug}`.
 
+Preserve **all labels** from the issue data — include the full label list in the output, not just `Sandcastle`.
+
 # OUTPUT
 
 Output your plan as a JSON object wrapped in `<plan>` tags:
 
 <plan>
-{"issues": [{"id": "42", "title": "Fix auth bug", "branch": "sandcastle/issue-42-fix-auth-bug", "labels": ["Sandcastle"]}]}
+{"issues": [{"id": "42", "title": "Fix auth bug", "branch": "sandcastle/issue-42-fix-auth-bug", "labels": ["Sandcastle", "scrivener-discovered"]}]}
 </plan>
 
 Include only unblocked issues. If every issue is blocked, include the single highest-priority candidate (the one with the fewest or weakest dependencies).
