@@ -24,7 +24,14 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
-const testComposeFile = "/tmp/compose.yaml"
+const (
+	testComposeFile = "/tmp/compose.yaml"
+	testServiceName = "web"
+	testStatusMsg   = "hello"
+	testProjectName = "myapp"
+	testComposePath = "/path/to/compose.yaml"
+	testImageName   = "nginx:latest"
+)
 
 func newModel(t *testing.T) (
 	app.Model, func() error, *dockermocks.MockDocker, *watchermocks.MockWatcher,
@@ -149,10 +156,10 @@ func TestUpdateFileAvailabilityChangedDuringDashboard(t *testing.T) {
 	}()
 
 	project := &domain.Project{
-		Name: "myapp",
-		File: "/path/to/compose.yaml",
+		Name: testProjectName,
+		File: testComposePath,
 		Services: []domain.ServiceDef{
-			{Name: "web", Image: "nginx:latest"},
+			{Name: testServiceName, Image: testImageName},
 		},
 	}
 
@@ -213,10 +220,10 @@ func TestUpdateProjectLoaded(t *testing.T) {
 	assert.Equal(t, app.PhaseStartup, app.GetPhase(&m), "should start in startup phase")
 
 	project := &domain.Project{
-		Name: "myapp",
-		File: "/path/to/compose.yaml",
+		Name: testProjectName,
+		File: testComposePath,
 		Services: []domain.ServiceDef{
-			{Name: "web", Image: "nginx:latest"},
+			{Name: testServiceName, Image: testImageName},
 		},
 	}
 
@@ -378,6 +385,125 @@ func TestUpdateSettingsAppliedConfigSaveFailure(t *testing.T) {
 	require.True(t, os.IsNotExist(err))
 }
 
+func TestUpdateWindowSize(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	result, cmd := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	require.NotNil(t, result)
+	require.Nil(t, cmd)
+
+	m2, ok := result.(app.Model)
+	require.True(t, ok)
+	assert.Equal(t, 120, app.GetWidth(&m2))
+	assert.Equal(t, 40, app.GetHeight(&m2))
+}
+
+func TestViewPhaseContent(t *testing.T) {
+	t.Parallel()
+
+	project := &domain.Project{
+		Name: testProjectName,
+		File: testComposePath,
+		Services: []domain.ServiceDef{
+			{Name: testServiceName, Image: testImageName},
+		},
+	}
+
+	type testCase struct {
+		name string
+		// arrange
+		setup func(m tea.Model) tea.Model
+		// assert
+		expectedContains string
+	}
+
+	for _, tc := range []testCase{
+		{
+			name: "startup phase shows startup body",
+			setup: func(m tea.Model) tea.Model {
+				return m
+			},
+			expectedContains: "scanning for compose files",
+		},
+		{
+			name: "dashboard phase shows dashboard body",
+			setup: func(m tea.Model) tea.Model {
+				r, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+				m = r
+
+				r, _ = m.Update(msgs.ProjectLoaded{Project: project})
+
+				return r
+			},
+			expectedContains: testServiceName,
+		},
+		{
+			name: "watching phase shows watching body",
+			setup: func(m tea.Model) tea.Model {
+				r, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+				m = r
+
+				r, _ = m.Update(msgs.FileRemoved{File: "test.yaml"})
+
+				return r
+			},
+			expectedContains: "compose file unavailable",
+		},
+		{
+			name: "about overlay composes on top",
+			setup: func(m tea.Model) tea.Model {
+				r, _ := m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+				m = r
+
+				r, _ = m.Update(msgs.AboutVisibilityChanged{Visible: true})
+
+				return r
+			},
+			expectedContains: "github.com/ma-tf/ogle",
+		},
+		{
+			name: "display error routes to statusbar",
+			setup: func(m tea.Model) tea.Model {
+				r, _ := m.Update(msgs.DisplayError{Err: "oops"})
+
+				return r
+			},
+			expectedContains: "oops",
+		},
+		{
+			name: "display status routes to statusbar",
+			setup: func(m tea.Model) tea.Model {
+				r, _ := m.Update(msgs.DisplayStatus{Msg: testStatusMsg})
+
+				return r
+			},
+			expectedContains: testStatusMsg,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, cleanup, _, _ := newModel(t)
+			defer func() {
+				require.NoError(t, cleanup())
+			}()
+
+			r := tc.setup(m)
+			m2, ok := r.(app.Model)
+			require.True(t, ok, "expected app.Model, got %T", r)
+
+			v := m2.View()
+			require.NotNil(t, v)
+			assert.Contains(t, v.Content, tc.expectedContains)
+		})
+	}
+}
+
 func TestUpdate(t *testing.T) {
 	t.Parallel()
 
@@ -405,6 +531,16 @@ func TestUpdate(t *testing.T) {
 			name:      "DisplayError produces command",
 			msg:       msgs.DisplayError{Err: "test error"},
 			expectCmd: true,
+		},
+		{
+			name:      "DisplayStatus produces command",
+			msg:       msgs.DisplayStatus{Msg: testStatusMsg},
+			expectCmd: true,
+		},
+		{
+			name:      "ClearStatusMsg produces no command",
+			msg:       msgs.ClearStatusMsg{},
+			expectCmd: false,
 		},
 	}
 

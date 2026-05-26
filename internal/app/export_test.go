@@ -35,3 +35,7 @@ func SetShowingAbout(m *Model, v bool) {
 func GetHelpbar(m *Model) helpbar.Model {
 	return m.helpbar
 }
+
+func GetWidth(m *Model) int { return m.width }
+
+func GetHeight(m *Model) int { return m.height }
