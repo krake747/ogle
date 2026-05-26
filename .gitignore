@@ -3,4 +3,5 @@ bin/
 docs/deprecated/
 testdata/
 coverage.html
+dist/
 coverage.out
