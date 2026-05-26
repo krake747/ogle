@@ -322,3 +322,167 @@ func TestUpdate(t *testing.T) {
 		})
 	}
 }
+
+func showingAbout() func(m app.Model) app.Model {
+	return func(m app.Model) app.Model {
+		app.SetShowingAbout(&m, true)
+
+		return m
+	}
+}
+
+func TestUpdateKeyPress(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name         string
+		setup        func(m app.Model) app.Model
+		msg          tea.Msg
+		expectedMsg  tea.Msg
+		expectCmd    bool
+		checkShowAll bool
+	}
+
+	cases := []testCase{
+		{
+			name:      "ctrl+c quits",
+			msg:       tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl},
+			expectCmd: true,
+		},
+		{
+			name:      "ctrl+p produces profile dump command",
+			msg:       tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl},
+			expectCmd: true,
+		},
+		{
+			name:         "question mark toggles help bar",
+			msg:          tea.KeyPressMsg{Text: "?"},
+			checkShowAll: true,
+		},
+		{
+			name:        "F1 opens about when not shown",
+			msg:         tea.KeyPressMsg{Code: tea.KeyF1},
+			expectedMsg: msgs.AboutVisibilityChanged{Visible: true},
+		},
+		{
+			name:        "F1 closes about when shown",
+			setup:       showingAbout(),
+			msg:         tea.KeyPressMsg{Code: tea.KeyF1},
+			expectedMsg: msgs.AboutVisibilityChanged{Visible: false},
+		},
+		{
+			name:        "q closes about when shown",
+			setup:       showingAbout(),
+			msg:         tea.KeyPressMsg{Text: "q"},
+			expectedMsg: msgs.AboutVisibilityChanged{Visible: false},
+		},
+		{
+			name:        "esc closes about when shown",
+			setup:       showingAbout(),
+			msg:         tea.KeyPressMsg{Code: tea.KeyEsc},
+			expectedMsg: msgs.AboutVisibilityChanged{Visible: false},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, cleanup, _, _ := newModel(t)
+			defer func() { require.NoError(t, cleanup()) }()
+
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
+
+			if tc.checkShowAll {
+				before := app.GetHelpbar(&m).ShowAll()
+				m, cmd := m.Update(tc.msg)
+				require.NotNil(t, m)
+				require.Nil(t, cmd)
+
+				appModel, ok := m.(app.Model)
+				require.True(t, ok)
+
+				after := app.GetHelpbar(&appModel).ShowAll()
+				assert.NotEqual(t, before, after)
+
+				return
+			}
+
+			result, cmd := m.Update(tc.msg)
+			require.NotNil(t, result)
+
+			switch {
+			case tc.expectedMsg != nil:
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			case tc.expectCmd:
+				require.NotNil(t, cmd)
+			default:
+				require.Nil(t, cmd)
+			}
+		})
+	}
+}
+
+func TestUpdateMouseClick(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name             string
+		setup            func(m app.Model) app.Model
+		msg              tea.Msg
+		expectedMsg      tea.Msg
+		expectAboutOpen  bool
+		wantShowingAbout bool
+	}
+
+	cases := []testCase{
+		{
+			name:             "brand zone click opens about when not shown",
+			msg:              tea.MouseClickMsg{X: 0, Y: 0},
+			expectedMsg:      msgs.AboutVisibilityChanged{Visible: true},
+			expectAboutOpen:  true,
+			wantShowingAbout: true,
+		},
+		{
+			name:             "click anywhere when about shown is consumed",
+			setup:            showingAbout(),
+			msg:              tea.MouseClickMsg{X: 0, Y: 0},
+			wantShowingAbout: true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			m, cleanup, _, _ := newModel(t)
+			defer func() {
+				require.NoError(t, cleanup())
+			}()
+
+			if tc.setup != nil {
+				m = tc.setup(m)
+			}
+			// Call View to register brand zone in the zone manager.
+			_ = m.View()
+			result, cmd := m.Update(tc.msg)
+			require.NotNil(t, result)
+			appModel, ok := result.(app.Model)
+			require.True(t, ok)
+
+			if tc.expectedMsg != nil {
+				require.NotNil(t, cmd)
+				require.Equal(t, tc.expectedMsg, cmd())
+			}
+
+			if tc.expectAboutOpen {
+				require.True(t, app.GetShowingAbout(&appModel))
+			}
+
+			if tc.wantShowingAbout {
+				assert.True(t, app.GetShowingAbout(&appModel))
+			}
+		})
+	}
+}
