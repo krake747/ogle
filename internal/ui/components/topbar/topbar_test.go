@@ -58,6 +58,7 @@ func TestUpdate(t *testing.T) {
 		// assert
 		expectedMsg tea.Msg
 		expectCmd   bool
+		assert      func(t *testing.T, m topbar.Model, cmd tea.Cmd)
 	}
 
 	cases := []testCase{
@@ -170,6 +171,27 @@ func TestUpdate(t *testing.T) {
 			// assert
 			expectedMsg: msgs.DaemonConnected{},
 		},
+		{
+			name: "theme.Changed replaces theme pointer",
+			msg:  theme.Changed{Theme: theme.DefaultLight()},
+			assert: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.Nil(t, cmd)
+
+				th := topbar.GetTheme(&m)
+				require.NotNil(t, th)
+				assert.Equal(t, theme.DefaultLight().TopbarBackground, th.TopbarBackground)
+			},
+		},
+		{
+			name: "WindowSizeMsg stores width",
+			msg:  tea.WindowSizeMsg{Width: 120},
+			assert: func(t *testing.T, m topbar.Model, cmd tea.Cmd) {
+				t.Helper()
+				require.Nil(t, cmd)
+				assert.Equal(t, 120, topbar.GetWidth(&m))
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -181,7 +203,13 @@ func TestUpdate(t *testing.T) {
 				m = tc.setup(m)
 			}
 
-			_, cmd := m.Update(tc.msg)
+			m, cmd := m.Update(tc.msg)
+
+			if tc.assert != nil {
+				tc.assert(t, m, cmd)
+
+				return
+			}
 
 			switch {
 			case tc.expectedMsg != nil:
