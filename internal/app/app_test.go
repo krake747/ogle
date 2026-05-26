@@ -24,6 +24,8 @@ import (
 	"github.com/ma-tf/ogle/internal/ui/theme"
 )
 
+const testComposeFile = "/tmp/compose.yaml"
+
 func newModel(t *testing.T) (
 	app.Model, func() error, *dockermocks.MockDocker, *watchermocks.MockWatcher,
 ) {
@@ -87,10 +89,117 @@ func TestUpdateFileAvailabilityChanged(t *testing.T) {
 
 	watcherMock.EXPECT().Next().Return(func() tea.Msg { return nil })
 
-	msg := msgs.FileAvailabilityChanged{Files: []string{"/tmp/compose.yaml"}}
+	msg := msgs.FileAvailabilityChanged{Files: []string{testComposeFile}}
 	result, cmd := m.Update(msg)
 	require.NotNil(t, result)
 	require.NotNil(t, cmd)
+}
+
+func TestUpdateFileRemoved(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, _ := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	msg := msgs.FileRemoved{File: "compose.yaml"}
+	result, cmd := m.Update(msg)
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+
+	appModel, ok := result.(app.Model)
+	require.True(t, ok)
+
+	assert.Equal(t, app.PhaseWatching, app.GetPhase(&appModel))
+
+	ww := app.GetWatching(&appModel)
+	assert.Equal(t, "compose.yaml", ww.File)
+
+	resultMsg := cmd()
+	batch, ok := resultMsg.(tea.BatchMsg)
+	require.True(t, ok, "expected BatchMsg, got %T", resultMsg)
+
+	foundTopbar := false
+	foundBindings := false
+
+	for _, entry := range batch {
+		if tc, tcOk := entry().(msgs.TopbarContext); tcOk {
+			assert.Equal(t, "watching", tc.Phase)
+			assert.Empty(t, tc.File)
+
+			foundTopbar = true
+		} else if bm, bmOk := entry().(msgs.BindingsMsg); bmOk {
+			assert.NotNil(t, bm.Keymap)
+
+			foundBindings = true
+		}
+	}
+
+	assert.True(t, foundTopbar, "expected TopbarContext in BatchMsg")
+	assert.True(t, foundBindings, "expected BindingsMsg in BatchMsg")
+}
+
+func TestUpdateFileAvailabilityChangedDuringDashboard(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, watcherMock := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	project := &domain.Project{
+		Name: "myapp",
+		File: "/path/to/compose.yaml",
+		Services: []domain.ServiceDef{
+			{Name: "web", Image: "nginx:latest"},
+		},
+	}
+
+	resultPL, _ := m.Update(msgs.ProjectLoaded{Project: project})
+
+	var plOk bool
+
+	m, plOk = resultPL.(app.Model)
+	require.True(t, plOk)
+
+	watcherMock.EXPECT().Next().Return(func() tea.Msg { return nil })
+
+	msg := msgs.FileAvailabilityChanged{Files: []string{testComposeFile}}
+	result, cmd := m.Update(msg)
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+
+	appModel, ok := result.(app.Model)
+	require.True(t, ok)
+	assert.Equal(t, app.PhaseDashboard, app.GetPhase(&appModel))
+}
+
+func TestUpdateFileAvailabilityChangedDuringWatching(t *testing.T) {
+	t.Parallel()
+
+	m, cleanup, _, watcherMock := newModel(t)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	resultFR, _ := m.Update(msgs.FileRemoved{File: "compose.yaml"})
+
+	var frOk bool
+
+	m, frOk = resultFR.(app.Model)
+	require.True(t, frOk)
+
+	watcherMock.EXPECT().Next().Return(func() tea.Msg { return nil })
+
+	msg := msgs.FileAvailabilityChanged{Files: []string{testComposeFile}}
+	result, cmd := m.Update(msg)
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+
+	appModel, ok := result.(app.Model)
+	require.True(t, ok)
+	assert.Equal(t, app.PhaseWatching, app.GetPhase(&appModel))
 }
 
 func TestUpdateProjectLoaded(t *testing.T) {
