@@ -2,6 +2,9 @@
 
 [![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/ma-tf/ogle)](https://pkg.go.dev/github.com/ma-tf/ogle)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ma-tf/ogle)](https://goreportcard.com/report/github.com/ma-tf/ogle)
+![Codecov](https://img.shields.io/codecov/c/github/ma-tf/ogle)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ma-tf/ogle/ci.yml)](https://github.com/ma-tf/ogle/actions)
+[![GitHub Releases](https://img.shields.io/github/v/release/ma-tf/ogle)](https://github.com/ma-tf/ogle/releases/latest)
 [![GitHub License](https://img.shields.io/github/license/ma-tf/ogle)](https://github.com/ma-tf/ogle/blob/master/COPYING)
 
 ```txt

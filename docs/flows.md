@@ -251,6 +251,7 @@ Unavailable
 ```
 
 Key behaviours:
+
 - Grace period: 10 seconds from `Init()`; if no `DaemonConnected` arrives in that window, transitions to Unavailable
 - Retry: every 1 second after entering Unavailable; retry interval is 10 seconds (configurable via `connection.RetryInterval`)
 - Health polling: every 2 seconds when Connected; fires `DaemonPoll` which triggers `docker.Connect()` as a health check

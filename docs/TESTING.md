@@ -81,7 +81,8 @@ if tc.input != "" {
 
 ### Hand-written fakes
 
-When mockery-generated mocks cannot produce the required behaviour (e.g. programmable channels, error injection for event loops), a hand-written fake is acceptable.
+When mockery-generated mocks cannot produce the required behaviour (e.g. programmable channels, error injection for
+ event loops), a hand-written fake is acceptable.
 
 - Define the fake as a package-level struct implementing the target interface.
 - Expose channels as public fields for direct injection in test cases.
