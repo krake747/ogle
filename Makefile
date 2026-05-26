@@ -1,7 +1,7 @@
 .PHONY: all
 all: tidy generate build lint test docs man notice
 
-PKGS := $(shell go list ./internal/...)
+PKGS := $(shell go list ./internal/... | grep -v /mocks)
 
 .PHONY: test
 test:

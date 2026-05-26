@@ -1,6 +1,6 @@
 {
 	"dependencies": {
-		"@ai-hero/sandcastle": "^0.5.11"
+		"@ai-hero/sandcastle": "^0.5.12"
 	},
 	"scripts": {
 		"sandcastle": "npx tsx .sandcastle/main.mts"

@@ -116,7 +116,7 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
 
   // The plan JSON contains an array of issues, each with id, title, branch.
   const { issues } = JSON.parse(planMatch[1]!) as {
-    issues: { id: string; title: string; branch: string }[];
+    issues: { id: string; title: string; branch: string; labels: string[] }[];
   };
 
   if (issues.length === 0) {
@@ -157,7 +157,11 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
           name: "implementer",
           maxIterations: 100,
           idleTimeoutSeconds: 600,
-          agent: sandcastle.opencode(IMPLEMENTER_MODEL),
+          agent: sandcastle.opencode(IMPLEMENTER_MODEL, {
+            "env": {
+              "OPENCODE_PERMISSION": "allow"
+            }
+          }),
           promptFile: "./.sandcastle/implement-prompt.md",
           promptArgs: {
             TASK_ID: issue.id,
@@ -166,25 +170,33 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
           },
         });
 
-        // Only review if the implementer produced commits
+        // Only run review stages if the implementer produced commits
         if (implement.commits.length > 0) {
-          // Audit documentation via the scrivener skill. Non-fatal — if the
-          // scrivener fails (gh auth, timeout, etc.) the review still runs.
-          try {
-            await sandbox.run({
-              name: "scrivener",
-              maxIterations: 1,
-              idleTimeoutSeconds: 600,
-              agent: sandcastle.opencode(REVIEWER_MODEL),
-              promptFile: "./.sandcastle/scrivener-prompt.md",
-              promptArgs: {
-                BRANCH: issue.branch,
-              },
-            });
-          } catch (err) {
-            console.error(
-              `  Scrivener audit failed for ${issue.branch}: ${err}`,
-            );
+          // Audit documentation via the scrivener skill. Skip if this issue
+          // was itself created by the scrivener (labelled scrivener-discovered)
+          // — re-auditing a documentation-fix issue would be circular.
+          const SCRIVENER_DISCOVERED = "scrivener-discovered";
+          const skipScrivener = issue.labels?.includes(SCRIVENER_DISCOVERED);
+
+          if (!skipScrivener) {
+            // Non-fatal — if the scrivener fails (gh auth, timeout, etc.)
+            // the review still runs.
+            try {
+              await sandbox.run({
+                name: "scrivener",
+                maxIterations: 1,
+                idleTimeoutSeconds: 600,
+                agent: sandcastle.opencode(REVIEWER_MODEL),
+                promptFile: "./.sandcastle/scrivener-prompt.md",
+                promptArgs: {
+                  BRANCH: issue.branch,
+                },
+              });
+            } catch (err) {
+              console.error(
+                `  Scrivener audit failed for ${issue.branch}: ${err}`,
+              );
+            }
           }
 
           const review = await sandbox.run({
@@ -204,6 +216,26 @@ for (let iteration = 1; iteration <= MAX_ITERATIONS; iteration++) {
             ...review,
             commits: [...implement.commits, ...review.commits],
           };
+        }
+
+        // No commits — changes are already merged on the base branch.
+        // Close the issue so the planner doesn't pick it up next iteration.
+        try {
+          await sandbox.run({
+            name: "closer",
+            maxIterations: 1,
+            idleTimeoutSeconds: 120,
+            agent: sandcastle.opencode(IMPLEMENTER_MODEL),
+            prompt: [
+              `Run: gh issue close ${issue.id} --comment "Already completed \\u2014 no changes needed."`,
+              "",
+              "Output <promise>COMPLETE</promise> when done.",
+            ].join("\n"),
+          });
+        } catch (err) {
+          console.error(
+            `  Failed to close issue ${issue.id}: ${err}`,
+          );
         }
 
         return implement;
