@@ -3,12 +3,15 @@ package app_test
 import (
 	"context"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/ma-tf/ogle/config"
 	"github.com/ma-tf/ogle/internal/app"
@@ -99,4 +102,119 @@ func TestView(t *testing.T) {
 	v := m.View()
 	require.NotNil(t, v)
 	assert.NotEmpty(t, v.Content)
+}
+
+func newModelWithConfig(t *testing.T, configPath string) (
+	app.Model, func() error, *theme.Theme,
+) {
+	t.Helper()
+
+	ctx := context.Background()
+	cfg := config.Defaults()
+	log := slog.Default()
+	th := theme.Default()
+
+	mockDocker := dockermocks.NewMockDocker(t)
+	mockParser := parsermocks.NewMockParser(t)
+	mockWatcher := watchermocks.NewMockWatcher(t)
+	mockWatcher.EXPECT().Close().Return(nil)
+
+	m, cleanup, err := app.New(
+		ctx, cfg, configPath, "", log, th, mockDocker, mockParser, mockWatcher,
+	)
+	require.NoError(t, err)
+
+	return m, cleanup, th
+}
+
+func TestUpdateSettingsApplied(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name string
+		// arrange
+		themeName    string
+		logBufferCap int
+
+		// assert
+		expectThemeLoaded bool
+	}
+
+	for _, tc := range []testCase{
+		{
+			name:              "known theme loads and persists",
+			themeName:         "solarized_dark",
+			logBufferCap:      2000,
+			expectThemeLoaded: true,
+		},
+		{
+			name:              "unknown theme keeps existing theme",
+			themeName:         "not-a-theme",
+			logBufferCap:      2000,
+			expectThemeLoaded: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			configPath := filepath.Join(dir, "config.yaml")
+
+			require.NoError(t, config.Save(configPath, config.Defaults()))
+
+			m, cleanup, originalTheme := newModelWithConfig(t, configPath)
+			defer func() {
+				require.NoError(t, cleanup())
+			}()
+
+			msg := msgs.SettingsApplied{Theme: tc.themeName, LogBufferCap: tc.logBufferCap}
+			result, cmd := m.Update(msg)
+			require.NotNil(t, result)
+			require.NotNil(t, cmd)
+
+			resultMsg := cmd()
+			changed, ok := resultMsg.(theme.Changed)
+			require.True(t, ok)
+
+			if tc.expectThemeLoaded {
+				assert.NotSame(t, originalTheme, changed.Theme)
+			} else {
+				assert.Same(t, originalTheme, changed.Theme)
+			}
+
+			data, err := os.ReadFile(configPath)
+			require.NoError(t, err, "config should be persisted")
+
+			var savedCfg config.Config
+			require.NoError(t, yaml.Unmarshal(data, &savedCfg))
+			assert.Equal(t, tc.themeName, savedCfg.Theme)
+			assert.Equal(t, tc.logBufferCap, savedCfg.LogBufferCap)
+		})
+	}
+}
+
+func TestUpdateSettingsAppliedConfigSaveFailure(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "nonexistent", "config.yaml")
+
+	m, cleanup, originalTheme := newModelWithConfig(t, configPath)
+	defer func() {
+		require.NoError(t, cleanup())
+	}()
+
+	msg := msgs.SettingsApplied{Theme: "solarized_dark", LogBufferCap: 2000}
+	result, cmd := m.Update(msg)
+	require.NotNil(t, result)
+	require.NotNil(t, cmd)
+
+	resultMsg := cmd()
+	changed, ok := resultMsg.(theme.Changed)
+	require.True(t, ok)
+
+	assert.NotSame(t, originalTheme, changed.Theme)
+
+	_, err := os.Stat(configPath)
+	require.True(t, os.IsNotExist(err))
 }
