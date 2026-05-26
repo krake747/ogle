@@ -139,7 +139,7 @@ watching/fileselect components before a `FileSelected` msg reaches this flow.
 
 ## Watching View (`internal/ui/components/watching`)
 
-Rendered by the app's `appWatching` phase. Also used when the dashboard transitions to the Disconnected state (file
+Rendered by the app's `phaseWatching` phase. Also used when the dashboard transitions to the Disconnected state (file
 disappeared at runtime).
 
 ```text
@@ -186,7 +186,7 @@ The dashboard is a flat model (no sub-states). It:
 - Dispatches `StatePollTick` to the service panel and emits a `docker.Ps()` Cmd
 - Routes `ServiceStop/Start/Restart/Rebuild/ActionCompleted` to `handleServiceAction`
 - Handles `FileAvailabilityChanged` — if the project file is still present, re-parses and updates; if absent, sends a
-msg that triggers `app` to transition to `appWatching`
+msg that triggers `app` to transition to `phaseWatching`
 - Forwards all messages to its sub-models (accordion, carousel, panel, settings)
 - Toggles settings overlay via `SettingsVisibilityChanged`
 
@@ -199,7 +199,7 @@ msg that triggers `app` to transition to `appWatching`
 | `FileAvailabilityChanged{Files}` | `watcher`                       | `app` (dispatches to startup/dashboard)     |
 | `FileRemoved{File}`              | `dashboard`                     | `app` (triggers phaseWatching)              |
 | `FileSelected{Path}`             | fileselect                      | startup                                     |
-| `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers appDashboard)               |
+| `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers phaseDashboard)               |
 | `DaemonConnected{}`              | `svcdocker.Connect`             | `topbar`, `servicepanel`, `servicehost`     |
 | `DaemonUnavailable{Err}`         | `svcdocker.Connect`             | `topbar` (starts retry countdown)           |
 | `DaemonTick{}`                   | `topbar.daemonTickCmd()` (1s `tea.Tick`)  | `topbar`                                    |
@@ -296,10 +296,10 @@ level before any phase sees the key press. The help bar is implemented in
 ## Runtime: file disappears (full trace)
 
 ```text
-dashboard (appDashboard)
+dashboard (phaseDashboard)
 └── FileAvailabilityChanged{Files} where project file ∉ Files
-    └── app → appWatching
+    └── app → phaseWatching
         └── watching view (disconnected mode)
             └── watches for the SAME filename to reappear
-                └── file reappears + valid → Parsing → appDashboard
+                └── file reappears + valid → Parsing → phaseDashboard
 ```
