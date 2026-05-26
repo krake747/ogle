@@ -82,9 +82,9 @@ See `internal/services/watcher/service_test.go` for test coverage of each case.
 The app manages three phases plus a cross-phase About overlay:
 
 ```text
-appStartup    — startup flow is the active sub-model
-appDashboard  — dashboard flow is active (post-ProjectLoaded)
-appWatching   — watching flow is active (disconnected, waiting for file to reappear)
+phaseStartup    — startup flow is the active sub-model
+phaseDashboard  — dashboard flow is active (post-ProjectLoaded)
+phaseWatching   — watching flow is active (disconnected, waiting for file to reappear)
 ```
 
 The About overlay is a cross-phase UI layer that can be opened from any phase via F1 or
@@ -109,9 +109,13 @@ path directly.
 app.Update(msg)
 ├── msgs.ProjectLoaded           → transition startup → dashboard
 ├── msgs.FileAvailabilityChanged → re-subscribe watcher, dispatch to startup or dashboard
+├── msgs.FileRemoved             → transition to phaseWatching, emit TopbarContext
+├── msgs.DisplayError            → forward to statusbar (auto-clear after 3s)
+├── msgs.DisplayStatus           → forward to statusbar (auto-clear after 3s)
+├── msgs.ClearStatusMsg          → forward to statusbar
 ├── tea.WindowSizeMsg            → forward to active sub-model
 ├── theme.Changed                → update pointer, forward to active sub-model
-├── msgs.SettingsApplied         → update config, forward to dashboard
+├── msgs.SettingsApplied         → load theme, update config, save config, emit theme.Changed (not forwarded)
 ├── tea.KeyPressMsg              → handleKeyPress (help toggle ?, about overlay F1/esc/q, quit, profile)
 ├── tea.MouseClickMsg            → handleMouseClick (brand zone → about overlay)
 ├── msgs.AboutVisibilityChanged  → track showingAbout flag
@@ -135,7 +139,7 @@ watching/fileselect components before a `FileSelected` msg reaches this flow.
 
 ## Watching View (`internal/ui/components/watching`)
 
-Rendered by the app's `appWatching` phase. Also used when the dashboard transitions to the Disconnected state (file
+Rendered by the app's `phaseWatching` phase. Also used when the dashboard transitions to the Disconnected state (file
 disappeared at runtime).
 
 ```text
@@ -182,7 +186,7 @@ The dashboard is a flat model (no sub-states). It:
 - Dispatches `StatePollTick` to the service panel and emits a `docker.Ps()` Cmd
 - Routes `ServiceStop/Start/Restart/Rebuild/ActionCompleted` to `handleServiceAction`
 - Handles `FileAvailabilityChanged` — if the project file is still present, re-parses and updates; if absent, sends a
-msg that triggers `app` to transition to `appWatching`
+msg that triggers `app` to transition to `phaseWatching`
 - Forwards all messages to its sub-models (accordion, carousel, panel, settings)
 - Toggles settings overlay via `SettingsVisibilityChanged`
 
@@ -195,7 +199,7 @@ msg that triggers `app` to transition to `appWatching`
 | `FileAvailabilityChanged{Files}` | `watcher`                       | `app` (dispatches to startup/dashboard)     |
 | `FileRemoved{File}`              | `dashboard`                     | `app` (triggers phaseWatching)              |
 | `FileSelected{Path}`             | fileselect                      | startup                                     |
-| `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers appDashboard)               |
+| `ProjectLoaded{Project}`         | startup / watching              | `app` (triggers phaseDashboard)               |
 | `DaemonConnected{}`              | `svcdocker.Connect`             | `topbar`, `servicepanel`, `servicehost`     |
 | `DaemonUnavailable{Err}`         | `svcdocker.Connect`             | `topbar` (starts retry countdown)           |
 | `DaemonTick{}`                   | `topbar.daemonTickCmd()` (1s `tea.Tick`)  | `topbar`                                    |
@@ -214,7 +218,7 @@ msg that triggers `app` to transition to `appWatching`
 | `LogStreamContainerNotFound`     | `LogStreamer`                   | `servicehost` (closes streamer, schedules retry via `tea.Tick(2s, LogStreamRetryTick{})`) |
 | `LogStreamRetryTick{}`           | `servicehost` (timer)           | `servicehost` (restarts streamer after error) |
 | `ServiceSelected{ServiceName}`   | `carousel` (hover/focus)        | `dashboard`, `accordion`, `servicehost`     |
-| `SettingsApplied{Theme,LBCap}`   | `settings`                      | `dashboard`                                 |
+| `SettingsApplied{Theme,LBCap}`   | `settings`                      | `app` (loads theme, saves config, emits `theme.Changed`)                |
 | `SettingsVisibilityChanged`      | `settings`                      | `dashboard`                                 |
 | `AboutVisibilityChanged{Visible}`| `app`                           | `app` (tracks showingAbout flag)            |
 | `ToggleLogWrap`                  | `dashboard` (keybinding)        | `logpane`                                   |
@@ -293,10 +297,10 @@ level before any phase sees the key press. The help bar is implemented in
 ## Runtime: file disappears (full trace)
 
 ```text
-dashboard (appDashboard)
+dashboard (phaseDashboard)
 └── FileAvailabilityChanged{Files} where project file ∉ Files
-    └── app → appWatching
+    └── app → phaseWatching
         └── watching view (disconnected mode)
             └── watches for the SAME filename to reappear
-                └── file reappears + valid → Parsing → appDashboard
+                └── file reappears + valid → Parsing → phaseDashboard
 ```
